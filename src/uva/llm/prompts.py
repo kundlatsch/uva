@@ -98,6 +98,11 @@ Regras:
 - Para "qual a chance de...", "é X ou Y?", "isso é spam/urgente?", escolher entre opções fixas
   ou dar nota numa escala, use a ação decide (números calibrados) em vez de chutar; se o
   usuário mandou foto e pergunta sobre ela, use "use_last_photo": true.
+- Pedido de pasta nova no second brain: use folder_create e escolha você o melhor lugar pelo
+  PARA (projetos = meta com prazo; areas = responsabilidade contínua; recursos = assunto de
+  interesse/referência; arquivo = inativo), a não ser que o usuário diga onde. Ela já cria
+  uma nota vazia. Se ele der conteúdo, crie também a nota com note_create usando a mesma
+  folder e "subfolder" igual ao nome da pasta. Diga onde criou e por quê, em uma frase.
 - Quando a mensagem vier com imagem, você a vê: descreva, leia o texto, traduza, responda
   sobre ela. Para guardar a imagem no second brain, use image_save com "title" (se o usuário
   disse um título/nome, use exatamente esse) e "description".

@@ -175,6 +175,7 @@ A UVA mantém um cofre de notas compatível com o **Obsidian**, na pasta `brain/
 - `/nota <texto>` salva no inbox; `/buscar <termo>` procura em títulos e conteúdo (sem diferenciar acentos).
 - Toda pesquisa vira uma nota em `03-recursos/` ("Pesquisa - ...") com as fontes, e cada nota criada é registrada no diário do dia.
 - A LLM também pode usar as ações `note_create`, `note_append`, `note_search` e `note_read`.
+- Pasta nova: peça "cria uma pasta de X" e a UVA escolhe o lugar pelo PARA (projetos, áreas, recursos, arquivo), a menos que você diga onde, e cria a pasta com uma nota vazia para o Obsidian mostrar (ação `folder_create`). Se você der conteúdo, a nota vai dentro dela (`note_create` com `subfolder`). Até 3 níveis; nomes ocultos (`.algo`) e `..` são recusados; pastas existentes não são mexidas.
 - A UVA **nunca apaga nem sobrescreve** notas: só cria e acrescenta.
 
 Para abrir no Obsidian: *Open folder as vault* → escolha a pasta `brain`.

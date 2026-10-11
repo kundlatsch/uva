@@ -22,8 +22,22 @@ class NoteCreateParams(BaseModel):
         default="inbox",
         description="inbox (entrada), projetos, areas, recursos (referência/pesquisas) ou arquivo",
     )
+    subfolder: str = Field(
+        default="", description="Subpasta dentro da pasta escolhida (ex.: Saúde ou Saúde/Exercícios)"
+    )
     tags: list[str] = Field(default_factory=list)
     links: list[str] = Field(default_factory=list, description="Títulos de notas relacionadas")
+
+
+class FolderCreateParams(BaseModel):
+    name: str = Field(min_length=1, description="Nome da pasta nova (pode ter subníveis: A/B)")
+    folder: Folder = Field(
+        description=(
+            "Onde criar, pelo PARA: projetos (meta com prazo), areas (responsabilidade contínua: "
+            "saúde, finanças, casa), recursos (assuntos de interesse/referência), arquivo "
+            "(inativo), inbox (sem lugar claro)"
+        )
+    )
 
 
 class NoteAppendParams(BaseModel):
@@ -53,12 +67,37 @@ def register(registry: ActionRegistry) -> None:
     async def note_create(params: NoteCreateParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
             return NO_VAULT
-        note = vault.create_note(
-            params.title, params.body, folder=params.folder, tags=params.tags, links=params.links
-        )
+        try:
+            note = vault.create_note(
+                params.title, params.body, folder=params.folder, subfolder=params.subfolder,
+                tags=params.tags, links=params.links,
+            )
+        except ValueError as exc:
+            return ActionResult(text=f"Não criei a nota: {exc}", data={"ok": False})
         vault.append_daily(f"Nota criada: [[{note.title}]]")
         await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
         return ActionResult(text=f"📝 Nota salva: {note.path}", data={"path": note.path})
+
+    @registry.action(
+        "folder_create",
+        "Cria uma pasta no second brain (você escolhe o lugar pelo PARA) com uma nota vazia",
+        FolderCreateParams,
+    )
+    async def folder_create(params: FolderCreateParams, ctx: ActionContext) -> ActionResult:
+        if (vault := _vault(ctx)) is None:
+            return NO_VAULT
+        try:
+            folder, placeholder = vault.create_folder(params.folder, params.name)
+        except ValueError as exc:
+            return ActionResult(text=f"Não criei a pasta: {exc}", data={"ok": False})
+        if placeholder is None:
+            return ActionResult(text=f"📁 A pasta {folder} já existia (não mexi em nada).", data={"folder": folder})
+        vault.append_daily(f"Pasta criada: {folder}")
+        await remember_ref(ctx.services, "nota", placeholder, f"pasta: {folder}")
+        return ActionResult(
+            text=f"📁 Pasta criada: {folder} (com a nota vazia {placeholder})",
+            data={"folder": folder, "placeholder": placeholder},
+        )
 
     @registry.action(
         "note_append", "Acrescenta texto a uma nota existente", NoteAppendParams, proactive_safe=True

@@ -29,6 +29,7 @@ FOLDERS: dict[str, str] = {
 README_NAME = "LEIA-ME.md"
 SOURCE = "uva-bot"
 MAX_TITLE = 80
+MAX_SUBFOLDER_DEPTH = 3
 
 # Characters Obsidian / Windows don't accept in file names or link targets.
 _BAD_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|#^\[\]\n\r\t]+')
@@ -90,14 +91,13 @@ class Vault:
         body: str,
         *,
         folder: str = "inbox",
+        subfolder: str = "",
         tags: list[str] | tuple[str, ...] = (),
         links: list[str] | tuple[str, ...] = (),
         now: datetime | None = None,
     ) -> Note:
-        if folder not in FOLDERS:
-            raise ValueError(f"pasta desconhecida: {folder}")
         title = clean_title(title)
-        directory = self.root / FOLDERS[folder]
+        directory = self.folder_path(folder, subfolder)
         directory.mkdir(parents=True, exist_ok=True)
         path = _unique_path(directory, title)
         title = path.stem  # may have gained a " (2)" suffix
@@ -106,6 +106,42 @@ class Vault:
         text = render_note(title, body, created=created, tags=list(tags), links=list(links))
         path.write_text(text, encoding="utf-8")
         return Note(self._relative(path), title, body, created, list(tags))
+
+    def folder_path(self, folder: str, subfolder: str = "") -> Path:
+        """A PARA folder, optionally with subfolders ("Saúde/Exercícios").
+
+        Hidden names, "..", absolute paths and more than MAX_SUBFOLDER_DEPTH
+        levels are refused; names are cleaned like note titles.
+        """
+        if folder not in FOLDERS:
+            raise ValueError(f"pasta desconhecida: {folder}")
+        raw_parts = [p.strip() for p in re.split(r"[\\/]", subfolder) if p.strip()]
+        if any(p.startswith(".") for p in raw_parts):
+            raise ValueError("pastas ocultas ou '..' não são permitidas")
+        if len(raw_parts) > MAX_SUBFOLDER_DEPTH:
+            raise ValueError(f"no máximo {MAX_SUBFOLDER_DEPTH} níveis de subpasta")
+        path = self.root / FOLDERS[folder]
+        for part in raw_parts:
+            path = path / clean_title(part)
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise ValueError("caminho fora do second brain")
+        return path
+
+    def create_folder(self, folder: str, name: str, now: datetime | None = None) -> tuple[str, str | None]:
+        """Create a folder with an empty placeholder note (so Obsidian shows it).
+
+        Returns (folder path, placeholder note path or None if the folder
+        already had notes). Nothing existing is touched.
+        """
+        directory = self.folder_path(folder, name)
+        directory.mkdir(parents=True, exist_ok=True)
+        if any(directory.glob("*.md")):
+            return self._relative(directory), None
+        placeholder = directory / f"{directory.name}.md"
+        meta = {"title": directory.name, "created": self._timestamp(now), "tags": ["pasta"], "source": SOURCE}
+        front = yaml.safe_dump(meta, allow_unicode=True, sort_keys=False).strip()
+        placeholder.write_text(f"---\n{front}\n---\n", encoding="utf-8")
+        return self._relative(directory), self._relative(placeholder)
 
     def append(self, ref: str, text: str, now: datetime | None = None) -> Note:
         path = self._resolve(ref)
