@@ -61,3 +61,17 @@ Pronto: pesquisa pelo Telegram vira nota formatada.
 
 ## Fase 9: SQLite
 - Arquivo em volume, WAL, migrações simples, camada de acesso pequena. Comando exemplo: /gasto 25 mercado grava; /gastos mes soma.
+
+## Fase 11: Notificações, personalidade e auto-modificação
+- 11.1 /comandos: lista todos os comandos registrados (nome, apelidos, descrição, core ou plugin) e todas as ações da LLM (nome, descrição, parâmetros). Saída longa vai como arquivo.
+- 11.2 Notificações proativas: toda tarefa do Celery avisa no Telegram quando termina (sucesso ou falha final): pesquisas, execuções de objetivos (resumo curto + caminho da nota), limpeza de memória (só em falha) e tarefas de auto-código. PROACTIVE_NOTIFY=true (false volta aos objetivos silenciosos). Isso reverte de propósito a decisão anterior de objetivos silenciosos.
+- 11.3 soul.md: arquivo de personalidade (data/soul.md, montado para o bot poder editar), carregado no system prompt de toda chamada à LLM (roteador, pesado, objetivos). Personalidade inicial: irônica, brincalhona, meio grossa, pode falar palavrão, dinâmica de parceiro com o Gustavo, mas útil e precisa; saídas exatas (erros, /log, resultados de comandos) continuam neutras. /soul mostra o arquivo. Recarrega quando o arquivo muda.
+- 11.4 Auto-edição de arquivos: ações file_read, file_write e file_append, restritas a uma lista de caminhos permitidos (soul.md, o second brain, arquivos em data/). Nunca security.py, .env, docker-compose.yml nem nada fora da lista. Cada mudança vira um commit (autor kundlatsch, trailer "UVA-Self-Edit: true"); /reverter desfaz o último commit feito pelo bot (só commits do bot).
+- 11.5 Auto-código: /feature <descrição> (ou texto livre, pela ação feature_request) enfileira uma tarefa que:
+  a. trabalha num clone/branch do repositório montado;
+  b. pede ao modelo pesado um comando novo como plugin em src/uva/plugins/<nome>.py com testes em tests/plugins/, seguindo uma interface de plugin documentada (com plugin de exemplo); o registro de comandos descobre plugins sozinho;
+  c. roda a suíte inteira do pytest no worker; se falhar, devolve a saída para a LLM e tenta de novo até SELFCODE_MAX_ATTEMPTS (padrão 3);
+  d. rejeita estaticamente código que importe segredos/segurança, use subprocess/os.system ou mexa em arquivos fora de plugins/testes (checagem simples de AST/imports);
+  e. quando verde: commit (trailer "UVA-Self-Code: true"), merge na main, recarrega os plugins no bot sem reiniciar (Redis pubsub + importlib); se o carregamento falhar, reverte sozinho e avisa;
+  f. avisa no Telegram o que foi construído e como usar, ou por que falhou.
+  Orçamento SELFCODE_DAILY_BUDGET_USD; tipo "selfcode" no /log; /features lista as tentativas; /reverter também cobre commits de auto-código.
