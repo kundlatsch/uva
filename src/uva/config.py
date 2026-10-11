@@ -48,7 +48,12 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://mongo:27017/uva"
     second_brain_path: str = "/data/second-brain"
 
+    # Logging / events
     log_level: str = "INFO"
+    events_ttl_days: int = 90
+
+    # Used for "today", "this month" and displayed times.
+    timezone: str = "America/Sao_Paulo"
 
 
 @lru_cache(maxsize=1)

@@ -5,12 +5,12 @@ from __future__ import annotations
 from uva.commands.registry import CommandContext, CommandRegistry
 
 
-def register_builtin(registry: CommandRegistry) -> None:
+def register(registry: CommandRegistry) -> None:
     @registry.command("start", "Apresentação do bot", aliases=("inicio", "início"))
     async def start(ctx: CommandContext) -> str:
         return (
             "Olá! Eu sou a UVA, sua assistente pessoal.\n"
-            "Por enquanto entendo apenas alguns comandos. Envie /help para ver a lista."
+            "Envie /help para ver os comandos, ou simplesmente me escreva."
         )
 
     @registry.command("help", "Lista os comandos disponíveis", aliases=("ajuda", "comandos"))
@@ -26,7 +26,10 @@ def render_help(registry: CommandRegistry) -> str:
     """Help text generated from the registry, so new commands show up automatically."""
     lines = ["Comandos disponíveis:"]
     for cmd in registry:
-        line = f"/{cmd.name} - {cmd.description}"
+        line = f"/{cmd.name}"
+        if cmd.usage:
+            line += f" {cmd.usage}"
+        line += f" - {cmd.description}"
         if cmd.aliases:
             line += f" (também: {', '.join(cmd.aliases)})"
         lines.append(line)

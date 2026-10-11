@@ -5,44 +5,48 @@ from uva.router import NOT_UNDERSTOOD, Router
 
 
 @pytest.fixture
-def router() -> Router:
-    return Router(build_registry())
+def router(services) -> Router:
+    return Router(services)
+
+
+async def text_of(router: Router, message: str) -> str:
+    return (await router.handle_text(message)).text
 
 
 async def test_ping_returns_pong(router):
-    assert await router.handle_text("/ping") == "pong"
+    assert await text_of(router, "/ping") == "pong"
 
 
 async def test_command_with_bot_suffix(router):
-    assert await router.handle_text("/ping@UvaBot") == "pong"
+    assert await text_of(router, "/ping@UvaBot") == "pong"
 
 
 async def test_command_is_case_insensitive(router):
-    assert await router.handle_text("/PING") == "pong"
+    assert await text_of(router, "/PING") == "pong"
 
 
 async def test_alias_resolves_to_command(router):
-    assert await router.handle_text("/ajuda") == await router.handle_text("/help")
+    assert await text_of(router, "/ajuda") == await text_of(router, "/help")
 
 
 async def test_help_lists_every_command(router):
-    text = await router.handle_text("/help")
+    text = await text_of(router, "/help")
     for cmd in router.registry:
         assert f"/{cmd.name}" in text
         assert cmd.description in text
 
 
 async def test_unknown_command(router):
-    assert "desconhecido" in await router.handle_text("/nope")
+    assert "desconhecido" in await text_of(router, "/nope")
 
 
 async def test_free_text_falls_back(router):
-    assert await router.handle_text("bom dia") == NOT_UNDERSTOOD
+    assert await text_of(router, "qual a capital da França") == NOT_UNDERSTOOD
 
 
 def test_registry_has_builtin_commands():
     names = {cmd.name for cmd in build_registry()}
-    assert {"start", "help", "ping"} <= names
+    assert {"start", "help", "ping", "log", "status"} <= names
 
 
 def test_duplicate_alias_is_rejected():
@@ -57,4 +61,5 @@ def test_duplicate_alias_is_rejected():
 
 def test_iteration_skips_alias_duplicates():
     registry = build_registry()
-    assert len(list(registry)) == len(registry) == 3
+    assert len(list(registry)) == len(registry)
+    assert len({c.name for c in registry}) == len(registry)

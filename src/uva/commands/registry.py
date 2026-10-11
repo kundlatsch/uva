@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from uva.replies import Reply
+
+if TYPE_CHECKING:
+    from uva.services import Services
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,11 +17,15 @@ class CommandContext:
     """What a command receives. Kept Telegram-agnostic so it is easy to test."""
 
     args: list[str]
-    registry: CommandRegistry
+    services: Services
     user_id: int | None = None
 
+    @property
+    def registry(self) -> CommandRegistry:
+        return self.services.registry
 
-CommandHandler = Callable[[CommandContext], Awaitable[str]]
+
+CommandHandler = Callable[[CommandContext], Awaitable[str | Reply]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,9 +33,11 @@ class Command:
     name: str
     description: str
     handler: CommandHandler
-    # Alternative names. Exact aliases work now; later phases will also use
-    # them for similarity matching of free text.
+    # Alternative names. Exact aliases work as commands; aliases and examples
+    # are also used for similarity matching of free text.
     aliases: tuple[str, ...] = ()
+    # Usage hint shown in /help, e.g. "<período> [tipo]".
+    usage: str = ""
 
     @property
     def all_names(self) -> tuple[str, ...]:
@@ -48,12 +60,16 @@ class CommandRegistry:
         return command
 
     def command(
-        self, name: str, description: str, aliases: tuple[str, ...] = ()
+        self,
+        name: str,
+        description: str,
+        aliases: tuple[str, ...] = (),
+        usage: str = "",
     ) -> Callable[[CommandHandler], CommandHandler]:
         """Decorator form of :meth:`register`."""
 
         def decorator(func: CommandHandler) -> CommandHandler:
-            self.register(Command(name, description, func, tuple(aliases)))
+            self.register(Command(name, description, func, tuple(aliases), usage))
             return func
 
         return decorator

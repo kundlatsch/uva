@@ -1,4 +1,4 @@
-"""Entry point: wires settings, logging, security and routing into the bot."""
+"""Entry point: wires settings, logging, storage, security and routing into the bot."""
 
 from __future__ import annotations
 
@@ -11,20 +11,47 @@ from telegram.ext import Application, ContextTypes, MessageHandler, filters
 from uva.commands import build_registry
 from uva.config import Settings, get_settings
 from uva.logging import configure_logging, get_logger
+from uva.logging import events
 from uva.router import Router
 from uva.security import install_guard
+from uva.services import Services
+from uva.storage import mongo
+from uva.telegram_io import send_reply
 
 log = get_logger(__name__)
 
 
-def build_application(settings: Settings) -> Application:
+def build_services(settings: Settings) -> Services:
+    client = mongo.connect(settings.mongo_uri)
+    db = mongo.get_database(client)
+    event_store = mongo.MongoEventStore(db, settings.events_ttl_days)
+    events.set_store(event_store)
+
+    services = Services(settings=settings, registry=build_registry(), events=event_store)
+    services.health_checks["MongoDB"] = lambda: mongo.ping(client)
+    return services
+
+
+async def _setup_storage(services: Services) -> None:
+    """Create indexes. A missing Mongo must not keep the bot from starting."""
+    try:
+        await services.events.setup()  # type: ignore[union-attr]
+    except Exception as exc:
+        log.warning("storage_setup_failed", error=str(exc))
+
+
+def build_application(settings: Settings, services: Services) -> Application:
     token = settings.telegram_bot_token.get_secret_value()
-    application = Application.builder().token(token).build()
+
+    async def post_init(app: Application) -> None:
+        await _setup_storage(services)
+
+    application = Application.builder().token(token).post_init(post_init).build()
 
     # Must be installed before anything else can see an update.
     install_guard(application, settings.allowed_telegram_user_id)
 
-    router = Router(build_registry())
+    router = Router(services)
 
     async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
@@ -32,7 +59,7 @@ def build_application(settings: Settings) -> Application:
             return
         user_id = update.effective_user.id if update.effective_user else None
         reply = await router.handle_text(message.text, user_id=user_id)
-        await message.reply_text(reply)
+        await send_reply(context.bot, message.chat_id, reply)
 
     # One text handler (commands included) keeps all routing logic in Router.
     application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, on_text))
@@ -60,7 +87,8 @@ def main() -> None:
 
     configure_logging(settings.log_level)
     log.info("starting", allowed_user_id=settings.allowed_telegram_user_id)
-    build_application(settings).run_polling(allowed_updates=Update.ALL_TYPES)
+    services = build_services(settings)
+    build_application(settings, services).run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 Assistente pessoal com IA que conversa pelo Telegram. Atende **um único usuário** (você) e roda em Docker no seu PC.
 
-Estado atual: **Fases 0 e 1** — fundação do projeto e MVP com comandos básicos (`/start`, `/help`, `/ping`). LLM, memória, metas e tarefas proativas vêm nas próximas fases.
+O plano completo, fase a fase, está em [docs/plano.md](docs/plano.md).
 
 ## Estrutura
 
@@ -103,6 +103,24 @@ Comandos são funções async registradas no `CommandRegistry` com nome, descri�
 @registry.command("hora", "Mostra a hora atual", aliases=("horas",))
 async def hora(ctx: CommandContext) -> str:
     return datetime.now().strftime("%H:%M")
+```
+
+## Log e diagnóstico
+
+Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.
+
+- `/log` — última hora, uma linha por mensagem mostrando o caminho que ela fez
+- `/log 30m`, `/log 6h`, `/log 2d`, `/log hoje`, `/log ontem` — outros períodos
+- `/log 1d llm` — filtra por tipo: `llm`, `goals`, `erros`, `tarefas`, `memoria`, `acoes`
+- `/log trace <id>` — todos os eventos de uma mensagem, com os dados completos
+- `/status` — serviços no ar, uptime, fila e gastos
+
+Respostas longas chegam como arquivo `.md`.
+
+Testes de integração (Mongo/Redis reais) rodam num container descartável na rede do compose:
+
+```bash
+sh scripts/run-integration-tests.sh
 ```
 
 ## Segurança
