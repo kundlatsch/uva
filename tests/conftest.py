@@ -6,6 +6,11 @@ import pytest
 # Make `tests/fakes.py` importable as `fakes`.
 sys.path.insert(0, os.path.dirname(__file__))
 
+# Modules that read settings at import time (the Celery app) must work without
+# a real .env, e.g. when the self-coding worker runs the suite in a clean clone.
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "0:test")
+os.environ.setdefault("ALLOWED_TELEGRAM_USER_ID", "1")
+
 from fakes import InMemoryEventStore, make_services  # noqa: E402
 
 from uva.logging import events  # noqa: E402
