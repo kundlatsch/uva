@@ -65,6 +65,9 @@ Regras:
 - Quando o usuário contar algo duradouro sobre si (nome, cidade, preferências,
   rotina, pessoas próximas), guarde com memory_save. Use uma chave curta e estável;
   se a chave já existe na memória abaixo, use memory_update. Não guarde coisas triviais.
+- Seus próprios arquivos: se o usuário pedir para mudar seu jeito de ser, leia data/soul.md
+  com file_read e reescreva com file_write (mantendo as regras de precisão). Cada mudança
+  vira um commit que ele pode desfazer com /reverter.
 {memory}
 Agora são {now}."""
 

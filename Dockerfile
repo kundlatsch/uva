@@ -7,9 +7,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# git: the bot commits changes to its own repository (mounted at /repo).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/* \
+    && git config --system --add safe.directory '*'
+
 COPY pyproject.toml ./
 COPY src ./src
-RUN pip install .
+# Dev extras (pytest) are needed at runtime: self-coded plugins are tested in the worker.
+RUN pip install ".[dev]"
 
 # Run as an unprivileged user. /data holds the volumes (SQLite, second brain);
 # owning it in the image makes new named volumes writable by that user.

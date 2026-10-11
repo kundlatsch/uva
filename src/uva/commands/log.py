@@ -17,7 +17,7 @@ from uva.text import extract_duration, extract_keywords
 USAGE = (
     "Uso: /log [período] [tipo]  ou  /log trace <id>\n"
     "Período: 30m, 6h, 2d, hoje, ontem (padrão: 1h)\n"
-    "Tipo: llm, goals, erros, tarefas, memoria, acoes"
+    "Tipo: llm, goals, erros, tarefas, memoria, acoes, selfcode"
 )
 
 FILTERS: dict[str, set[EventType]] = {
@@ -29,6 +29,7 @@ FILTERS: dict[str, set[EventType]] = {
     "tarefas": {EventType.TASK_ENQUEUED, EventType.TASK_FINISHED},
     "memoria": {EventType.MEMORY},
     "acoes": {EventType.ACTION},
+    "selfcode": {EventType.SELFCODE, EventType.SELF_EDIT},
 }
 
 _DURATION = re.compile(r"^(\d+)(m|h|d)$")

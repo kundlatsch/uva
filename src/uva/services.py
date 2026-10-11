@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
     from uva.memory.service import MemoryService
+    from uva.selfmod.files import FileAccess
+    from uva.selfmod.git import GitRepo
     from uva.logging.events import EventStore
     from uva.search.base import SearchBackend
     from uva.storage.expenses import ExpenseRepository
@@ -46,6 +48,10 @@ class Services:
     memory: MemoryService | None = None
     goals: GoalStore | None = None
     expenses: ExpenseRepository | None = None
+    repo: GitRepo | None = None
+    files: FileAccess | None = None
+    # Called after code in the repo changed (e.g. a reverted plugin).
+    on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
     busy: BusyTracker | None = None
     started_at: datetime = field(default_factory=utcnow)
     # Name -> async check returning True when the service is up (for /status).

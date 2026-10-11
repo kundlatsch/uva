@@ -38,6 +38,8 @@ class EventType(StrEnum):
     GOAL_RUN = "goal_run"
     MEMORY = "memory"
     BUDGET = "budget"
+    SELF_EDIT = "self_edit"  # the bot changed one of its own files
+    SELFCODE = "selfcode"  # the bot wrote/merged/reverted its own code
     REPLY = "reply"
     ERROR = "error"
 

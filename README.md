@@ -220,6 +220,17 @@ A personalidade da UVA fica em [data/soul.md](data/soul.md): irônica, brincalho
 - Edite o arquivo à vontade: ele é relido quando muda, sem reiniciar nada.
 - `/soul` mostra o conteúdo atual.
 
+## Auto-edição
+
+A UVA pode ler e mudar alguns arquivos dela mesma pelas ações `file_read`, `file_write` e `file_append`, **só** nestes caminhos:
+
+- `data/...` (ex.: `data/soul.md`): leitura, reescrita e acréscimo. Cada mudança vira um commit no repositório (autor `GIT_AUTHOR_NAME`, trailer `UVA-Self-Edit: true`) contendo só aquele arquivo.
+- `brain/...` (second brain): leitura, criação de notas novas e acréscimo; notas existentes nunca são sobrescritas.
+
+Qualquer outro caminho (`src/`, `security.py`, `.env`, `docker-compose.yml`, arquivos ocultos, `..`) é recusado.
+
+`/reverter` desfaz o último commit feito pelo bot (só os dele, nunca os seus) com um commit de revert marcado `UVA-Reverts: <sha>`; rodar de novo desfaz o anterior. Mudanças aparecem em `/log 1d selfcode`.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.

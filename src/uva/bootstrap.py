@@ -19,6 +19,8 @@ from uva.memory.service import MemoryService
 from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
+from uva.selfmod.files import FileAccess
+from uva.selfmod.git import GitRepo
 from uva.storage import mongo
 from uva.storage.expenses import ExpenseRepository
 from uva.storage.sqlite import Database
@@ -59,6 +61,11 @@ def build_services(settings: Settings) -> Services:
     services.goals = goal_store
     sqlite_db = Database(Path(settings.sqlite_path))
     services.expenses = ExpenseRepository(sqlite_db)
+
+    repo_dir = settings.repo_dir
+    if (repo_dir / ".git").exists():
+        services.repo = GitRepo(repo_dir, settings.git_author_name, settings.git_author_email)
+    services.files = FileAccess(repo_dir, services.vault.root, services.repo)
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)

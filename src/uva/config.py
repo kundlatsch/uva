@@ -112,6 +112,9 @@ class Settings(BaseSettings):
     repo_path: str = ""
     # Personality file; empty means <repo>/data/soul.md.
     soul_path: str = ""
+    # Author of the commits the bot makes in its own repository.
+    git_author_name: str = "kundlatsch"
+    git_author_email: str = "gustavo.kundlatsch@gmail.com"
 
     # Used for "today", "this month" and displayed times.
     timezone: str = "America/Sao_Paulo"
