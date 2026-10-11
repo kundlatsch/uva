@@ -16,6 +16,7 @@ from uva.config import Settings
 
 if TYPE_CHECKING:
     from uva.actions.registry import ActionRegistry
+    from uva.brain.vault import Vault
     from uva.commands.registry import CommandRegistry
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
@@ -38,6 +39,7 @@ class Services:
     # Search backends by source name ("web", "wikipedia").
     search: dict[str, SearchBackend] = field(default_factory=dict)
     tasks: TaskQueue | None = None
+    vault: Vault | None = None
     busy: BusyTracker | None = None
     started_at: datetime = field(default_factory=utcnow)
     # Name -> async check returning True when the service is up (for /status).

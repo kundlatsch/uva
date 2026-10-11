@@ -133,6 +133,22 @@ O compose sobe também `redis`, `worker` (Celery) e `beat` (agendador). Ações 
 - O Redis guarda um "ocupado" enquanto você conversa e enquanto há tarefas rodando; o modo proativo (fase 8) só age quando nada está marcado.
 - O beat dispara um heartbeat a cada minuto; `/status` mostra 🔴 em "Worker + agendador" se ele parar de chegar.
 
+## Second brain (notas em Markdown)
+
+A UVA mantém um cofre de notas compatível com o **Obsidian**, na pasta `brain/` do repositório (fora do git). Para usar outra pasta, defina `SECOND_BRAIN_HOST_PATH` no `.env` (ex.: `D:/Obsidian/UVA`) e rode `docker compose up -d`. Na primeira subida ela cria a estrutura PARA e um `LEIA-ME.md`:
+
+```
+00-inbox/  01-projetos/  02-areas/  03-recursos/  04-arquivo/  diario/  LEIA-ME.md
+```
+
+- Notas têm cabeçalho YAML (`title`, `created`, `tags`, `source: uva-bot`) e ligações `[[...]]`; o nome do arquivo é o título.
+- `/nota <texto>` salva no inbox; `/buscar <termo>` procura em títulos e conteúdo (sem diferenciar acentos).
+- Toda pesquisa vira uma nota em `03-recursos/` ("Pesquisa - ...") com as fontes, e cada nota criada é registrada no diário do dia.
+- A LLM também pode usar as ações `note_create`, `note_append`, `note_search` e `note_read`.
+- A UVA **nunca apaga nem sobrescreve** notas: só cria e acrescenta.
+
+Para abrir no Obsidian: *Open folder as vault* → escolha a pasta `brain`.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.

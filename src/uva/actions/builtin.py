@@ -12,7 +12,7 @@ from uva.actions.registry import (
     ActionResult,
     RetryableActionError,
 )
-from uva.actions.search import ResearchError, research
+from uva.actions.search import ResearchError, research, save_research
 
 
 class ReplyParams(BaseModel):
@@ -61,9 +61,15 @@ def register(registry: ActionRegistry) -> None:
             if exc.retryable and ctx.allow_retry:
                 raise RetryableActionError(str(exc)) from exc
             return ActionResult(text=f"Não consegui pesquisar: {exc}", data={"error": str(exc)})
+        text = found.render()
+        note_path = None
+        if ctx.services.vault is not None:
+            note_path = save_research(ctx.services.vault, found).path
+            text += f"\n\n📝 Salvo em {note_path}"
         return ActionResult(
-            text=found.render(),
+            text=text,
             data={
+                "note": note_path,
                 "query": found.query,
                 "backend": found.backend,
                 "summary": found.summary,

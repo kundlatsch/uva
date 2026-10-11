@@ -20,6 +20,7 @@ dependencies = [
     "ddgs>=9.0",
     "celery[redis]>=5.4,<6",
     "redis>=5",
+    "pyyaml>=6",
 ]
 
 [project.optional-dependencies]

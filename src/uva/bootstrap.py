@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
+from pathlib import Path
 
 from redis.asyncio import Redis
 
 from uva.actions import build_action_registry
+from uva.brain.vault import Vault
 from uva.clock import utcnow
 from uva.commands import build_registry
 from uva.config import Settings
@@ -46,11 +49,20 @@ def build_services(settings: Settings) -> Services:
     services.tasks = CeleryTaskQueue(task_store, redis)
     services.busy = BusyTracker(redis)
 
+    services.vault = Vault(Path(settings.second_brain_path), services.tz)
+
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
     services.health_checks["Worker + agendador"] = lambda: _heartbeat_fresh(redis)
-    services.setup_hooks.extend([event_store.setup, usage.setup, task_store.setup])
+    services.setup_hooks.extend(
+        [event_store.setup, usage.setup, task_store.setup, lambda: _setup_vault(services.vault)]
+    )
     return services
+
+
+async def _setup_vault(vault: Vault) -> None:
+    if await asyncio.to_thread(vault.ensure_structure):
+        log.info("vault_created", path=str(vault.root))
 
 
 async def _redis_ping(redis: Redis) -> bool:

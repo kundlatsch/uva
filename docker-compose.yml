@@ -9,6 +9,11 @@ x-app: &app
     # Inside the compose network services are reached by name.
     MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/uva}
     REDIS_URL: redis://redis:6379/0
+    SECOND_BRAIN_PATH: /data/second-brain
+  volumes:
+    # Second brain: a folder on the host (default ./brain, gitignored) so the
+    # notes can be opened in Obsidian. Set SECOND_BRAIN_HOST_PATH to change it.
+    - ${SECOND_BRAIN_HOST_PATH:-./brain}:/data/second-brain
   depends_on:
     - mongo
     - redis

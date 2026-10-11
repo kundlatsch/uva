@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from uva.brain.vault import Note, Vault
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.prompts import summary_system_prompt
@@ -25,6 +26,22 @@ class Research:
             lines += ["", "Fontes:"]
             lines += [f"- {s.title}: {s.url}" for s in self.sources if s.url]
         return "\n".join(lines)
+
+
+def save_research(vault: Vault, found: Research) -> Note:
+    """Store a research result as a reference note (03-recursos)."""
+    lines = [found.summary.strip()]
+    if found.sources:
+        lines += ["", "## Fontes", ""]
+        lines += [f"- [{s.title or s.url}]({s.url})" for s in found.sources if s.url]
+    note = vault.create_note(
+        f"Pesquisa - {found.query}",
+        "\n".join(lines),
+        folder="recursos",
+        tags=["pesquisa", found.backend],
+    )
+    vault.append_daily(f"Pesquisa: [[{note.title}]]")
+    return note
 
 
 class ResearchError(RuntimeError):
