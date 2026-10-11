@@ -38,7 +38,9 @@ def register(registry: ActionRegistry) -> None:
         mime, data = data_url_bytes(photo)
         when = format_local(utcnow(), services.tz, "%Y-%m-%d %H%M")
         title = params.title.strip() or (
-            title_from_text(params.description, max_words=6) if params.description.strip() else f"Imagem {when}"
+            title_from_text(params.description, max_words=6).rstrip("…").strip()
+            if params.description.strip()
+            else f"Imagem {when}"
         )
         folder = params.folder if params.folder in ("inbox", "projetos", "areas", "recursos") else "inbox"
 
