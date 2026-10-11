@@ -64,3 +64,13 @@ def test_iteration_skips_alias_duplicates():
     registry = build_registry()
     assert len(list(registry)) == len(registry)
     assert len({c.name for c in registry}) == len(registry)
+
+
+async def test_catalog_lists_commands_and_actions(router):
+    reply = await router.handle_text("/comandos")
+    text = reply.document.decode() if reply.document else reply.text
+    assert "/ping [core]" in text
+    assert "apelidos: ajuda" in text
+    assert "- search [proativa, tarefa]" in text
+    assert "params: query: string, source: string?" in text
+    assert "- run_command:" in text

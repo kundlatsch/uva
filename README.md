@@ -34,6 +34,7 @@ docs/plano.md     # plano por fases
 | Comando | O que faz |
 |---|---|
 | `/help` | lista tudo (gerado automaticamente) |
+| `/comandos` | catálogo completo para debug: comandos (core/plugin, apelidos, exemplos) e ações da LLM com parâmetros |
 | `/ping`, `/start` | teste e apresentação |
 | `/nota <texto>`, `/buscar <termo>` | second brain |
 | `/memoria [chave]`, `/lembrar <chave> <valor>`, `/esquecer <chave>` | memória |

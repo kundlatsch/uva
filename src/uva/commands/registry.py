@@ -43,6 +43,8 @@ class Command:
     # Example phrases for similarity matching ("o que aconteceu" -> /log).
     examples: tuple[str, ...] = ()
     extract_args: ArgExtractor | None = None
+    # "core" for built-in commands, "plugin" for ones loaded from uva/plugins.
+    source: str = "core"
 
     @property
     def all_names(self) -> tuple[str, ...]:

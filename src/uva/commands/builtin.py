@@ -21,8 +21,8 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "help",
         "Lista os comandos disponíveis",
-        aliases=("ajuda", "comandos"),
-        examples=("o que voce sabe fazer", "o que voce faz", "lista de comandos", "socorro"),
+        aliases=("ajuda",),
+        examples=("o que voce sabe fazer", "o que voce faz", "socorro"),
     )
     async def help_(ctx: CommandContext) -> str:
         return render_help(ctx.registry)
