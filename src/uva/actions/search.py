@@ -28,7 +28,9 @@ class Research:
 
 
 class ResearchError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 async def research(services: Services, query: str, source: str, scope: Scope) -> Research:
@@ -39,7 +41,7 @@ async def research(services: Services, query: str, source: str, scope: Scope) ->
     try:
         response = await backend.search(query, services.settings.search_max_results)
     except SearchError as exc:
-        raise ResearchError(f"a pesquisa falhou ({exc})") from exc
+        raise ResearchError(f"a pesquisa falhou ({exc})", retryable=True) from exc
 
     if response.summary is not None:
         summary = response.summary
@@ -72,5 +74,5 @@ async def _summarize(
             system=summary_system_prompt(),
         )
     except LLMError as exc:
-        raise ResearchError(f"não consegui resumir os resultados ({exc})") from exc
+        raise ResearchError(f"não consegui resumir os resultados ({exc})", retryable=True) from exc
     return response.text

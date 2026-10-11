@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from uva.llm.client import LLMClient
     from uva.logging.events import EventStore
     from uva.search.base import SearchBackend
+    from uva.tasks.busy import BusyTracker
+    from uva.tasks.queue import TaskQueue
 
 HealthCheck = Callable[[], Awaitable[bool]]
 
@@ -35,6 +37,8 @@ class Services:
     budget: Budget | None = None
     # Search backends by source name ("web", "wikipedia").
     search: dict[str, SearchBackend] = field(default_factory=dict)
+    tasks: TaskQueue | None = None
+    busy: BusyTracker | None = None
     started_at: datetime = field(default_factory=utcnow)
     # Name -> async check returning True when the service is up (for /status).
     health_checks: dict[str, HealthCheck] = field(default_factory=dict)

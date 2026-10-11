@@ -29,6 +29,9 @@ class ActionContext:
     services: Services
     scope: Scope = Scope.INTERACTIVE
     run_command: CommandRunner | None = None
+    # True inside a background task that still has retries left: transient
+    # failures should raise RetryableActionError instead of giving up.
+    allow_retry: bool = False
 
 
 @dataclass(slots=True)
@@ -50,10 +53,16 @@ class Action:
     proactive_safe: bool = False
     # Slow actions (network, LLM summaries) run as background tasks when possible.
     long_running: bool = False
+    # Shown to the user while a long-running action works in the background.
+    progress_text: str = "Trabalhando nisso…"
 
 
 class InvalidActionError(ValueError):
     pass
+
+
+class RetryableActionError(RuntimeError):
+    """Transient failure (network...): the background task should retry."""
 
 
 class ActionRegistry:
@@ -74,10 +83,19 @@ class ActionRegistry:
         *,
         proactive_safe: bool = False,
         long_running: bool = False,
+        progress_text: str = "Trabalhando nisso…",
     ) -> Callable[[ActionHandler], ActionHandler]:
         def decorator(func: ActionHandler) -> ActionHandler:
             self.register(
-                Action(name, description, params_model, func, proactive_safe, long_running)
+                Action(
+                    name,
+                    description,
+                    params_model,
+                    func,
+                    proactive_safe,
+                    long_running,
+                    progress_text,
+                )
             )
             return func
 

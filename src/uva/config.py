@@ -76,6 +76,14 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://mongo:27017/uva"
     second_brain_path: str = "/data/second-brain"
 
+    # Background tasks (Celery + Redis)
+    redis_url: str = "redis://redis:6379/0"
+    task_max_retries: int = 3
+    task_time_limit_seconds: int = 600
+    tasks_ttl_days: int = 30
+    # After each message the bot counts as "busy" for this long (goal loop waits).
+    busy_after_message_seconds: int = 120
+
     # Fallback tier 2 (similarity, 0-100): at/above "execute" the command runs,
     # at/above "confirm" the bot asks first, below goes to the LLM.
     similarity_execute_threshold: float = 90

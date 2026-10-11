@@ -7,6 +7,7 @@ from uva.actions.registry import (
     ActionRegistry,
     ActionResult,
     InvalidActionError,
+    RetryableActionError,
 )
 
 _MODULES = (builtin,)
@@ -25,5 +26,6 @@ __all__ = [
     "ActionRegistry",
     "ActionResult",
     "InvalidActionError",
+    "RetryableActionError",
     "build_action_registry",
 ]

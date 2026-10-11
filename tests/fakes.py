@@ -16,6 +16,7 @@ from uva.llm.pricing import PriceTable
 from uva.logging.events import Event, EventQuery
 from uva.search.base import SearchResponse, SearchResult
 from uva.services import Services
+from uva.tasks.queue import TaskRecord, TaskStatus
 
 
 def make_settings(**overrides: Any) -> Settings:
@@ -129,3 +130,63 @@ def with_llm(services: Services, *replies: str) -> tuple[FakeProvider, InMemoryU
     services.llm = make_llm(provider, usage)
     services.budget = Budget(usage, services.settings, services.tz)
     return provider, usage
+
+
+class InMemoryTaskStore:
+    def __init__(self) -> None:
+        self.records: dict[str, TaskRecord] = {}
+
+    async def add(self, record: TaskRecord) -> None:
+        self.records[record.id] = record
+
+    async def get(self, task_id: str) -> TaskRecord | None:
+        return self.records.get(task_id)
+
+    async def update(self, task_id: str, **fields: Any) -> None:
+        self.records[task_id] = self.records[task_id].model_copy(update=fields)
+
+    async def recent(self, limit: int) -> list[TaskRecord]:
+        return sorted(self.records.values(), key=lambda r: r.created_at, reverse=True)[:limit]
+
+
+class FakeTaskQueue:
+    """Records enqueued tasks instead of sending them to Celery."""
+
+    def __init__(self) -> None:
+        self.store = InMemoryTaskStore()
+        self.sent: list[TaskRecord] = []
+
+    async def enqueue(self, action: str, params: dict[str, Any], trace_id: str | None) -> TaskRecord:
+        record = TaskRecord(action=action, params=params, trace_id=trace_id)
+        await self.store.add(record)
+        self.sent.append(record)
+        return record
+
+    async def cancel(self, task_id: str) -> bool:
+        record = await self.store.get(task_id)
+        if record is None or record.status.finished:
+            return False
+        await self.store.update(task_id, status=TaskStatus.CANCELLED)
+        return True
+
+    async def queue_size(self) -> int | None:
+        return sum(1 for r in self.store.records.values() if r.status is TaskStatus.QUEUED)
+
+
+class FakeBusy:
+    def __init__(self) -> None:
+        self.markers: dict[str, int] = {}
+        self.history: list[str] = []
+
+    async def mark(self, reason: str, ttl_seconds: int) -> None:
+        self.markers[reason] = ttl_seconds
+        self.history.append(reason)
+
+    async def clear(self, reason: str) -> None:
+        self.markers.pop(reason, None)
+
+    async def reasons(self) -> list[str]:
+        return list(self.markers)
+
+    async def is_busy(self) -> bool:
+        return bool(self.markers)

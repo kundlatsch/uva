@@ -1,23 +1,46 @@
 name: uva
 
+# Shared by bot, worker and beat: same image, same configuration.
+x-app: &app
+  build: .
+  image: uva-bot:latest
+  env_file: .env
+  environment:
+    # Inside the compose network services are reached by name.
+    MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/uva}
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    - mongo
+    - redis
+  restart: unless-stopped
+
 services:
   bot:
-    build: .
-    image: uva-bot:latest
-    env_file: .env
-    environment:
-      # Inside the compose network Mongo is reachable by its service name.
-      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/uva}
-    depends_on:
-      - mongo
-    restart: unless-stopped
+    <<: *app
+
+  worker:
+    <<: *app
+    command: celery -A uva.tasks.app worker --loglevel=INFO --concurrency=2
+
+  beat:
+    <<: *app
+    # Schedule state lives in /tmp: the schedule itself is defined in code.
+    command: celery -A uva.tasks.app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
 
   mongo:
     image: mongo:7
     volumes:
       - mongo-data:/data/db
     restart: unless-stopped
-    # No published ports: only the bot needs to reach it.
+    # No published ports: only the app services need to reach it.
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
 
 volumes:
   mongo-data:
+  redis-data:

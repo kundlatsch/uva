@@ -11,12 +11,14 @@ from uva.actions.registry import (
     ActionResult,
     CommandRunner,
     InvalidActionError,
+    RetryableActionError,
 )
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
 from uva.llm.prompts import assistant_system_prompt
-from uva.logging.events import EventType, emit
+from uva.logging import get_logger
+from uva.logging.events import EventType, current_trace_id, emit
 from uva.replies import Reply
 from uva.services import Services
 
@@ -27,6 +29,8 @@ LLM_DISABLED = (
 LLM_FAILED = "Não consegui falar com a LLM agora. Tente de novo em instantes (/log erros)."
 BAD_PLAN = "Me enrolei para entender isso. Pode reformular? (o erro foi registrado)"
 HISTORY_CHARS = 2000
+
+log = get_logger(__name__)
 
 # Budget scope of every call made from a conversation.
 INTERACTIVE = Scope.INTERACTIVE
@@ -79,11 +83,33 @@ class Agent:
 
         await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump())
         ctx = ActionContext(services, INTERACTIVE, self.run_command)
-        results = [await execute_action(action, params, ctx) for action, params in calls]
+        results = [await self._run(action, params, ctx) for action, params in calls]
 
         reply = compose_reply(plan.reply, results)
         self._remember(text, reply)
         return Reply(reply)
+
+    async def _run(self, action: Action, params, ctx: ActionContext) -> ActionResult:
+        """Slow actions go to the background queue; the rest run right away."""
+        tasks = self.services.tasks
+        if action.long_running and tasks is not None:
+            try:
+                record = await tasks.enqueue(action.name, params.model_dump(), current_trace_id())
+            except Exception as exc:
+                # Queue down: still do the work, just synchronously.
+                log.warning("enqueue_failed", action=action.name, error=str(exc))
+            else:
+                await emit(
+                    EventType.TASK_ENQUEUED,
+                    task_id=record.id,
+                    action=action.name,
+                    params=record.params,
+                )
+                return ActionResult(
+                    text=f"{action.progress_text} (tarefa {record.id}; /cancelar {record.id})",
+                    data={"task_id": record.id},
+                )
+        return await execute_action(action, params, ctx)
 
     def _remember(self, user_text: str, reply: str) -> None:
         self.history.append(LLMMessage("user", user_text[:HISTORY_CHARS]))
@@ -91,11 +117,25 @@ class Agent:
 
 
 async def execute_action(action: Action, params, ctx: ActionContext) -> ActionResult:
-    """Run one validated action, logging the outcome. Never raises."""
+    """Run one validated action, logging the outcome.
+
+    Never raises, except RetryableActionError inside background tasks.
+    """
     started = time.perf_counter()
     try:
         result = await action.handler(params, ctx)
         ok, error = True, None
+    except RetryableActionError as exc:
+        await emit(
+            EventType.ACTION,
+            name=action.name,
+            params=params.model_dump(),
+            ok=False,
+            error=str(exc),
+            retrying=True,
+            scope=ctx.scope.value,
+        )
+        raise
     except Exception as exc:
         result = ActionResult(text=f"Não consegui executar {action.name}.")
         ok, error = False, repr(exc)

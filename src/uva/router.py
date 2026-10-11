@@ -51,6 +51,7 @@ class Router:
         return self.services.registry
 
     async def handle_text(self, text: str, user_id: int | None = None) -> Reply:
+        await self._mark_busy()
         with trace():
             await emit(EventType.MESSAGE_RECEIVED, text=text)
             return await self._safely(self._route(text.strip(), user_id))
@@ -62,6 +63,15 @@ class Router:
         with trace(pending.trace_id if pending else None):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[botão] {verb}", kind="callback")
             return await self._safely(self._resolve_confirmation(verb, pending, user_id))
+
+    async def _mark_busy(self) -> None:
+        """Tell the goal loop the user is around (it waits until we're idle)."""
+        if self.services.busy is None:
+            return
+        try:
+            await self.services.busy.mark("chat", self.services.settings.busy_after_message_seconds)
+        except Exception:
+            pass  # Redis down must not block the conversation
 
     async def _safely(self, coro) -> Reply:
         try:

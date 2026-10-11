@@ -1,0 +1,38 @@
+"""Celery application (worker + beat). Start with ``celery -A uva.tasks.app ...``."""
+
+from __future__ import annotations
+
+from datetime import timedelta
+
+from celery import Celery, signals
+
+from uva.config import get_settings
+from uva.logging import configure_logging
+
+settings = get_settings()
+
+app = Celery("uva", broker=settings.redis_url, backend=settings.redis_url, include=["uva.tasks.jobs"])
+app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    result_expires=timedelta(days=1),
+    timezone=settings.timezone,
+    worker_prefetch_multiplier=1,
+    task_time_limit=settings.task_time_limit_seconds,
+    task_soft_time_limit=max(30, settings.task_time_limit_seconds - 30),
+    broker_connection_retry_on_startup=True,
+    worker_hijack_root_logger=False,
+)
+
+# Periodic jobs. Memory maintenance (phase 7) and the goal loop (phase 8)
+# are added here as those phases land.
+app.conf.beat_schedule = {
+    "heartbeat": {"task": "uva.heartbeat", "schedule": timedelta(minutes=1)},
+}
+
+
+@signals.setup_logging.connect
+def _setup_logging(**_: object) -> None:
+    # Same JSON logs as the bot instead of Celery's own format.
+    configure_logging(settings.log_level)

@@ -61,3 +61,36 @@ async def test_usage_store_sums_by_period_and_scope(db):
     since = utcnow() - timedelta(hours=1)
     assert await store.total_cost(since) == 0.75
     assert await store.total_cost(since, Scope.PROACTIVE) == 0.25
+
+
+async def test_task_store_roundtrip(db):
+    from uva.tasks.queue import TaskRecord, TaskStatus
+
+    store = mongo.MongoTaskStore(db, ttl_days=1)
+    await store.setup()
+    record = TaskRecord(action="search", params={"query": "x"})
+    await store.add(record)
+    await store.update(record.id, status=TaskStatus.DONE)
+    loaded = await store.get(record.id)
+    assert loaded.status is TaskStatus.DONE and loaded.params == {"query": "x"}
+    assert [r.id for r in await store.recent(5)] == [record.id]
+
+
+REDIS_TEST_URL = os.environ.get("REDIS_TEST_URL")
+
+
+@pytest.mark.skipif(not REDIS_TEST_URL, reason="REDIS_TEST_URL not set")
+async def test_busy_tracker_with_real_redis():
+    from redis.asyncio import Redis
+
+    from uva.tasks.busy import BusyTracker
+
+    redis = Redis.from_url(REDIS_TEST_URL, decode_responses=True)
+    await redis.flushdb()
+    busy = BusyTracker(redis)
+    assert not await busy.is_busy()
+    await busy.mark("chat", 60)
+    assert await busy.reasons() == ["chat"]
+    await busy.clear("chat")
+    assert not await busy.is_busy()
+    await redis.aclose()

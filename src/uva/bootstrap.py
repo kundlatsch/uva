@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
+from redis.asyncio import Redis
+
 from uva.actions import build_action_registry
+from uva.clock import utcnow
 from uva.commands import build_registry
 from uva.config import Settings
 from uva.llm.budget import Budget
@@ -11,6 +16,8 @@ from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
 from uva.storage import mongo
+from uva.tasks.busy import HEARTBEAT_KEY, BusyTracker
+from uva.tasks.celery_queue import CeleryTaskQueue
 
 log = get_logger(__name__)
 
@@ -33,9 +40,35 @@ def build_services(settings: Settings) -> Services:
         search=build_search_backends(settings, llm),
     )
     services.budget = Budget(usage, settings, services.tz)
+
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    task_store = mongo.MongoTaskStore(db, settings.tasks_ttl_days)
+    services.tasks = CeleryTaskQueue(task_store, redis)
+    services.busy = BusyTracker(redis)
+
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
-    services.setup_hooks.extend([event_store.setup, usage.setup])
+    services.health_checks["Redis"] = lambda: _redis_ping(redis)
+    services.health_checks["Worker + agendador"] = lambda: _heartbeat_fresh(redis)
+    services.setup_hooks.extend([event_store.setup, usage.setup, task_store.setup])
     return services
+
+
+async def _redis_ping(redis: Redis) -> bool:
+    try:
+        return bool(await redis.ping())
+    except Exception:
+        return False
+
+
+async def _heartbeat_fresh(redis: Redis, max_age_seconds: int = 180) -> bool:
+    """Beat schedules a heartbeat every minute and a worker runs it."""
+    try:
+        value = await redis.get(HEARTBEAT_KEY)
+    except Exception:
+        return False
+    if not value:
+        return False
+    return (utcnow() - datetime.fromisoformat(value)).total_seconds() < max_age_seconds
 
 
 async def setup_storage(services: Services) -> None:

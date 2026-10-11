@@ -23,6 +23,13 @@ async def collect_status(services: Services) -> list[str]:
             ok = False
         lines.append(f"{'🟢' if ok else '🔴'} {name}")
 
+    if services.tasks is not None:
+        try:
+            size = await services.tasks.queue_size()
+            lines.append(f"Fila de tarefas: {size if size is not None else 'n/d'}")
+        except Exception:
+            lines.append("Fila de tarefas: indisponível")
+
     lines.extend(await describe_spend(services))
     return lines
 

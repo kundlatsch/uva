@@ -1,4 +1,4 @@
-"""MongoDB connection and the Mongo-backed event store."""
+"""MongoDB connection and the Mongo-backed stores."""
 
 from __future__ import annotations
 
@@ -8,8 +8,10 @@ from typing import Any
 from pymongo import ASCENDING, DESCENDING, AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
+from uva.clock import utcnow
 from uva.llm.budget import Scope, UsageRecord
 from uva.logging.events import Event, EventQuery
+from uva.tasks.queue import TaskRecord, TaskStatus
 
 DEFAULT_DB_NAME = "uva"
 
@@ -98,3 +100,33 @@ class MongoUsageStore:
         )
         rows = await cursor.to_list(length=1)
         return float(rows[0]["total"]) if rows else 0.0
+
+
+class MongoTaskStore:
+    """Background task records (collection ``tasks``), kept for TASKS_TTL_DAYS."""
+
+    def __init__(self, db: AsyncDatabase, ttl_days: int) -> None:
+        self.collection = db["tasks"]
+        self.ttl_days = ttl_days
+
+    async def setup(self) -> None:
+        await self.collection.create_index("id", unique=True)
+        await self.collection.create_index("created_at", expireAfterSeconds=self.ttl_days * 86400)
+
+    async def add(self, record: TaskRecord) -> None:
+        doc = record.model_dump()
+        doc["status"] = record.status.value
+        await self.collection.insert_one(doc)
+
+    async def get(self, task_id: str) -> TaskRecord | None:
+        doc = await self.collection.find_one({"id": task_id}, {"_id": False})
+        return TaskRecord.model_validate(doc) if doc else None
+
+    async def update(self, task_id: str, **fields: Any) -> None:
+        fields = {k: (v.value if isinstance(v, TaskStatus) else v) for k, v in fields.items()}
+        fields["updated_at"] = utcnow()
+        await self.collection.update_one({"id": task_id}, {"$set": fields})
+
+    async def recent(self, limit: int) -> list[TaskRecord]:
+        cursor = self.collection.find({}, {"_id": False}).sort("created_at", DESCENDING).limit(limit)
+        return [TaskRecord.model_validate(doc) async for doc in cursor]

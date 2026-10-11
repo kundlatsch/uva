@@ -6,7 +6,12 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.actions.registry import (
+    ActionContext,
+    ActionRegistry,
+    ActionResult,
+    RetryableActionError,
+)
 from uva.actions.search import ResearchError, research
 
 
@@ -47,11 +52,14 @@ def register(registry: ActionRegistry) -> None:
         SearchParams,
         proactive_safe=True,
         long_running=True,
+        progress_text="🔎 Pesquisando…",
     )
     async def search(params: SearchParams, ctx: ActionContext) -> ActionResult:
         try:
             found = await research(ctx.services, params.query, params.source, ctx.scope)
         except ResearchError as exc:
+            if exc.retryable and ctx.allow_retry:
+                raise RetryableActionError(str(exc)) from exc
             return ActionResult(text=f"Não consegui pesquisar: {exc}", data={"error": str(exc)})
         return ActionResult(
             text=found.render(),

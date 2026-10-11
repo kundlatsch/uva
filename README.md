@@ -123,6 +123,16 @@ Cada decisão fica no log com a nota, então dá para ajustar os limiares olhand
 - `/llm` mostra provedor, modelos, backends de pesquisa e gastos.
 - As últimas `LLM_HISTORY_MESSAGES` mensagens da conversa vão como contexto (ficam só na memória do processo).
 
+## Tarefas em segundo plano
+
+O compose sobe também `redis`, `worker` (Celery) e `beat` (agendador). Ações demoradas, como `search`, viram tarefas: o bot responde na hora com "🔎 Pesquisando… (tarefa abc123)" e o worker manda o resultado quando terminar. Enquanto isso o bot continua respondendo normalmente.
+
+- `/tarefas` — tarefas recentes e o estado de cada uma
+- `/cancelar <id>` — cancela uma tarefa na fila ou rodando
+- Falhas temporárias (rede, API) são tentadas de novo com espera crescente (`TASK_MAX_RETRIES`).
+- O Redis guarda um "ocupado" enquanto você conversa e enquanto há tarefas rodando; o modo proativo (fase 8) só age quando nada está marcado.
+- O beat dispara um heartbeat a cada minuto; `/status` mostra 🔴 em "Worker + agendador" se ele parar de chegar.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.
