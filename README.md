@@ -44,6 +44,7 @@ docs/plano.md     # plano por fases
 | `/status`, `/llm` | saúde dos serviços, modelos e gastos com API |
 | `/tarefas`, `/cancelar <id>` | tarefas em segundo plano |
 | `/frases [categoria]` | frases prontas do bot |
+| `/decidir ...` | probabilidade, escolha ou nota (OpenAI Decisions) |
 | `/contexto [limpar]` | memória de curto prazo da conversa |
 
 Fora dos comandos, é só escrever normalmente.
@@ -258,6 +259,17 @@ Peça com `/feature <descrição>` (ex.: `/feature /dado rola um dado de 6 lados
 - Orçamento próprio: `SELFCODE_DAILY_BUDGET_USD` (não consome o orçamento diário geral, mas conta no mensal).
 - Plugins também podem ser escritos à mão: crie o arquivo em `src/uva/plugins/`, os testes em `tests/plugins/` e reinicie o bot (ou use `/reverter`/`/feature` para disparar um reload). Eles aparecem como `[plugin]` em `/comandos`.
 - Requer o repositório na branch `main`; mudanças suas ainda não commitadas não entram no clone.
+
+## Decisões (OpenAI Decisions)
+
+Para perguntas com resposta numérica e calibrada, a UVA usa a API Decisions da OpenAI (beta, modelo `gpt-6-luna`, US$ 0,10 por 1M tokens de entrada, saída grátis). A chave é `DECISIONS_API_KEY`, ou a `LLM_API_KEY` quando o provedor principal já é a OpenAI.
+
+- `/decidir <afirmação>[: texto]` → chance de ser verdade. Ex.: `/decidir esse email é spam: Ganhe um iPhone grátis`
+- `/decidir <pergunta> | op1, op2, op3 [:: texto]` → escolhe uma opção, com confiança e probabilidades. Ex.: `/decidir o que jantar | pizza, sushi, salada :: tô sem grana`
+- `/decidir nota <critério> | nível0, nível1, ... :: texto` → nota de 0 a N (níveis do mais baixo ao mais alto). Ex.: `/decidir nota urgência | baixa, média, alta :: o servidor caiu`
+- Foto com a legenda `/decidir ...` avalia a imagem. Foto sem legenda fica guardada 30 min para perguntas como "tem gato nessa foto?".
+- Em texto livre, a LLM usa a ação `decide` (até 8 perguntas) para "qual a chance de...", escolher entre opções fixas ou dar nota, em vez de chutar.
+- Cada chamada entra no orçamento e no `/log 1d llm` (`kind=decisions`).
 
 ## Frases prontas
 

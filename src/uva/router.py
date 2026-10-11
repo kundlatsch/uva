@@ -19,6 +19,7 @@ from uva.clock import utcnow
 from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
+from uva.media import current_photo
 from uva.matching import best_match, small_talk, status_question
 from uva.replies import Button, Reply
 from uva.services import Services
@@ -49,13 +50,22 @@ class Router:
     def registry(self) -> CommandRegistry:
         return self.services.registry
 
-    async def handle_text(self, text: str, user_id: int | None = None) -> Reply:
+    async def handle_text(
+        self, text: str, user_id: int | None = None, photo: str | None = None
+    ) -> Reply:
+        """Route a message; ``photo`` is a data URL when it came with an image."""
         await self._mark_busy()
-        with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text=text)
-            reply = await self._safely(self._route(text.strip(), user_id))
-            await self._remember(text, reply)
-            return reply
+        if photo is not None:
+            self.services.last_photo.set(photo)
+        token = current_photo.set(photo)
+        try:
+            with trace():
+                await emit(EventType.MESSAGE_RECEIVED, text=text, photo=photo is not None)
+                reply = await self._safely(self._route(text.strip(), user_id))
+                await self._remember(text + (" [foto]" if photo else ""), reply)
+                return reply
+        finally:
+            current_photo.reset(token)
 
     async def _remember(self, text: str, reply: Reply) -> None:
         """Keep the exchange in the short-term memory (best effort)."""

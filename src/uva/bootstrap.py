@@ -15,6 +15,7 @@ from uva.commands import build_registry
 from uva.config import Settings
 from uva.llm.budget import Budget
 from uva.llm.client import build_llm_client
+from uva.llm.decisions import build_decisions_client
 from uva.memory.service import MemoryService
 from uva.logging import events, get_logger
 from uva.search import build_search_backends
@@ -51,6 +52,7 @@ def build_services(settings: Settings) -> Services:
         search=build_search_backends(settings, llm),
     )
     services.budget = Budget(usage, settings, services.tz)
+    services.decisions = build_decisions_client(settings, usage)
 
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     task_store = mongo.MongoTaskStore(db, settings.tasks_ttl_days)

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from uva.clock import get_tz, utcnow
 from uva.config import Settings
+from uva.media import LastPhoto
 from uva.phrases import Phrases
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from uva.goals.store import GoalStore
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
+    from uva.llm.decisions import DecisionsClient
     from uva.memory.service import MemoryService
     from uva.selfmod.features import FeatureService
     from uva.selfmod.files import FileAccess
@@ -55,6 +57,9 @@ class Services:
     files: FileAccess | None = None
     features: FeatureService | None = None
     stm: ShortTermMemory | None = None
+    decisions: DecisionsClient | None = None
+    # Most recent photo the user sent (bot process only).
+    last_photo: LastPhoto = field(default_factory=LastPhoto)
     # Called after code in the repo changed (e.g. a reverted plugin).
     on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
     # Ready-made phrases in the bot's voice; defaults to data/fallback_phrases.json.

@@ -21,6 +21,8 @@ from uva.router import Router
 from uva.security import install_guard
 from uva.selfmod.reload import listen_for_reloads, reload_plugins
 from uva.services import Services
+from uva.media import to_data_url
+from uva.replies import Reply
 from uva.telegram_io import send_reply
 
 log = get_logger(__name__)
@@ -51,6 +53,24 @@ def build_application(settings: Settings, services: Services) -> Application:
         reply = await router.handle_text(message.text, user_id=user_id)
         await send_reply(context.bot, message.chat_id, reply)
 
+    async def on_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        message = update.effective_message
+        if message is None or not message.photo:
+            return
+        file = await message.photo[-1].get_file()  # largest size
+        photo = to_data_url(bytes(await file.download_as_bytearray()))
+        user_id = update.effective_user.id if update.effective_user else None
+        if not message.caption:
+            services.last_photo.set(photo)
+            await send_reply(
+                context.bot,
+                message.chat_id,
+                Reply("📷 Guardei a foto. Manda /decidir ... ou pergunta algo sobre ela."),
+            )
+            return
+        reply = await router.handle_text(message.caption, user_id=user_id, photo=photo)
+        await send_reply(context.bot, message.chat_id, reply)
+
     async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
         if query is None or query.data is None or query.message is None:
@@ -64,6 +84,7 @@ def build_application(settings: Settings, services: Services) -> Application:
 
     # One text handler (commands included) keeps all routing logic in Router.
     application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, on_text))
+    application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, on_photo))
     application.add_handler(CallbackQueryHandler(on_button))
     application.add_error_handler(_on_error)
     return application

@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     llm_default_price_input: float = 5.0
     llm_default_price_output: float = 25.0
 
+    # OpenAI Decisions API (typed answers). Key defaults to LLM_API_KEY when the
+    # main provider is OpenAI itself.
+    decisions_api_key: SecretStr | None = None
+    decisions_base_url: str | None = None
+    decisions_model: str = "gpt-6-luna"
+    decisions_price_input: float = 0.10  # USD per 1M input tokens (output is free)
+
     # Search
     search_backend: SearchBackendName = SearchBackendName.AUTO
     search_max_results: int = 5

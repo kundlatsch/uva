@@ -76,6 +76,9 @@ Regras:
   falhou, retry; para parar algo rodando, cancel (todos aceitam a ref, ex.: t3).
 - Perguntas sobre o CONTEÚDO de algo que você já entregou (ex.: "o que achou da pesquisa?")
   se respondem com o que está no histórico/avisos, sem ação; task_status é só para o estado.
+- Para "qual a chance de...", "é X ou Y?", "isso é spam/urgente?", escolher entre opções fixas
+  ou dar nota numa escala, use a ação decide (números calibrados) em vez de chutar; se o
+  usuário mandou foto e pergunta sobre ela, use "use_last_photo": true.
 - Se o usuário pedir uma funcionalidade/comando novo que você não tem, use feature_request
   com uma descrição clara (nome do comando, o que faz, exemplos de uso).
 {memory}
