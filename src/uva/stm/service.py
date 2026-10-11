@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from uva.clock import format_local, utcnow
 from uva.config import Settings
 from uva.llm.base import LLMMessage
-from uva.stm.session import TURN_CHARS, Ref, RefKind, RefStatus, Session, SessionBackend, Turn
+from uva.stm.session import NOTICE_CHARS, TURN_CHARS, Ref, RefKind, RefStatus, Session, SessionBackend, Turn
 
 ICONS = {"na fila": "⏳", "rodando": "🔄", "ok": "✅", "falhou": "❌"}
 
@@ -47,7 +47,7 @@ class ShortTermMemory:
     # --- conversation ----------------------------------------------------------------
 
     async def add_turn(self, role: str, text: str, user_id: int | None = None) -> None:
-        turn = Turn(role=role, text=_clip(text))
+        turn = Turn(role=role, text=_clip(text, NOTICE_CHARS if role == "notice" else TURN_CHARS))
         await self._update(lambda s: s.turns.append(turn), user_id)
 
     async def add_exchange(self, user_text: str, bot_text: str, user_id: int | None = None) -> None:
@@ -133,6 +133,6 @@ def describe_ref(ref: Ref, tz, focus: bool = False) -> str:
     return f"- {ref.ref} [{ref.tipo}] {ref.rotulo} (id {ref.id}, {when}): {ICONS[ref.status]} {ref.status}{error}{mark}"
 
 
-def _clip(text: str) -> str:
+def _clip(text: str, limit: int = TURN_CHARS) -> str:
     text = text.strip()
-    return text if len(text) <= TURN_CHARS else text[: TURN_CHARS - 1] + "…"
+    return text if len(text) <= limit else text[: limit - 1] + "…"

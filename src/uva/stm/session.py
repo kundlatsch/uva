@@ -18,6 +18,7 @@ RefKind = Literal["tarefa", "pesquisa", "nota", "objetivo", "feature", "gasto"]
 RefStatus = Literal["na fila", "rodando", "ok", "falhou"]
 ACTIVE: tuple[RefStatus, ...] = ("na fila", "rodando")
 TURN_CHARS = 500
+NOTICE_CHARS = 2000  # proactive messages carry results the user may ask about
 
 
 class Turn(BaseModel):

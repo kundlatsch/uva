@@ -74,6 +74,8 @@ Regras:
 - "aquela", "ela", "de novo" e afins se referem ao contexto recente (a referência em foco,
   salvo indicação). Para saber como algo está, use task_status; para repetir algo que
   falhou, retry; para parar algo rodando, cancel (todos aceitam a ref, ex.: t3).
+- Perguntas sobre o CONTEÚDO de algo que você já entregou (ex.: "o que achou da pesquisa?")
+  se respondem com o que está no histórico/avisos, sem ação; task_status é só para o estado.
 - Se o usuário pedir uma funcionalidade/comando novo que você não tem, use feature_request
   com uma descrição clara (nome do comando, o que faz, exemplos de uso).
 {memory}

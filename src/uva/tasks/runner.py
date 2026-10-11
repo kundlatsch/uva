@@ -70,10 +70,12 @@ async def run_action_task(
                 )
                 raise
 
+            # Record the final state first: the user may ask about it as soon as
+            # the notification arrives.
             failed = bool(result.data.get("error"))
+            await _finish(services, task_id, action_name, TaskStatus.DONE)
             await _ref_status(services, task_id, "falhou" if failed else "ok", result.data.get("error"))
             await notify(Reply(result.text or services.say("tarefa_ok", id=task_id)))
-            await _finish(services, task_id, action_name, TaskStatus.DONE)
             return TaskStatus.DONE
         finally:
             if services.busy is not None:

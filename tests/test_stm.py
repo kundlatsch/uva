@@ -250,3 +250,28 @@ async def test_active_sessions_are_not_promoted(services, stm):
     with_llm(services)
     await stm.add_exchange("oi", "oi")
     assert (await promote_idle_sessions(services))["sessions"] == 0
+
+
+async def test_task_is_done_before_the_user_is_notified(services, stm):
+    services.search = {"web": FakeSearch("web", SearchResult("F1", "https://f1.com", "x"))}
+    with_llm(services, "Resumo.")
+    record = await services.tasks.enqueue("search", {"query": "F1"}, None)
+    await stm.add_ref("pesquisa", record.id, "pesquisa: F1", "na fila")
+    seen = []
+
+    async def notify(reply):
+        # What a follow-up question would see right when the message arrives.
+        seen.append(services.tasks.store.records[record.id].status)
+
+    await run_action_task(
+        services, notify, task_id=record.id, action_name="search", params=record.params,
+        trace_id=None, attempt=0, max_retries=3,
+    )
+    assert seen == [TaskStatus.DONE]
+
+
+async def test_notices_keep_more_text(stm):
+    await stm.add_turn("notice", "x" * 1500)
+    await stm.add_turn("user", "y" * 1500)
+    turns = (await stm.session()).turns
+    assert len(turns[0].text) == 1500 and len(turns[1].text) == 500
