@@ -260,6 +260,16 @@ Peça com `/feature <descrição>` (ex.: `/feature /dado rola um dado de 6 lados
 - Plugins também podem ser escritos à mão: crie o arquivo em `src/uva/plugins/`, os testes em `tests/plugins/` e reinicie o bot (ou use `/reverter`/`/feature` para disparar um reload). Eles aparecem como `[plugin]` em `/comandos`.
 - Requer o repositório na branch `main`; mudanças suas ainda não commitadas não entram no clone.
 
+## Áudio
+
+Mande um áudio (mensagem de voz, arquivo de áudio ou vídeo redondo) e a UVA transcreve com a OpenAI (`TRANSCRIBE_MODEL`, padrão `gpt-4o-mini-transcribe`, com `whisper-1` de reserva), responde "🎙️ entendi: ..." e trata o texto **exatamente como se você tivesse digitado**: comandos, similaridade e LLM.
+
+- O ffmpeg converte o áudio do Telegram (OGG/Opus) para MP3 mono antes de enviar.
+- Limite de 20 MB por arquivo (limite do Telegram para bots).
+- Custo por minuto de áudio entra no orçamento e em `/log 1d llm` (`kind=transcribe`); a transcrição fica na memória de curto prazo como `[voz] ...`.
+- A chave é `TRANSCRIBE_API_KEY`, ou a `LLM_API_KEY` quando o provedor principal já é a OpenAI.
+- Transcrição local (faster-whisper na CPU) ficou para depois: deixaria a imagem bem maior e lenta no PC.
+
 ## Decisões (OpenAI Decisions)
 
 Para perguntas com resposta numérica e calibrada, a UVA usa a API Decisions da OpenAI (beta, modelo `gpt-6-luna`, US$ 0,10 por 1M tokens de entrada, saída grátis). A chave é `DECISIONS_API_KEY`, ou a `LLM_API_KEY` quando o provedor principal já é a OpenAI.

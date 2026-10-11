@@ -71,6 +71,15 @@ class Settings(BaseSettings):
     decisions_model: str = "gpt-6-luna"
     decisions_price_input: float = 0.10  # USD per 1M input tokens (output is free)
 
+    # Speech to text (OpenAI). Key defaults to LLM_API_KEY when the provider is OpenAI.
+    transcribe_api_key: SecretStr | None = None
+    transcribe_base_url: str | None = None
+    transcribe_model: str = "gpt-4o-mini-transcribe"
+    transcribe_fallback_model: str = "whisper-1"
+    transcribe_language: str = "pt"
+    # USD per audio minute; empty = the built-in table for the model.
+    transcribe_price_per_minute: float | None = None
+
     # Search
     search_backend: SearchBackendName = SearchBackendName.AUTO
     search_max_results: int = 5

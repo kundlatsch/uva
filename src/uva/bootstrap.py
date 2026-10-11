@@ -9,6 +9,7 @@ from pathlib import Path
 from redis.asyncio import Redis
 
 from uva.actions import build_action_registry
+from uva.audio import build_transcriber
 from uva.brain.vault import Vault
 from uva.clock import utcnow
 from uva.commands import build_registry
@@ -53,6 +54,7 @@ def build_services(settings: Settings) -> Services:
     )
     services.budget = Budget(usage, settings, services.tz)
     services.decisions = build_decisions_client(settings, usage)
+    services.transcriber = build_transcriber(settings, usage)
 
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     task_store = mongo.MongoTaskStore(db, settings.tasks_ttl_days)

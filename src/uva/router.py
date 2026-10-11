@@ -23,12 +23,19 @@ from uva.media import current_photo
 from uva.matching import best_match, small_talk, status_question
 from uva.replies import Button, Reply
 from uva.services import Services
+from uva.audio import TranscriptionError
+from uva.llm.budget import Scope
 from uva.stm.status import refresh, status_reply
 
 UNKNOWN_COMMAND = "/{name} não existe. Envie /help para ver a lista."
 CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
 
 CONFIRM_TTL = timedelta(minutes=10)
+HEARD_CHARS = 800
+
+
+def _clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
 @dataclass(slots=True)
@@ -66,6 +73,35 @@ class Router:
                 return reply
         finally:
             current_photo.reset(token)
+
+    async def handle_audio(
+        self, data: bytes, *, seconds: float | None = None, user_id: int | None = None
+    ) -> list[Reply]:
+        """Voice note/audio: transcribe, echo what was understood, then route
+        the transcript exactly as if it had been typed."""
+        await self._mark_busy()
+        services = self.services
+        with trace():
+            await emit(EventType.MESSAGE_RECEIVED, text="[áudio]", kind="voice", seconds=seconds)
+            if services.transcriber is None:
+                text = "Ainda não sei ouvir áudio: falta uma chave da OpenAI (TRANSCRIBE_API_KEY)."
+                return [Reply(text)]
+            if services.budget is not None:
+                status = await services.budget.check(Scope.INTERACTIVE)
+                if not status.allowed:
+                    return [Reply(f"{services.say('sem_credito')}\n({status.reason})")]
+            try:
+                transcript = await services.transcriber.transcribe(data, seconds=seconds)
+            except TranscriptionError as exc:
+                return [Reply(f"{services.say('llm_erro')}\n(transcrição: {exc})")]
+            if not transcript.text:
+                return [Reply(f"{services.say('nao_entendi')}\n(não consegui ouvir nada no áudio)")]
+
+            await emit(EventType.ROUTE, tier="voice", chars=len(transcript.text), model=transcript.model)
+            heard = Reply(f"🎙️ entendi: {_clip(transcript.text, HEARD_CHARS)}")
+            reply = await self._safely(self._route(transcript.text.strip(), user_id))
+            await self._remember(f"[voz] {transcript.text}", reply)
+            return [heard, reply]
 
     async def _remember(self, text: str, reply: Reply) -> None:
         """Keep the exchange in the short-term memory (best effort)."""

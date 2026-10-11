@@ -18,6 +18,7 @@ from uva.phrases import Phrases
 
 if TYPE_CHECKING:
     from uva.actions.registry import ActionRegistry
+    from uva.audio import Transcriber
     from uva.brain.vault import Vault
     from uva.commands.registry import CommandRegistry
     from uva.goals.store import GoalStore
@@ -58,6 +59,7 @@ class Services:
     features: FeatureService | None = None
     stm: ShortTermMemory | None = None
     decisions: DecisionsClient | None = None
+    transcriber: Transcriber | None = None
     # Most recent photo the user sent (bot process only).
     last_photo: LastPhoto = field(default_factory=LastPhoto)
     # Called after code in the repo changed (e.g. a reverted plugin).

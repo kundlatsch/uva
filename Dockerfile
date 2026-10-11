@@ -8,8 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # git: the bot commits changes to its own repository (mounted at /repo).
+# ffmpeg: converts Telegram voice notes (OGG/Opus) for transcription.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
+    && apt-get install -y --no-install-recommends git ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system --add safe.directory '*'
 
