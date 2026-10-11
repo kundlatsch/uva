@@ -65,7 +65,7 @@ async def test_log_shows_path_of_each_message(services):
     text = (await router.handle_text("/log 1h")).text
     assert '"/ping" → comando /ping' in text
     bom_dia = next(line for line in text.splitlines() if '"bom dia"' in line)
-    assert bom_dia.endswith("não entendido")
+    assert bom_dia.endswith("LLM desligada")
 
 
 async def test_log_trace_detail(services, event_store):

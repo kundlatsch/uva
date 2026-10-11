@@ -15,8 +15,12 @@ from uva.clock import get_tz, utcnow
 from uva.config import Settings
 
 if TYPE_CHECKING:
+    from uva.actions.registry import ActionRegistry
     from uva.commands.registry import CommandRegistry
+    from uva.llm.budget import Budget
+    from uva.llm.client import LLMClient
     from uva.logging.events import EventStore
+    from uva.search.base import SearchBackend
 
 HealthCheck = Callable[[], Awaitable[bool]]
 
@@ -25,10 +29,17 @@ HealthCheck = Callable[[], Awaitable[bool]]
 class Services:
     settings: Settings
     registry: CommandRegistry
+    actions: ActionRegistry | None = None
     events: EventStore | None = None
+    llm: LLMClient | None = None
+    budget: Budget | None = None
+    # Search backends by source name ("web", "wikipedia").
+    search: dict[str, SearchBackend] = field(default_factory=dict)
     started_at: datetime = field(default_factory=utcnow)
     # Name -> async check returning True when the service is up (for /status).
     health_checks: dict[str, HealthCheck] = field(default_factory=dict)
+    # Async setup steps (index creation...) run once at startup.
+    setup_hooks: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
 
     @property
     def tz(self) -> tzinfo:

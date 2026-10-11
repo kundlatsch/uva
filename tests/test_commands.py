@@ -1,7 +1,8 @@
 import pytest
 
 from uva.commands import Command, CommandRegistry, build_registry
-from uva.router import NOT_UNDERSTOOD, Router
+from uva.llm.agent import LLM_DISABLED
+from uva.router import Router
 
 
 @pytest.fixture
@@ -41,7 +42,7 @@ async def test_unknown_command(router):
 
 
 async def test_free_text_falls_back(router):
-    assert await text_of(router, "qual a capital da França") == NOT_UNDERSTOOD
+    assert await text_of(router, "qual a capital da França") == LLM_DISABLED
 
 
 def test_registry_has_builtin_commands():

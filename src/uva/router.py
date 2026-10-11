@@ -4,8 +4,7 @@ Routing tiers:
   1. Explicit commands (``/name args``), resolved by name or alias.
   2. Similarity match of free text against command names, aliases and
      examples: a high score runs the command, a medium score asks first.
-  3. TODO (phase 4): LLM fallback with JSON actions.
-Anything that falls through every tier gets a "not understood" reply.
+  3. The LLM, which answers with JSON actions (see uva.llm.agent).
 
 Every message runs under its own trace id; each step is recorded as an event.
 """
@@ -18,12 +17,12 @@ from datetime import datetime, timedelta
 
 from uva.clock import utcnow
 from uva.commands import CommandContext, CommandRegistry
+from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
 from uva.matching import best_match
 from uva.replies import Button, Reply
 from uva.services import Services
 
-NOT_UNDERSTOOD = "Não entendi. Envie /help para ver o que eu sei fazer."
 UNKNOWN_COMMAND = "Comando desconhecido: /{name}. Envie /help para ver a lista."
 INTERNAL_ERROR = "Algo deu errado do meu lado. O erro foi registrado (/log erros)."
 CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
@@ -45,6 +44,7 @@ class Router:
         self.services = services
         # Tier-2 questions waiting for a Sim/Não button, by token.
         self._pending: dict[str, PendingCommand] = {}
+        self.agent = Agent(services, run_command=self._run_command_for_llm)
 
     @property
     def registry(self) -> CommandRegistry:
@@ -81,9 +81,8 @@ class Router:
         if reply := await self._try_similarity(text, user_id):
             return reply
 
-        # Tier 3: TODO (phase 4) - hand off to the LLM, within budget.
-        await emit(EventType.ROUTE, tier="none")
-        return Reply(NOT_UNDERSTOOD)
+        # Tier 3: the LLM (within budget).
+        return await self.agent.handle(text)
 
     async def _dispatch_command(self, text: str, user_id: int | None) -> Reply:
         head, *args = text.split()
@@ -149,6 +148,9 @@ class Router:
         now = utcnow()
         for token in [t for t, p in self._pending.items() if p.expires_at < now]:
             del self._pending[token]
+
+    async def _run_command_for_llm(self, name: str, args: list[str]) -> Reply:
+        return await self.run_command(name, args, self.services.settings.allowed_telegram_user_id)
 
     async def run_command(self, name: str, args: list[str], user_id: int | None) -> Reply:
         command = self.registry.get(name)

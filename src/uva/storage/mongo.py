@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from pymongo import ASCENDING, DESCENDING, AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
+from uva.llm.budget import Scope, UsageRecord
 from uva.logging.events import Event, EventQuery
 
 DEFAULT_DB_NAME = "uva"
@@ -72,3 +73,28 @@ def _to_filter(query: EventQuery) -> dict[str, Any]:
     if ts:
         filt["ts"] = ts
     return filt
+
+
+class MongoUsageStore:
+    """LLM calls and their cost (collection ``llm_usage``)."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["llm_usage"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index([("ts", ASCENDING), ("scope", ASCENDING)])
+
+    async def add(self, record: UsageRecord) -> None:
+        doc = record.model_dump()
+        doc["scope"] = record.scope.value
+        await self.collection.insert_one(doc)
+
+    async def total_cost(self, since: datetime, scope: Scope | None = None) -> float:
+        match: dict[str, Any] = {"ts": {"$gte": since}}
+        if scope is not None:
+            match["scope"] = scope.value
+        cursor = await self.collection.aggregate(
+            [{"$match": match}, {"$group": {"_id": None, "total": {"$sum": "$cost_usd"}}}]
+        )
+        rows = await cursor.to_list(length=1)
+        return float(rows[0]["total"]) if rows else 0.0

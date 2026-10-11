@@ -1,4 +1,4 @@
-"""Entry point: wires settings, logging, storage, security and routing into the bot."""
+"""Entry point: wires settings, logging, services, security and routing into the bot."""
 
 from __future__ import annotations
 
@@ -14,43 +14,22 @@ from telegram.ext import (
     filters,
 )
 
-from uva.commands import build_registry
+from uva.bootstrap import build_services, setup_storage
 from uva.config import Settings, get_settings
 from uva.logging import configure_logging, get_logger
-from uva.logging import events
 from uva.router import Router
 from uva.security import install_guard
 from uva.services import Services
-from uva.storage import mongo
 from uva.telegram_io import send_reply
 
 log = get_logger(__name__)
-
-
-def build_services(settings: Settings) -> Services:
-    client = mongo.connect(settings.mongo_uri)
-    db = mongo.get_database(client)
-    event_store = mongo.MongoEventStore(db, settings.events_ttl_days)
-    events.set_store(event_store)
-
-    services = Services(settings=settings, registry=build_registry(), events=event_store)
-    services.health_checks["MongoDB"] = lambda: mongo.ping(client)
-    return services
-
-
-async def _setup_storage(services: Services) -> None:
-    """Create indexes. A missing Mongo must not keep the bot from starting."""
-    try:
-        await services.events.setup()  # type: ignore[union-attr]
-    except Exception as exc:
-        log.warning("storage_setup_failed", error=str(exc))
 
 
 def build_application(settings: Settings, services: Services) -> Application:
     token = settings.telegram_bot_token.get_secret_value()
 
     async def post_init(app: Application) -> None:
-        await _setup_storage(services)
+        await setup_storage(services)
 
     application = Application.builder().token(token).post_init(post_init).build()
 

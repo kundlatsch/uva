@@ -109,9 +109,19 @@ async def hora(ctx: CommandContext) -> str:
 
 1. **Comando explícito** (`/log 2h`): executado direto, por nome ou apelido.
 2. **Similaridade**: texto livre é normalizado (minúsculas, sem acentos e pontuação, sem palavras de enchimento como "me mostra", "por favor") e comparado com nome, apelidos e frases de exemplo de cada comando (rapidfuzz). Nota ≥ `SIMILARITY_EXECUTE_THRESHOLD` (90) executa; ≥ `SIMILARITY_CONFIRM_THRESHOLD` (75) pergunta "Você quis dizer /x?" com botões Sim/Não; abaixo disso segue para o próximo nível. Argumentos simples são extraídos do texto: "log de erros das últimas 2 horas" vira `/log 2h erros`.
-3. **LLM** (fase 4).
+3. **LLM**: o texto vai para o modelo rápido (`LLM_MODEL_ROUTER`), que responde **sempre** com um JSON `{"actions": [...], "reply": "..."}`. As ações possíveis ficam num registro (`uva/actions`): funções Python com nome, descrição e schema Pydantic. A resposta é validada; JSON inválido ou ação desconhecida não executa nada (vai para `/log erros`). A LLM nunca roda código livre.
 
 Cada decisão fica no log com a nota, então dá para ajustar os limiares olhando `/log`.
+
+## LLM, pesquisa e orçamento
+
+- **Provedores**: `LLM_PROVIDER=anthropic` (padrão; modelos `claude-haiku-5-5` e `claude-opus-5-5` se não configurar) ou `openai_compatible` (OpenAI, Ollama, OpenRouter... com `LLM_BASE_URL`).
+- **Ações iniciais**: `reply`, `run_command` (executa um comando do bot) e `search`.
+- **Pesquisa**: com Anthropic usa a busca na web do próprio Claude; com outros provedores usa Wikipédia + DuckDuckGo (`SEARCH_BACKEND` troca). "Pesquisa sobre X na Wikipédia" força a Wikipédia. O resumo é feito pelo modelo pesado (`LLM_MODEL_HEAVY`) e vem com as fontes.
+- **Custo**: cada chamada registra modelo, tokens, custo estimado e duração (`/log 1d llm`). A tabela de preços já conhece os modelos Anthropic; para outros, configure `LLM_PRICES` (US$ por 1M tokens). Sem preço, usa `LLM_DEFAULT_PRICE_*` (pessimista).
+- **Orçamento**: `LLM_DAILY_BUDGET_USD` e `LLM_MONTHLY_BUDGET_USD` (conversa) e `PROACTIVE_DAILY_BUDGET_USD` (modo proativo). Ao bater o limite, o fallback 3 desliga até virar o dia/mês e o bot avisa; os comandos continuam funcionando.
+- `/llm` mostra provedor, modelos, backends de pesquisa e gastos.
+- As últimas `LLM_HISTORY_MESSAGES` mensagens da conversa vão como contexto (ficam só na memória do processo).
 
 ## Log e diagnóstico
 

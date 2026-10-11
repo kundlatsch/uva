@@ -40,3 +40,24 @@ async def test_event_store_roundtrip(db):
     llm = await store.find(EventQuery(types={EventType.LLM_CALL}))
     assert len(llm) == 1
     assert (await store.find(EventQuery(trace_id="t1")))[0].ts.tzinfo is not None
+
+
+async def test_usage_store_sums_by_period_and_scope(db):
+    from uva.llm.budget import Scope, UsageRecord
+
+    store = mongo.MongoUsageStore(db)
+    await store.setup()
+
+    def record(cost, scope, hours_ago=0):
+        return UsageRecord(
+            ts=utcnow() - timedelta(hours=hours_ago), provider="p", model="m",
+            input_tokens=1, output_tokens=1, cost_usd=cost, scope=scope, purpose="t",
+        )
+
+    await store.add(record(0.5, Scope.INTERACTIVE))
+    await store.add(record(0.25, Scope.PROACTIVE))
+    await store.add(record(9.0, Scope.INTERACTIVE, hours_ago=48))
+
+    since = utcnow() - timedelta(hours=1)
+    assert await store.total_cost(since) == 0.75
+    assert await store.total_cost(since, Scope.PROACTIVE) == 0.25

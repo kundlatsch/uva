@@ -4,7 +4,8 @@ from uva.commands import build_registry
 from uva.commands.log import extract_log_args
 from uva.logging.events import EventType
 from uva.matching import best_match
-from uva.router import CONFIRM_DENIED, NOT_UNDERSTOOD, Router
+from uva.llm.agent import LLM_DISABLED
+from uva.router import CONFIRM_DENIED, Router
 from uva.text import extract_duration, normalize
 
 
@@ -85,7 +86,7 @@ async def test_log_free_text_gets_arguments(router, event_store):
 
 async def test_capital_of_france_is_not_a_command(router, event_store):
     reply = await router.handle_text("qual a capital da França")
-    assert reply.text == NOT_UNDERSTOOD
+    assert reply.text == LLM_DISABLED
     assert event_store.of_type(EventType.COMMAND) == []
 
 

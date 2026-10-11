@@ -14,6 +14,18 @@ class LLMProvider(StrEnum):
     OPENAI_COMPATIBLE = "openai_compatible"
 
 
+# Defaults used when LLM_MODEL_ROUTER / LLM_MODEL_HEAVY are not set.
+ANTHROPIC_DEFAULT_MODELS = ("claude-haiku-5-5", "claude-opus-5-5")
+
+
+class SearchBackendName(StrEnum):
+    AUTO = "auto"  # anthropic web search with Anthropic, otherwise wikipedia+duckduckgo
+    ANTHROPIC = "anthropic"
+    WIKIPEDIA = "wikipedia"
+    DUCKDUCKGO = "duckduckgo"
+    WIKIPEDIA_DUCKDUCKGO = "wikipedia+duckduckgo"
+
+
 class Settings(BaseSettings):
     """All runtime configuration.
 
@@ -39,6 +51,22 @@ class Settings(BaseSettings):
     llm_model_heavy: str | None = None
     llm_daily_budget_usd: float = 1.0
     llm_monthly_budget_usd: float = 20.0
+    # Only sent when set (e.g. "low" for OpenAI reasoning models).
+    llm_reasoning_effort: str | None = None
+    llm_max_tokens: int = 4000
+    llm_timeout_seconds: float = 60
+    # Recent messages kept as conversation context for the LLM.
+    llm_history_messages: int = 10
+    # USD per 1M tokens, JSON: {"gpt-5.5": [input, output], ...}
+    llm_prices: dict[str, tuple[float, float]] = {}
+    # Used for models missing from the price table (pessimistic on purpose).
+    llm_default_price_input: float = 5.0
+    llm_default_price_output: float = 25.0
+
+    # Search
+    search_backend: SearchBackendName = SearchBackendName.AUTO
+    search_max_results: int = 5
+    wikipedia_lang: str = "pt"
 
     # Proactive behaviour
     proactive_daily_budget_usd: float = 0.5
@@ -59,6 +87,26 @@ class Settings(BaseSettings):
 
     # Used for "today", "this month" and displayed times.
     timezone: str = "America/Sao_Paulo"
+
+    @property
+    def router_model(self) -> str | None:
+        """Cheap model used for routing/planning."""
+        if self.llm_model_router:
+            return self.llm_model_router
+        return ANTHROPIC_DEFAULT_MODELS[0] if self.llm_provider is LLMProvider.ANTHROPIC else None
+
+    @property
+    def heavy_model(self) -> str | None:
+        """Stronger model used for summaries and goals."""
+        if self.llm_model_heavy:
+            return self.llm_model_heavy
+        if self.llm_provider is LLMProvider.ANTHROPIC:
+            return ANTHROPIC_DEFAULT_MODELS[1]
+        return self.router_model
+
+    @property
+    def llm_default_price(self) -> tuple[float, float]:
+        return (self.llm_default_price_input, self.llm_default_price_output)
 
 
 @lru_cache(maxsize=1)

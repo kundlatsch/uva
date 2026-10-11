@@ -1,11 +1,11 @@
 """Bot commands and the registry that holds them."""
 
-from uva.commands import builtin, log, status
+from uva.commands import builtin, llm, log, status
 from uva.commands.builtin import render_help
 from uva.commands.registry import Command, CommandContext, CommandRegistry
 
 # Order here is the order shown in /help.
-_MODULES = (builtin, log, status)
+_MODULES = (builtin, log, status, llm)
 
 
 def build_registry() -> CommandRegistry:

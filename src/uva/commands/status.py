@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from uva.clock import format_duration, utcnow
+from uva.commands.llm import describe_spend
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.services import Services
 
@@ -22,6 +23,7 @@ async def collect_status(services: Services) -> list[str]:
             ok = False
         lines.append(f"{'🟢' if ok else '🔴'} {name}")
 
+    lines.extend(await describe_spend(services))
     return lines
 
 

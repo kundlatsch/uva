@@ -195,7 +195,10 @@ def _describe_route(data: dict) -> str:
         case "confirm":
             return f"confirmação /{command}? ({data.get('score', 0):.0f})"
         case "llm":
-            return "LLM"
+            actions = [a.get("type") for a in data.get("plan", {}).get("actions", [])]
+            return "LLM" + (f" ({', '.join(actions)})" if actions else "")
+        case "llm_disabled":
+            return "LLM desligada"
         case "similarity_miss":
             return f"sem comando parecido (melhor: /{command} {data.get('score', 0):.0f})"
         case "confirmed":
