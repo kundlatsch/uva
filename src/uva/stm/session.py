@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from uva.clock import utcnow
 
-RefKind = Literal["tarefa", "pesquisa", "nota", "objetivo", "feature", "gasto"]
+RefKind = Literal["tarefa", "pesquisa", "nota", "objetivo", "feature", "gasto", "imagem"]
 RefStatus = Literal["na fila", "rodando", "ok", "falhou"]
 ACTIVE: tuple[RefStatus, ...] = ("na fila", "rodando")
 TURN_CHARS = 500

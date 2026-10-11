@@ -270,6 +270,15 @@ Mande um áudio (mensagem de voz, arquivo de áudio ou vídeo redondo) e a UVA t
 - A chave é `TRANSCRIBE_API_KEY`, ou a `LLM_API_KEY` quando o provedor principal já é a OpenAI.
 - Transcrição local (faster-whisper na CPU) ficou para depois: deixaria a imagem bem maior e lenta no PC.
 
+## Imagens
+
+A UVA enxerga imagens (fotos e imagens mandadas como arquivo) com o modelo de `LLM_MODEL_VISION` (padrão: o mesmo do roteador). Funciona com OpenAI e Anthropic.
+
+- **Foto com legenda**: a legenda e a imagem vão juntas para a LLM ("o que é isso?", "traduz o cardápio"). Legenda começando com `/` continua sendo comando (ex.: `/decidir ...` usa a foto).
+- **Foto sem legenda**: ela descreve em poucas frases (transcrevendo o texto que houver) e guarda a imagem por 30 minutos. Perguntas seguintes como "o que tá escrito aí?" ou "traduz isso" mostram a imagem de novo para a LLM.
+- **Guardar**: "salva essa foto" usa a ação `image_save`, que grava a imagem em `05-anexos/` do second brain e cria uma nota com `![[...]]` e a descrição. Arquivos nunca são sobrescritos.
+- O custo das chamadas com imagem entra no orçamento normal (`purpose` `plan_vision` / `vision_describe` no `/log 1d llm`).
+
 ## Decisões (OpenAI Decisions)
 
 Para perguntas com resposta numérica e calibrada, a UVA usa a API Decisions da OpenAI (beta, modelo `gpt-6-luna`, US$ 0,10 por 1M tokens de entrada, saída grátis). A chave é `DECISIONS_API_KEY`, ou a `LLM_API_KEY` quando o provedor principal já é a OpenAI.

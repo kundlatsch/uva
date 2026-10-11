@@ -40,7 +40,8 @@ class Agent:
         self.run_command = run_command
         self.history: deque[LLMMessage] = deque(maxlen=services.settings.llm_history_messages)
 
-    async def handle(self, text: str) -> Reply:
+    async def handle(self, text: str, image: str | None = None) -> Reply:
+        """Plan and act. With ``image`` the vision model sees the picture too."""
         services = self.services
         if services.llm is None or services.actions is None:
             await emit(EventType.ROUTE, tier="llm_disabled")
@@ -61,12 +62,14 @@ class Agent:
             working_memory=await self._working_memory(),
             recent_context=recent_context,
         )
-        messages = [*history, LLMMessage("user", text)]
+        images = (image,) if image else ()
+        messages = [*history, LLMMessage("user", text or "(imagem sem legenda)", images=images)]
         try:
             response = await services.llm.complete(
                 messages,
-                purpose="plan",
+                purpose="plan_vision" if image else "plan",
                 scope=INTERACTIVE,
+                model=services.llm.vision_model if image else None,
                 system=system,
                 json_schema=PLAN_SCHEMA,
             )
@@ -83,7 +86,7 @@ class Agent:
             await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
             return Reply(services.say("llm_erro"))
 
-        await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump())
+        await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump(), image=image is not None)
         ctx = ActionContext(services, INTERACTIVE, self.run_command)
         results = [await self._run(action, params, ctx) for action, params in calls]
 

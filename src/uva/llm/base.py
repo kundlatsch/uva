@@ -10,6 +10,8 @@ from typing import Any, Literal, Protocol
 class LLMMessage:
     role: Literal["user", "assistant"]
     content: str
+    # Inline images as base64 data URLs ("data:image/jpeg;base64,...").
+    images: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)

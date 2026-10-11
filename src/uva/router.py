@@ -19,7 +19,10 @@ from uva.clock import utcnow
 from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
-from uva.media import current_photo
+from uva.llm.base import LLMError, LLMMessage
+from uva.media import current_photo, mentions_image
+from uva.stm.refs import remember_ref
+from uva.text import normalize
 from uva.matching import best_match, small_talk, status_question
 from uva.replies import Button, Reply
 from uva.services import Services
@@ -32,6 +35,10 @@ CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
 
 CONFIRM_TTL = timedelta(minutes=10)
 HEARD_CHARS = 800
+DESCRIBE_PROMPT = (
+    "Descreva esta imagem em português do Brasil, em 1 a 3 frases objetivas. Se houver "
+    "texto legível, transcreva-o entre aspas (no idioma original)."
+)
 
 
 def _clip(text: str, limit: int) -> str:
@@ -68,11 +75,69 @@ class Router:
         try:
             with trace():
                 await emit(EventType.MESSAGE_RECEIVED, text=text, photo=photo is not None)
-                reply = await self._safely(self._route(text.strip(), user_id))
+                reply = await self._safely(self._route(text.strip(), user_id, photo))
                 await self._remember(text + (" [foto]" if photo else ""), reply)
                 return reply
         finally:
             current_photo.reset(token)
+
+    async def handle_photo(
+        self, photo: str, caption: str = "", user_id: int | None = None
+    ) -> Reply:
+        """A picture: with a caption it's a message with an image; without one,
+        the bot describes it and keeps it for follow-ups ("o que tá escrito aí?")."""
+        if caption.strip():
+            return await self.handle_text(caption, user_id=user_id, photo=photo)
+
+        await self._mark_busy()
+        services = self.services
+        services.last_photo.set(photo)
+        with trace():
+            await emit(EventType.MESSAGE_RECEIVED, text="[foto]", photo=True)
+            reply = await self._safely(self._describe_photo(photo))
+            await self._remember("[foto sem legenda]", reply)
+            return reply
+
+    async def _describe_photo(self, photo: str) -> Reply:
+        services = self.services
+        llm = services.llm
+        if llm is None:
+            return Reply("📷 Guardei a foto. Manda /decidir ... ou pergunta algo sobre ela.")
+        if services.budget is not None:
+            status = await services.budget.check(Scope.INTERACTIVE)
+            if not status.allowed:
+                return Reply(f"📷 Guardei a foto, mas não posso olhar agora.\n{services.say('sem_credito')}\n({status.reason})")
+        try:
+            response = await llm.complete(
+                [LLMMessage("user", DESCRIBE_PROMPT, images=(photo,))],
+                purpose="vision_describe",
+                scope=Scope.INTERACTIVE,
+                model=llm.vision_model,
+                max_tokens=600,
+                use_soul=False,  # a factual description; the follow-ups get the personality
+            )
+        except LLMError:
+            return Reply(f"📷 Guardei a foto, mas não consegui olhar.\n{services.say('llm_erro')}")
+        description = response.text.strip() or "(não consegui descrever)"
+        await emit(EventType.ROUTE, tier="vision_describe", chars=len(description))
+        await remember_ref(services, "imagem", utcnow().strftime("%H%M%S"), f"imagem: {_clip(description, 80)}")
+        return Reply(f"📷 {description}\n\n(Pergunta o que quiser sobre ela, ou pede para eu salvar.)")
+
+    async def _followup_image(self, text: str) -> str | None:
+        """The last picture, when this message seems to be about it."""
+        photo = self.services.last_photo.get()
+        if photo is None:
+            return None
+        if mentions_image(normalize(text)):
+            return photo
+        if self.services.stm is not None:
+            try:
+                focused = (await self.services.stm.session()).focused()
+            except Exception:
+                return None
+            if focused is not None and focused.tipo == "imagem":
+                return photo
+        return None
 
     async def handle_audio(
         self, data: bytes, *, seconds: float | None = None, user_id: int | None = None
@@ -138,15 +203,24 @@ class Router:
         await emit(EventType.REPLY, length=len(reply.text), file=reply.document is not None)
         return reply
 
-    async def _route(self, text: str, user_id: int | None) -> Reply:
-        # Tier 1: explicit command.
+    async def _route(self, text: str, user_id: int | None, photo: str | None = None) -> Reply:
+        # Tier 1: explicit command (captions too: "/decidir ..." uses the photo).
         if text.startswith("/"):
             return await self._dispatch_command(text, user_id)
+
+        # A message with a picture goes straight to the (vision) LLM.
+        if photo is not None:
+            return await self.agent.handle(text, image=photo)
 
         # Small talk ("oi", "valeu", "falou") is answered without the LLM.
         if category := small_talk(text):
             await emit(EventType.ROUTE, tier="small_talk", category=category)
             return Reply(self.services.say(category))
+
+        # "o que tá escrito aí?" right after a picture: show it to the LLM again.
+        if (image := await self._followup_image(text)) is not None:
+            await emit(EventType.ROUTE, tier="image_followup")
+            return await self.agent.handle(text, image=image)
 
         # "como tá aquela pesquisa?" -> status of the ref in focus, without the LLM.
         if reply := await self._try_status_question(text):

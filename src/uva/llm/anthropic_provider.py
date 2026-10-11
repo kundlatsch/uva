@@ -7,6 +7,7 @@ from typing import Any
 import anthropic
 
 from uva.llm.base import LLMError, LLMMessage, LLMResponse
+from uva.media import parse_data_url
 
 WEB_SEARCH_TOOL = {"type": "web_search_20260209", "name": "web_search"}
 
@@ -32,7 +33,7 @@ class AnthropicProvider:
         request: dict[str, Any] = {
             "model": model,
             "max_tokens": max_tokens,
-            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "messages": [{"role": m.role, "content": _content(m)} for m in messages],
         }
         if system:
             request["system"] = system
@@ -106,3 +107,15 @@ def _sources(response: Any) -> list[dict[str, str]]:
             if url and url not in seen:
                 seen[url] = getattr(item, "title", "") or url
     return [{"title": title, "url": url} for url, title in seen.items()]
+
+
+def _content(message: LLMMessage) -> Any:
+    """Plain text, or base64 image blocks followed by the text."""
+    if not message.images:
+        return message.content
+    blocks: list[dict[str, Any]] = []
+    for url in message.images:
+        mime, data = parse_data_url(url)
+        blocks.append({"type": "image", "source": {"type": "base64", "media_type": mime, "data": data}})
+    blocks.append({"type": "text", "text": message.content})
+    return blocks

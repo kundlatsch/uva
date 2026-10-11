@@ -1,6 +1,17 @@
 """Actions the LLM can request, and the registry that validates them."""
 
-from uva.actions import builtin, context, decide, expenses, features, files, goals, memory, notes
+from uva.actions import (
+    builtin,
+    context,
+    decide,
+    expenses,
+    features,
+    files,
+    goals,
+    images,
+    memory,
+    notes,
+)
 from uva.actions.registry import (
     Action,
     ActionContext,
@@ -10,7 +21,7 @@ from uva.actions.registry import (
     RetryableActionError,
 )
 
-_MODULES = (builtin, notes, memory, goals, expenses, files, features, context, decide)
+_MODULES = (builtin, notes, memory, goals, expenses, files, features, context, decide, images)
 
 
 def build_action_registry() -> ActionRegistry:

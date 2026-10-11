@@ -23,6 +23,7 @@ FOLDERS: dict[str, str] = {
     "areas": "02-areas",
     "recursos": "03-recursos",
     "arquivo": "04-arquivo",
+    "anexos": "05-anexos",
     "diario": "diario",
 }
 README_NAME = "LEIA-ME.md"
@@ -159,6 +160,19 @@ class Vault:
                 body_hits.append(hit)
         return (title_hits + body_hits)[:limit]
 
+    def save_attachment(self, data: bytes, extension: str, title: str) -> str:
+        """Store a binary file (image) in 05-anexos without overwriting; returns its path."""
+        directory = self.root / FOLDERS["anexos"]
+        directory.mkdir(parents=True, exist_ok=True)
+        stem = clean_title(title)[:60]
+        path = directory / f"{stem}.{extension}"
+        counter = 2
+        while path.exists():
+            path = directory / f"{stem} ({counter}).{extension}"
+            counter += 1
+        path.write_bytes(data)
+        return self._relative(path)
+
     def recent(self, limit: int = 10) -> list[RecentNote]:
         """Most recently modified notes (LEIA-ME excluded)."""
         paths = [p for p in self.root.rglob("*.md") if p.name != README_NAME]
@@ -266,6 +280,7 @@ Este cofre (vault) é escrito pela UVA e pode ser aberto no Obsidian.
 - `02-areas/` — áreas de responsabilidade contínuas (saúde, finanças, casa...)
 - `03-recursos/` — material de referência e pesquisas feitas pela UVA
 - `04-arquivo/` — o que não está mais ativo
+- `05-anexos/` — imagens e outros arquivos que a UVA guardou (embutidos nas notas com `![[...]]`)
 - `diario/` — uma nota por dia (AAAA-MM-DD.md) com o que aconteceu
 
 ## Notas (Zettelkasten)

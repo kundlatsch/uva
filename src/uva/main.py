@@ -61,15 +61,23 @@ def build_application(settings: Settings, services: Services) -> Application:
         file = await message.photo[-1].get_file()  # largest size
         photo = to_data_url(bytes(await file.download_as_bytearray()))
         user_id = update.effective_user.id if update.effective_user else None
-        if not message.caption:
-            services.last_photo.set(photo)
-            await send_reply(
-                context.bot,
-                message.chat_id,
-                Reply("📷 Guardei a foto. Manda /decidir ... ou pergunta algo sobre ela."),
-            )
+        reply = await router.handle_photo(photo, message.caption or "", user_id=user_id)
+        await send_reply(context.bot, message.chat_id, reply)
+
+    async def on_image_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Images sent "as file" (no Telegram compression)."""
+        message = update.effective_message
+        if message is None or message.document is None:
             return
-        reply = await router.handle_text(message.caption, user_id=user_id, photo=photo)
+        document = message.document
+        if (document.file_size or 0) > TELEGRAM_DOWNLOAD_LIMIT:
+            text = f"{services.say('erro_generico')}\n(o arquivo passa de 20 MB, o limite do Telegram para bots)"
+            await send_reply(context.bot, message.chat_id, Reply(text))
+            return
+        file = await document.get_file()
+        photo = to_data_url(bytes(await file.download_as_bytearray()), document.mime_type or "image/jpeg")
+        user_id = update.effective_user.id if update.effective_user else None
+        reply = await router.handle_photo(photo, message.caption or "", user_id=user_id)
         await send_reply(context.bot, message.chat_id, reply)
 
     async def on_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -101,6 +109,9 @@ def build_application(settings: Settings, services: Services) -> Application:
     # One text handler (commands included) keeps all routing logic in Router.
     application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, on_text))
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, on_photo))
+    application.add_handler(
+        MessageHandler(filters.Document.IMAGE & filters.ChatType.PRIVATE, on_image_document)
+    )
     audio = filters.VOICE | filters.AUDIO | filters.VIDEO_NOTE
     application.add_handler(MessageHandler(audio & filters.ChatType.PRIVATE, on_audio))
     application.add_handler(CallbackQueryHandler(on_button))

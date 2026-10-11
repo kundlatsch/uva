@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     llm_base_url: str | None = None
     llm_model_router: str | None = None
     llm_model_heavy: str | None = None
+    # Model for messages with images; empty = the router model.
+    llm_model_vision: str | None = None
     llm_daily_budget_usd: float = 1.0
     llm_monthly_budget_usd: float = 20.0
     # Only sent when set (e.g. "low" for OpenAI reasoning models).
@@ -157,6 +159,10 @@ class Settings(BaseSettings):
         if self.llm_model_router:
             return self.llm_model_router
         return ANTHROPIC_DEFAULT_MODELS[0] if self.llm_provider is LLMProvider.ANTHROPIC else None
+
+    @property
+    def vision_model(self) -> str | None:
+        return self.llm_model_vision or self.router_model
 
     @property
     def heavy_model(self) -> str | None:

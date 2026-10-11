@@ -19,6 +19,32 @@ def to_data_url(data: bytes, mime: str = "image/jpeg") -> str:
     return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
 
 
+def parse_data_url(url: str) -> tuple[str, str]:
+    """"data:image/png;base64,AAA" -> ("image/png", "AAA")."""
+    header, _, data = url.partition(",")
+    mime = header.removeprefix("data:").split(";")[0] or "image/jpeg"
+    return mime, data
+
+
+def data_url_bytes(url: str) -> tuple[str, bytes]:
+    mime, data = parse_data_url(url)
+    return mime, base64.b64decode(data)
+
+
+EXTENSIONS = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}
+
+# Words that point at "the picture I just sent" in a follow-up message.
+IMAGE_HINTS = (
+    "foto", "imagem", "print", "figura", "tela", "escrito", "escrita", "traduz", "traduza",
+    "le isso", "leia", "o que diz", "o que tem", "aparece", "nessa", "nesta", "dela",
+)
+
+
+def mentions_image(normalized_text: str) -> bool:
+    padded = f" {normalized_text} "
+    return any(f" {hint} " in padded for hint in IMAGE_HINTS)
+
+
 @dataclass(slots=True)
 class LastPhoto:
     """The most recent photo the user sent (for "e essa foto?" follow-ups)."""

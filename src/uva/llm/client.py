@@ -53,6 +53,7 @@ class LLMClient:
         *,
         router_model: str,
         heavy_model: str,
+        vision_model: str | None = None,
         prices: PriceTable,
         usage: UsageStore | None,
         max_tokens: int = 4000,
@@ -61,6 +62,7 @@ class LLMClient:
         self.provider = provider
         self.router_model = router_model
         self.heavy_model = heavy_model
+        self.vision_model = vision_model or router_model
         self.prices = prices
         self.usage = usage
         self.max_tokens = max_tokens
@@ -196,6 +198,7 @@ def build_llm_client(settings: Settings, usage: UsageStore | None) -> LLMClient 
         provider,
         router_model=settings.router_model,
         heavy_model=settings.heavy_model,
+        vision_model=settings.vision_model,
         prices=PriceTable(settings.llm_prices, settings.llm_default_price),
         usage=usage,
         max_tokens=settings.llm_max_tokens,

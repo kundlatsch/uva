@@ -40,7 +40,7 @@ class OpenAICompatibleProvider:
         chat: list[dict[str, str]] = []
         if system:
             chat.append({"role": "system", "content": system})
-        chat.extend({"role": m.role, "content": m.content} for m in messages)
+        chat.extend({"role": m.role, "content": _content(m)} for m in messages)
 
         request: dict[str, Any] = {
             "model": model,
@@ -84,3 +84,12 @@ class OpenAICompatibleProvider:
             "type": "json_schema",
             "json_schema": {"name": "uva_response", "schema": json_schema, "strict": False},
         }
+
+
+def _content(message: LLMMessage) -> Any:
+    """Plain text, or text + image_url parts when the message has images."""
+    if not message.images:
+        return message.content
+    parts: list[dict[str, Any]] = [{"type": "text", "text": message.content}]
+    parts += [{"type": "image_url", "image_url": {"url": url}} for url in message.images]
+    return parts
