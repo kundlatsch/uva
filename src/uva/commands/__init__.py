@@ -9,6 +9,7 @@ from uva.commands import (
     llm,
     log,
     memory,
+    soul,
     status,
     tasks,
 )
@@ -16,7 +17,7 @@ from uva.commands.builtin import render_help
 from uva.commands.registry import Command, CommandContext, CommandRegistry
 
 # Order here is the order shown in /help.
-_MODULES = (builtin, brain, memory, goals, expenses, log, status, llm, tasks, catalog)
+_MODULES = (builtin, brain, memory, goals, expenses, log, status, llm, soul, tasks, catalog)
 
 
 def build_registry() -> CommandRegistry:

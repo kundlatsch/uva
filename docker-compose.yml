@@ -11,8 +11,12 @@ x-app: &app
     REDIS_URL: redis://redis:6379/0
     SECOND_BRAIN_PATH: /data/second-brain
     SQLITE_PATH: /data/sqlite/uva.db
+    REPO_PATH: /repo
   volumes:
     - sqlite-data:/data/sqlite
+    # The repository itself, so the bot can read/edit data/soul.md (and, later,
+    # its own plugins) and commit those changes.
+    - .:/repo
     # Second brain: a folder on the host (default ./brain, gitignored) so the
     # notes can be opened in Obsidian. Set SECOND_BRAIN_HOST_PATH to change it.
     - ${SECOND_BRAIN_HOST_PATH:-./brain}:/data/second-brain

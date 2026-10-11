@@ -15,6 +15,7 @@ from uva.llm.budget import Scope, UsageRecord, UsageStore
 from uva.llm.pricing import WEB_SEARCH_COST_USD, PriceTable
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
+from uva.soul import Soul
 
 log = get_logger(__name__)
 
@@ -54,6 +55,7 @@ class LLMClient:
         prices: PriceTable,
         usage: UsageStore | None,
         max_tokens: int = 4000,
+        soul: Soul | None = None,
     ) -> None:
         self.provider = provider
         self.router_model = router_model
@@ -61,6 +63,7 @@ class LLMClient:
         self.prices = prices
         self.usage = usage
         self.max_tokens = max_tokens
+        self.soul = soul
 
     @property
     def provider_name(self) -> str:
@@ -80,8 +83,12 @@ class LLMClient:
         system: str | None = None,
         json_schema: dict[str, Any] | None = None,
         max_tokens: int | None = None,
+        use_soul: bool = True,
     ) -> LLMResponse:
+        """One call. ``use_soul=False`` skips the personality (e.g. code generation)."""
         model = model or self.router_model
+        if use_soul and self.soul is not None:
+            system = self.soul.apply(system)
         started = time.perf_counter()
         try:
             response = await self.provider.complete(
@@ -101,6 +108,8 @@ class LLMClient:
         """Provider-side web search (Anthropic only)."""
         if not self.supports_web_search:
             raise LLMError(f"{self.provider_name} não tem busca na web própria")
+        if self.soul is not None:
+            system = self.soul.apply(system) or system
         started = time.perf_counter()
         try:
             response = await self.provider.web_search(  # type: ignore[attr-defined]
@@ -187,4 +196,5 @@ def build_llm_client(settings: Settings, usage: UsageStore | None) -> LLMClient 
         prices=PriceTable(settings.llm_prices, settings.llm_default_price),
         usage=usage,
         max_tokens=settings.llm_max_tokens,
+        soul=Soul(settings.soul_file),
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -106,6 +107,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     events_ttl_days: int = 90
 
+    # Repository checkout the bot may edit (soul.md, data/, plugins). Empty means
+    # "the repo this code runs from"; in Docker it is mounted at /repo.
+    repo_path: str = ""
+    # Personality file; empty means <repo>/data/soul.md.
+    soul_path: str = ""
+
     # Used for "today", "this month" and displayed times.
     timezone: str = "America/Sao_Paulo"
 
@@ -124,6 +131,16 @@ class Settings(BaseSettings):
         if self.llm_provider is LLMProvider.ANTHROPIC:
             return ANTHROPIC_DEFAULT_MODELS[1]
         return self.router_model
+
+    @property
+    def repo_dir(self) -> Path:
+        if self.repo_path:
+            return Path(self.repo_path)
+        return Path(__file__).resolve().parents[2]  # src/uva/config.py -> repo root
+
+    @property
+    def soul_file(self) -> Path:
+        return Path(self.soul_path) if self.soul_path else self.repo_dir / "data" / "soul.md"
 
     @property
     def llm_default_price(self) -> tuple[float, float]:

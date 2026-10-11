@@ -213,6 +213,13 @@ Exemplo incluído: gastos.
 - `/gastos mes` soma por categoria (também `hoje`, `semana`, `ano`, `tudo`)
 - Em texto livre também funciona: "gastei 30 no mercado" (ação `expense_add`)
 
+## Personalidade (soul.md)
+
+A personalidade da UVA fica em [data/soul.md](data/soul.md): irônica, brincalhona, meio grossa, com palavrão quando cabe, numa dinâmica de parceira, mas sempre útil e precisa. O arquivo entra no começo do system prompt de toda chamada à LLM (conversa, resumos de pesquisa, objetivos). Saídas exatas (JSON, erros, `/log`, resultados de comandos) continuam neutras.
+
+- Edite o arquivo à vontade: ele é relido quando muda, sem reiniciar nada.
+- `/soul` mostra o conteúdo atual.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.
