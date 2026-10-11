@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
 from uva.brain.vault import NoteNotFoundError, Vault
+from uva.stm.refs import remember_ref
 
 Folder = Literal["inbox", "projetos", "areas", "recursos", "arquivo"]
 READ_LIMIT = 3000
@@ -56,6 +57,7 @@ def register(registry: ActionRegistry) -> None:
             params.title, params.body, folder=params.folder, tags=params.tags, links=params.links
         )
         vault.append_daily(f"Nota criada: [[{note.title}]]")
+        await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
         return ActionResult(text=f"📝 Nota salva: {note.path}", data={"path": note.path})
 
     @registry.action(

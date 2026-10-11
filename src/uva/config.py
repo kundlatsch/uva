@@ -91,6 +91,12 @@ class Settings(BaseSettings):
     # After each message the bot counts as "busy" for this long (goal loop waits).
     busy_after_message_seconds: int = 120
 
+    # Short-term memory (Redis session, see docs/memoria-curto-prazo.md)
+    stm_ttl_hours: float = 12
+    stm_max_turns: int = 30
+    stm_max_refs: int = 15
+    stm_promote_idle_hours: float = 3
+
     # Long-term memory
     memory_working_size: int = 20  # items injected into the prompt
     memory_half_life_days: float = 30

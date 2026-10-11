@@ -53,6 +53,49 @@ def small_talk(text: str) -> str | None:
     return best[1] if best[0] >= 90 else None
 
 
+# "como tá a tarefa?", "e a pesquisa?", "deu certo?"
+STATUS_KINDS = {
+    "tarefa": "tarefa", "tarefas": "tarefa", "task": "tarefa",
+    "pesquisa": "pesquisa", "busca": "pesquisa", "pesquisas": "pesquisa",
+    "feature": "feature", "funcionalidade": "feature", "comando": "feature",
+    "objetivo": "objetivo", "meta": "objetivo",
+}
+STATUS_CUES = (
+    "como ta", "como esta", "como anda", "como foi", "e a", "e o", "deu certo", "terminou",
+    "acabou", "ja foi", "status", "andamento", "ficou pronta", "ficou pronto", "ta pronta",
+    "ta pronto", "funcionou", "rodou", "e ai", "noticia",
+)
+STATUS_EXACT = {
+    "deu certo", "terminou", "acabou", "ja foi", "funcionou", "rodou", "e ai deu certo",
+    "ja terminou", "ja acabou", "ficou pronto", "ficou pronta", "e entao", "e ai como ta",
+}
+REFERENTS = {"aquela", "aquele", "ela", "ele", "isso", "essa", "esse"}
+STATUS_MAX_WORDS = 9
+
+
+@dataclass(frozen=True, slots=True)
+class StatusQuestion:
+    kind: str | None  # "pesquisa", "tarefa"... or None for "whatever is in focus"
+
+
+def status_question(text: str) -> StatusQuestion | None:
+    """Short questions about how something the bot did is going."""
+    normalized = normalize(text)
+    words = normalized.split()
+    if not words or len(words) > STATUS_MAX_WORDS:
+        return None
+    if normalized in STATUS_EXACT:
+        return StatusQuestion(None)
+    padded = f" {normalized} "
+    has_cue = any(f" {cue} " in padded for cue in STATUS_CUES)
+    kind = next((STATUS_KINDS[w] for w in words if w in STATUS_KINDS), None)
+    if kind and (has_cue or len(words) <= 3):
+        return StatusQuestion(kind)
+    if has_cue and REFERENTS & set(words):
+        return StatusQuestion(None)
+    return None
+
+
 def strip_filler(normalized: str) -> str:
     return " ".join(w for w in normalized.split() if w not in FILLER_WORDS)
 

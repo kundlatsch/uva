@@ -6,6 +6,7 @@ import asyncio
 
 from uva.brain.vault import title_from_text
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.stm.refs import remember_ref
 
 SEARCH_LIMIT = 10
 
@@ -26,6 +27,7 @@ def register(registry: CommandRegistry) -> None:
             return "Uso: /nota <texto>"
         saved = vault.create_note(title_from_text(text), text, folder="inbox", tags=["inbox"])
         vault.append_daily(f"Nota rápida: [[{saved.title}]]")
+        await remember_ref(ctx.services, "nota", saved.path, f"nota: {saved.title}")
         return f"📝 Nota salva: {saved.path}"
 
     @registry.command(

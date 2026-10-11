@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.stm.refs import remember_ref
 from uva.llm.budget import Scope
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.selfmod.features import FeatureStatus, describe_feature
@@ -27,6 +28,7 @@ async def request_feature(ctx_services, description: str) -> str:
         return f"{ctx_services.say('ocupado')}\n(feature {running[0].id} ainda em construção; veja /features)"
     record = await features.request(description, current_trace_id())
     await emit(EventType.SELFCODE, op="requested", feature_id=record.id, description=description)
+    await remember_ref(ctx_services, "feature", record.id, f"feature: {description[:60]}", "na fila")
     return (
         f"🛠️ Beleza, vou construir isso (feature {record.id}). Escrevo o plugin, rodo todos os "
         "testes e te aviso quando estiver no ar. Acompanhe em /features."

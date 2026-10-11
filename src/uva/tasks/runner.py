@@ -42,6 +42,7 @@ async def run_action_task(
             return TaskStatus.CANCELLED
 
         await store.update(task_id, status=TaskStatus.RUNNING, attempts=attempt + 1)
+        await _ref_status(services, task_id, "rodando", focus=False)
         busy_key = f"task:{task_id}"
         if services.busy is not None:
             await services.busy.mark(busy_key, services.settings.task_time_limit_seconds)
@@ -50,6 +51,7 @@ async def run_action_task(
                 action, validated = services.actions.validate(action_name, params)
             except InvalidActionError as exc:
                 await _finish(services, task_id, action_name, TaskStatus.FAILED, str(exc))
+                await _ref_status(services, task_id, "falhou", str(exc))
                 phrase = services.say("tarefa_falhou", id=task_id)
                 await notify(Reply(f"⚠️ {phrase}\n({action_name}: {exc})"))
                 return TaskStatus.FAILED
@@ -68,12 +70,24 @@ async def run_action_task(
                 )
                 raise
 
+            failed = bool(result.data.get("error"))
+            await _ref_status(services, task_id, "falhou" if failed else "ok", result.data.get("error"))
             await notify(Reply(result.text or services.say("tarefa_ok", id=task_id)))
             await _finish(services, task_id, action_name, TaskStatus.DONE)
             return TaskStatus.DONE
         finally:
             if services.busy is not None:
                 await services.busy.clear(busy_key)
+
+
+async def _ref_status(services: Services, task_id: str, status, error=None, *, focus=True) -> None:
+    """Keep the short-term memory in sync with the task (best effort)."""
+    if services.stm is None:
+        return
+    try:
+        await services.stm.update_ref(task_id, status, error, focus=focus)
+    except Exception:
+        pass
 
 
 async def _finish(

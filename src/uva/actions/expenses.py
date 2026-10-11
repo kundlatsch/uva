@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.stm.refs import remember_ref
 from uva.storage.expenses import format_brl
 
 
@@ -21,6 +22,10 @@ def register(registry: ActionRegistry) -> None:
         if repo is None:
             return ActionResult(text="O banco SQLite não está configurado.")
         expense = await repo.add(round(params.amount * 100), params.category, params.description)
+        await remember_ref(
+            ctx.services, "gasto", str(expense.id),
+            f"gasto: {format_brl(expense.amount_cents)} {expense.category}",
+        )
         return ActionResult(
             text=f"💸 {format_brl(expense.amount_cents)} em {expense.category} registrado (#{expense.id}).",
             data={"id": expense.id},

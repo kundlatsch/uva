@@ -6,6 +6,7 @@ from datetime import datetime
 
 from uva.clock import format_local, start_of_day, start_of_month, start_of_week, start_of_year
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.stm.refs import remember_ref
 from uva.services import Services
 from uva.storage.expenses import format_brl, parse_amount
 
@@ -51,6 +52,9 @@ def register(registry: CommandRegistry) -> None:
         except ValueError:
             return f"Não entendi o valor '{ctx.args[0]}'. Use algo como 25 ou 25,90."
         expense = await repo.add(cents, ctx.args[1], " ".join(ctx.args[2:]))
+        await remember_ref(
+            ctx.services, "gasto", str(expense.id), f"gasto: {format_brl(cents)} {expense.category}"
+        )
         return f"💸 {format_brl(expense.amount_cents)} em {expense.category} registrado (#{expense.id})."
 
     @registry.command(

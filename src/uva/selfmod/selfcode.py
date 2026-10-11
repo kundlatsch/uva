@@ -85,6 +85,7 @@ async def build_feature(
 
     with trace(record.trace_id):
         await store.update(feature_id, status=FeatureStatus.RUNNING)
+        await _feature_ref(services, feature_id, "rodando")
         await emit(EventType.SELFCODE, op="start", feature_id=feature_id, description=record.description)
         busy_key = f"selfcode:{feature_id}"
         if services.busy is not None:
@@ -103,6 +104,8 @@ async def build_feature(
 
         final = await store.get(feature_id)
         assert final is not None
+        ok = final.status is FeatureStatus.MERGED
+        await _feature_ref(services, feature_id, "ok" if ok else "falhou", None if ok else final.error)
         await emit(
             EventType.SELFCODE,
             op="finish",
@@ -116,6 +119,15 @@ async def build_feature(
         )
         await notify(Reply(_announcement(final)))
         return final
+
+
+async def _feature_ref(services: Services, feature_id: str, status, error=None) -> None:
+    if services.stm is None:
+        return
+    try:
+        await services.stm.update_ref(feature_id, status, error)
+    except Exception:
+        pass
 
 
 async def _build(

@@ -34,6 +34,10 @@ app.conf.beat_schedule = {
         "schedule": crontab(hour=settings.memory_maintenance_hour, minute=0),
     },
 }
+app.conf.beat_schedule["stm-promotion"] = {
+    "task": "uva.stm_promotion",
+    "schedule": timedelta(minutes=30),
+}
 if settings.proactive_interval_minutes > 0:
     app.conf.beat_schedule["proactive-tick"] = {
         "task": "uva.proactive_tick",

@@ -16,6 +16,7 @@ from uva.phrases import Phrases
 from uva.replies import Reply
 from uva.selfmod.reload import request_reload
 from uva.selfmod.selfcode import build_feature
+from uva.stm.promote import promote_idle_sessions
 from uva.tasks import runtime
 from uva.tasks.app import app, settings
 from uva.tasks.runner import record_heartbeat, run_action_task
@@ -111,6 +112,14 @@ def selfcode(feature_id: str) -> str:
     except Exception as exc:
         _notify_failure(f"O auto-código da feature {feature_id}", exc)
         raise
+
+
+@app.task(name="uva.stm_promotion")
+def stm_promotion() -> dict:
+    async def job() -> dict:
+        return await promote_idle_sessions(await runtime.get_services())
+
+    return runtime.run(job)
 
 
 @app.task(name="uva.heartbeat")

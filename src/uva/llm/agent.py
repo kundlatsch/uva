@@ -22,6 +22,7 @@ from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.replies import Reply
 from uva.services import Services
+from uva.stm.refs import remember_ref, task_label
 
 LLM_DISABLED = "(a LLM não está configurada: falta LLM_API_KEY no .env)"
 QUOTA_MARKERS = ("429", "402", "quota", "insufficient", "credit", "billing", "rate limit")
@@ -52,13 +53,15 @@ class Agent:
                 return Reply(f"{services.say('sem_credito')}\n({status.reason})")
 
         actions = list(services.actions)
+        history, recent_context = await self._session_context()
         system = assistant_system_prompt(
             actions=actions,
             registry=services.registry,
             tz=services.tz,
             working_memory=await self._working_memory(),
+            recent_context=recent_context,
         )
-        messages = [*self.history, LLMMessage("user", text)]
+        messages = [*history, LLMMessage("user", text)]
         try:
             response = await services.llm.complete(
                 messages,
@@ -88,6 +91,19 @@ class Agent:
         self._remember(text, reply)
         return Reply(reply)
 
+    async def _session_context(self) -> tuple[list[LLMMessage], str]:
+        """Recent turns (as messages) and the "Contexto recente" block."""
+        stm = self.services.stm
+        limit = self.services.settings.llm_history_messages
+        if stm is None:
+            return list(self.history), ""
+        try:
+            session = await stm.session()
+        except Exception as exc:  # Redis down: fall back to the in-process history
+            log.warning("stm_unavailable", error=str(exc))
+            return list(self.history), ""
+        return stm.history(session, limit), stm.context_block(session, self.services.tz)
+
     async def _working_memory(self) -> str:
         if self.services.memory is None:
             return ""
@@ -113,6 +129,13 @@ class Agent:
                     action=action.name,
                     params=record.params,
                 )
+                await remember_ref(
+                    self.services,
+                    "pesquisa" if action.name == "search" else "tarefa",
+                    record.id,
+                    task_label(action.name, record.params),
+                    "na fila",
+                )
                 progress = action.progress_text
                 if action.progress_phrase:
                     progress = self.services.say(action.progress_phrase, **record.params)
@@ -123,6 +146,9 @@ class Agent:
         return await execute_action(action, params, ctx)
 
     def _remember(self, user_text: str, reply: str) -> None:
+        # Only used when there is no short-term memory (the router records turns there).
+        if self.services.stm is not None:
+            return
         self.history.append(LLMMessage("user", user_text[:HISTORY_CHARS]))
         self.history.append(LLMMessage("assistant", reply[:HISTORY_CHARS]))
 

@@ -19,9 +19,10 @@ from uva.clock import utcnow
 from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
-from uva.matching import best_match, small_talk
+from uva.matching import best_match, small_talk, status_question
 from uva.replies import Button, Reply
 from uva.services import Services
+from uva.stm.status import refresh, status_reply
 
 UNKNOWN_COMMAND = "/{name} não existe. Envie /help para ver a lista."
 CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
@@ -52,7 +53,18 @@ class Router:
         await self._mark_busy()
         with trace():
             await emit(EventType.MESSAGE_RECEIVED, text=text)
-            return await self._safely(self._route(text.strip(), user_id))
+            reply = await self._safely(self._route(text.strip(), user_id))
+            await self._remember(text, reply)
+            return reply
+
+    async def _remember(self, text: str, reply: Reply) -> None:
+        """Keep the exchange in the short-term memory (best effort)."""
+        if self.services.stm is None:
+            return
+        try:
+            await self.services.stm.add_exchange(text, reply.summary or reply.text)
+        except Exception as exc:
+            await emit(EventType.ERROR, where="stm", error=repr(exc))
 
     async def handle_callback(self, data: str, user_id: int | None = None) -> Reply:
         """Answer to an inline button ("confirm:<token>" / "deny:<token>")."""
@@ -90,12 +102,31 @@ class Router:
             await emit(EventType.ROUTE, tier="small_talk", category=category)
             return Reply(self.services.say(category))
 
+        # "como tá aquela pesquisa?" -> status of the ref in focus, without the LLM.
+        if reply := await self._try_status_question(text):
+            return reply
+
         # Tier 2: similarity against command names, aliases and examples.
         if reply := await self._try_similarity(text, user_id):
             return reply
 
         # Tier 3: the LLM (within budget).
         return await self.agent.handle(text)
+
+    async def _try_status_question(self, text: str) -> Reply | None:
+        question = status_question(text)
+        if question is None or self.services.stm is None:
+            return None
+        try:
+            session = await self.services.stm.session()
+        except Exception:
+            return None
+        ref = session.find(tipo=question.kind)
+        if ref is None:
+            return None  # nothing to talk about: let the LLM handle it
+        ref, live = await refresh(self.services, ref)
+        await emit(EventType.ROUTE, tier="status", ref=ref.ref, kind=ref.tipo, status=live.status)
+        return Reply(status_reply(self.services, ref, live))
 
     async def _dispatch_command(self, text: str, user_id: int | None) -> Reply:
         head, *args = text.split()
@@ -172,5 +203,10 @@ class Router:
             raise KeyError(name)
         await emit(EventType.COMMAND, name=command.name, args=args)
         ctx = CommandContext(args=args, services=self.services, user_id=user_id)
-        return Reply.coerce(await command.handler(ctx))
+        reply = Reply.coerce(await command.handler(ctx))
+        if reply.summary is None:
+            first_line = reply.text.strip().splitlines()[0] if reply.text.strip() else ""
+            invoked = " ".join([f"/{command.name}", *args])
+            reply.summary = f"{invoked} → {first_line[:150]}"
+        return reply
 

@@ -21,6 +21,8 @@ class Reply:
     # Optional file attachment (e.g. a long /log). `text` becomes the caption.
     document: bytes | None = None
     filename: str = "uva.md"
+    # Short version kept in the short-term memory (command outputs are summarized).
+    summary: str | None = None
 
     @classmethod
     def coerce(cls, value: str | Reply) -> Reply:
@@ -35,4 +37,5 @@ class Reply:
             buttons=self.buttons,
             document=self.text.encode("utf-8"),
             filename=self.filename,
+            summary=self.summary,
         )

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from uva.selfmod.features import FeatureService
     from uva.selfmod.files import FileAccess
     from uva.selfmod.git import GitRepo
+    from uva.stm.service import ShortTermMemory
     from uva.logging.events import EventStore
     from uva.search.base import SearchBackend
     from uva.storage.expenses import ExpenseRepository
@@ -53,6 +54,7 @@ class Services:
     repo: GitRepo | None = None
     files: FileAccess | None = None
     features: FeatureService | None = None
+    stm: ShortTermMemory | None = None
     # Called after code in the repo changed (e.g. a reverted plugin).
     on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
     # Ready-made phrases in the bot's voice; defaults to data/fallback_phrases.json.

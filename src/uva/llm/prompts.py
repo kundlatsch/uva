@@ -37,10 +37,13 @@ def assistant_system_prompt(
     registry: CommandRegistry,
     tz: tzinfo,
     working_memory: str = "",
+    recent_context: str = "",
 ) -> str:
     now_local = utcnow().astimezone(tz)
     now = f"{WEEKDAYS[now_local.weekday()]}, {format_local(now_local, tz, '%d/%m/%Y %H:%M')}"
     memory = f"\nO que você sabe sobre o usuário (memória):\n{working_memory}\n" if working_memory else ""
+    if recent_context:
+        memory += f"\nContexto recente (o que você fez nesta sessão):\n{recent_context}\n"
     return f"""Você é a UVA, assistente pessoal de um único usuário, conversando pelo Telegram.
 Responda sempre em português do Brasil, de forma direta e cordial.
 
@@ -68,6 +71,9 @@ Regras:
 - Seus próprios arquivos: se o usuário pedir para mudar seu jeito de ser, leia data/soul.md
   com file_read e reescreva com file_write (mantendo as regras de precisão). Cada mudança
   vira um commit que ele pode desfazer com /reverter.
+- "aquela", "ela", "de novo" e afins se referem ao contexto recente (a referência em foco,
+  salvo indicação). Para saber como algo está, use task_status; para repetir algo que
+  falhou, retry; para parar algo rodando, cancel (todos aceitam a ref, ex.: t3).
 - Se o usuário pedir uma funcionalidade/comando novo que você não tem, use feature_request
   com uma descrição clara (nome do comando, o que faz, exemplos de uso).
 {memory}

@@ -49,3 +49,9 @@ async def notify(reply: Reply) -> None:
         _bot = Bot(settings.telegram_bot_token.get_secret_value())
         await _bot.initialize()
     await send_reply(_bot, settings.allowed_telegram_user_id, reply)
+    # The bot should know what it told the user on its own (short-term memory).
+    if _services is not None and _services.stm is not None:
+        try:
+            await _services.stm.add_turn("notice", reply.text)
+        except Exception:
+            pass

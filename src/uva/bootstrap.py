@@ -22,6 +22,8 @@ from uva.services import Services
 from uva.selfmod.features import FeatureService
 from uva.selfmod.files import FileAccess
 from uva.selfmod.git import GitRepo
+from uva.stm.redis_backend import RedisSessionBackend
+from uva.stm.service import ShortTermMemory
 from uva.storage import mongo
 from uva.storage.expenses import ExpenseRepository
 from uva.storage.sqlite import Database
@@ -54,6 +56,7 @@ def build_services(settings: Settings) -> Services:
     task_store = mongo.MongoTaskStore(db, settings.tasks_ttl_days)
     services.tasks = CeleryTaskQueue(task_store, redis)
     services.busy = BusyTracker(redis)
+    services.stm = ShortTermMemory(RedisSessionBackend(redis), settings)
 
     services.vault = Vault(Path(settings.second_brain_path), services.tz)
     memory_store = mongo.MongoMemoryStore(db)
