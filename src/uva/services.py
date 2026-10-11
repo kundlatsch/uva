@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
     from uva.memory.service import MemoryService
+    from uva.selfmod.features import FeatureService
     from uva.selfmod.files import FileAccess
     from uva.selfmod.git import GitRepo
     from uva.logging.events import EventStore
@@ -50,6 +51,7 @@ class Services:
     expenses: ExpenseRepository | None = None
     repo: GitRepo | None = None
     files: FileAccess | None = None
+    features: FeatureService | None = None
     # Called after code in the repo changed (e.g. a reverted plugin).
     on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
     busy: BusyTracker | None = None

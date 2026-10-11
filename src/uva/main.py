@@ -19,6 +19,7 @@ from uva.config import Settings, get_settings
 from uva.logging import configure_logging, get_logger
 from uva.router import Router
 from uva.security import install_guard
+from uva.selfmod.reload import listen_for_reloads, reload_plugins
 from uva.services import Services
 from uva.telegram_io import send_reply
 
@@ -30,6 +31,10 @@ def build_application(settings: Settings, services: Services) -> Application:
 
     async def post_init(app: Application) -> None:
         await setup_storage(services)
+        # Hot reload of plugins merged by the worker (self-coding).
+        if services.busy is not None:
+            app.create_task(listen_for_reloads(services, services.busy.redis))
+        services.on_code_changed.append(lambda: reload_plugins(services))
 
     application = Application.builder().token(token).post_init(post_init).build()
 

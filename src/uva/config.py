@@ -112,6 +112,12 @@ class Settings(BaseSettings):
     repo_path: str = ""
     # Personality file; empty means <repo>/data/soul.md.
     soul_path: str = ""
+    # Self-coding (/feature): plugins written, tested and merged by the bot.
+    selfcode_daily_budget_usd: float = 2.0
+    selfcode_max_attempts: int = 3
+    selfcode_test_timeout_seconds: int = 300
+    selfcode_time_limit_seconds: int = 1800
+
     # Author of the commits the bot makes in its own repository.
     git_author_name: str = "kundlatsch"
     git_author_email: str = "gustavo.kundlatsch@gmail.com"
@@ -140,6 +146,16 @@ class Settings(BaseSettings):
         if self.repo_path:
             return Path(self.repo_path)
         return Path(__file__).resolve().parents[2]  # src/uva/config.py -> repo root
+
+    @property
+    def plugins_dir(self) -> Path:
+        """Plugins live in the repo (so merged ones load without a rebuild)."""
+        in_repo = self.repo_dir / "src" / "uva" / "plugins"
+        if in_repo.is_dir():
+            return in_repo
+        from uva.selfmod.plugins import default_plugins_dir
+
+        return default_plugins_dir()
 
     @property
     def soul_file(self) -> Path:

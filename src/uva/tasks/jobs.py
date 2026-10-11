@@ -13,6 +13,8 @@ from uva.goals import runner as goals_runner
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
 from uva.replies import Reply
+from uva.selfmod.reload import request_reload
+from uva.selfmod.selfcode import build_feature
 from uva.tasks import runtime
 from uva.tasks.app import app, settings
 from uva.tasks.runner import record_heartbeat, run_action_task
@@ -85,6 +87,27 @@ def proactive_tick() -> str:
     except Exception as exc:
         if settings.proactive_notify:
             _notify_failure("O loop proativo", exc)
+        raise
+
+
+@app.task(
+    name="uva.selfcode",
+    time_limit=settings.selfcode_time_limit_seconds,
+    soft_time_limit=settings.selfcode_time_limit_seconds - 30,
+)
+def selfcode(feature_id: str) -> str:
+    async def job() -> str:
+        services = await runtime.get_services()
+        redis = services.busy.redis  # type: ignore[union-attr]
+        record = await build_feature(
+            services, feature_id, runtime.notify, request_reload=lambda: request_reload(redis)
+        )
+        return record.status.value
+
+    try:
+        return runtime.run(job)
+    except Exception as exc:
+        _notify_failure(f"O auto-código da feature {feature_id}", exc)
         raise
 
 

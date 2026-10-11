@@ -19,6 +19,7 @@ from uva.memory.service import MemoryService
 from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
+from uva.selfmod.features import FeatureService
 from uva.selfmod.files import FileAccess
 from uva.selfmod.git import GitRepo
 from uva.storage import mongo
@@ -41,7 +42,7 @@ def build_services(settings: Settings) -> Services:
 
     services = Services(
         settings=settings,
-        registry=build_registry(),
+        registry=build_registry(settings.plugins_dir),
         actions=build_action_registry(),
         events=event_store,
         llm=llm,
@@ -66,6 +67,8 @@ def build_services(settings: Settings) -> Services:
     if (repo_dir / ".git").exists():
         services.repo = GitRepo(repo_dir, settings.git_author_name, settings.git_author_email)
     services.files = FileAccess(repo_dir, services.vault.root, services.repo)
+    feature_store = mongo.MongoFeatureStore(db)
+    services.features = FeatureService(feature_store, _enqueue_selfcode)
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
@@ -77,6 +80,7 @@ def build_services(settings: Settings) -> Services:
             task_store.setup,
             memory_store.setup,
             goal_store.setup,
+            feature_store.setup,
             # "At startup": compute the working memory once.
             services.memory.recompute_working_set,
             lambda: _setup_vault(services.vault),
@@ -84,6 +88,14 @@ def build_services(settings: Settings) -> Services:
         ]
     )
     return services
+
+
+async def _enqueue_selfcode(feature_id: str) -> None:
+    from uva.tasks.app import app  # lazy: the bot only needs Celery to enqueue
+
+    await asyncio.to_thread(
+        app.send_task, "uva.selfcode", kwargs={"feature_id": feature_id}, task_id=f"selfcode-{feature_id}"
+    )
 
 
 async def _setup_vault(vault: Vault) -> None:

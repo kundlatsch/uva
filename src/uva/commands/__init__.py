@@ -1,10 +1,13 @@
 """Bot commands and the registry that holds them."""
 
+from pathlib import Path
+
 from uva.commands import (
     brain,
     builtin,
     catalog,
     expenses,
+    features,
     goals,
     llm,
     log,
@@ -29,16 +32,21 @@ _MODULES = (
     llm,
     soul,
     revert,
+    features,
     tasks,
     catalog,
 )
 
 
-def build_registry() -> CommandRegistry:
-    """Registry with every command shipped by the bot."""
+def build_registry(plugins_dir: Path | None = None) -> CommandRegistry:
+    """Registry with the core commands plus every plugin in ``plugins_dir``
+    (default: the installed uva/plugins folder)."""
+    from uva.selfmod.plugins import default_plugins_dir, load_plugins
+
     registry = CommandRegistry()
     for module in _MODULES:
         module.register(registry)
+    load_plugins(registry, plugins_dir or default_plugins_dir())
     return registry
 
 

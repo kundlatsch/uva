@@ -18,6 +18,7 @@ async def describe_spend(services: Services) -> list[str]:
         f"Gasto hoje: US$ {spend.today:.4f} de {s.llm_daily_budget_usd:.2f}",
         f"Gasto no mês: US$ {spend.month:.4f} de {s.llm_monthly_budget_usd:.2f}",
         f"Proativo hoje: US$ {spend.proactive_today:.4f} de {s.proactive_daily_budget_usd:.2f}",
+        f"Auto-código hoje: US$ {spend.selfcode_today:.4f} de {s.selfcode_daily_budget_usd:.2f}",
     ]
 
 

@@ -85,6 +85,11 @@ class CommandRegistry:
 
         return decorator
 
+    def remove_source(self, source: str) -> None:
+        """Drop every command of a source (used to reload plugins)."""
+        self._commands = {k: c for k, c in self._commands.items() if c.source != source}
+        self._lookup = {k: c for k, c in self._lookup.items() if c.source != source}
+
     def get(self, name_or_alias: str) -> Command | None:
         return self._lookup.get(_normalize(name_or_alias))
 

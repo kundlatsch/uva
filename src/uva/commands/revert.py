@@ -5,6 +5,7 @@ from __future__ import annotations
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit
+from uva.selfmod.features import FeatureStatus
 from uva.selfmod.git import GitError
 
 log = get_logger(__name__)
@@ -31,6 +32,9 @@ def register(registry: CommandRegistry) -> None:
             return f"Não consegui reverter {commit.sha[:7]} ({commit.subject}): {exc}"
 
         await emit(EventType.SELFCODE, op="revert", sha=commit.sha, revert_sha=new_sha, ok=True)
+        feature_id = commit.trailer("UVA-Feature-Id")
+        if feature_id and ctx.services.features is not None:
+            await ctx.services.features.store.update(feature_id, status=FeatureStatus.REVERTED)
         if commit.kind == "self-code":
             for hook in ctx.services.on_code_changed:
                 try:

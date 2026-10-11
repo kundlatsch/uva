@@ -13,6 +13,7 @@ from uva.llm.budget import Scope, UsageRecord
 from uva.goals.store import Goal, GoalKind, GoalStatus, pick_due
 from uva.logging.events import Event, EventQuery
 from uva.memory.store import MemoryItem
+from uva.selfmod.features import FeatureRecord, FeatureStatus
 from uva.tasks.queue import TaskRecord, TaskStatus
 
 DEFAULT_DB_NAME = "uva"
@@ -232,3 +233,30 @@ class MongoGoalStore:
             {"status": GoalStatus.ATIVO.value, "next_run_at": {"$lte": now}}, {"_id": False}
         )
         return pick_due([Goal.model_validate(d) async for d in cursor], now)
+
+
+class MongoFeatureStore:
+    """Collection ``features``: every /feature request and how it went."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["features"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index("id", unique=True)
+
+    async def add(self, record: FeatureRecord) -> None:
+        doc = record.model_dump()
+        doc["status"] = record.status.value
+        await self.collection.insert_one(doc)
+
+    async def get(self, feature_id: str) -> FeatureRecord | None:
+        doc = await self.collection.find_one({"id": feature_id}, {"_id": False})
+        return FeatureRecord.model_validate(doc) if doc else None
+
+    async def update(self, feature_id: str, **fields: Any) -> None:
+        clean = {k: (v.value if isinstance(v, FeatureStatus) else v) for k, v in fields.items()}
+        await self.collection.update_one({"id": feature_id}, {"$set": clean})
+
+    async def recent(self, limit: int) -> list[FeatureRecord]:
+        cursor = self.collection.find({}, {"_id": False}).sort("created_at", DESCENDING).limit(limit)
+        return [FeatureRecord.model_validate(d) async for d in cursor]

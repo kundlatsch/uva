@@ -26,6 +26,7 @@ class TokenMeter:
     def __init__(self) -> None:
         self.input_tokens = 0
         self.output_tokens = 0
+        self.cost_usd = 0.0
 
     @property
     def total(self) -> int:
@@ -129,6 +130,8 @@ class LLMClient:
             meter.output_tokens += response.output_tokens
         cost = self.prices.cost(response.model, response.input_tokens, response.output_tokens)
         cost += response.extra.get("web_search_requests", 0) * WEB_SEARCH_COST_USD
+        if meter is not None:
+            meter.cost_usd += cost
         duration_ms = round((time.perf_counter() - started) * 1000)
 
         if self.usage is not None:

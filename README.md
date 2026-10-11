@@ -231,6 +231,22 @@ Qualquer outro caminho (`src/`, `security.py`, `.env`, `docker-compose.yml`, arq
 
 `/reverter` desfaz o último commit feito pelo bot (só os dele, nunca os seus) com um commit de revert marcado `UVA-Reverts: <sha>`; rodar de novo desfaz o anterior. Mudanças aparecem em `/log 1d selfcode`.
 
+## Auto-código: a UVA programa comandos novos
+
+Peça com `/feature <descrição>` (ex.: `/feature /dado rola um dado de 6 lados`) ou em texto livre ("cria um comando que..."; ação `feature_request`). Uma tarefa no worker então:
+
+1. clona o repositório montado numa pasta temporária, num branch `uva/feature-<id>`;
+2. pede ao modelo pesado um **plugin** (`src/uva/plugins/<nome>.py`) e seus testes (`tests/plugins/test_<nome>.py`), seguindo a interface documentada em [src/uva/plugins/api.py](src/uva/plugins/api.py) (exemplo: [moeda.py](src/uva/plugins/moeda.py));
+3. recusa sem executar código que use imports fora de uma lista permitida (nada de `os`, `subprocess`, `pathlib`, config, segurança), `open`/`eval`/`exec`/`getattr`, atributos privados etc.;
+4. roda **a suíte inteira** do pytest num processo sem as variáveis secretas; se falhar, devolve a saída para a LLM e tenta de novo (até `SELFCODE_MAX_ATTEMPTS`);
+5. com tudo verde, faz commit (`UVA-Self-Code: true`), merge na `main` e pede ao bot (Redis) para recarregar os plugins sem reiniciar; se o plugin não carregar no bot, reverte sozinha;
+6. avisa no Telegram o que criou, como usar, quantas tentativas e o custo, ou por que falhou.
+
+- `/features` lista as tentativas; `/reverter` também desfaz commits de auto-código (e recarrega os plugins).
+- Orçamento próprio: `SELFCODE_DAILY_BUDGET_USD` (não consome o orçamento diário geral, mas conta no mensal).
+- Plugins também podem ser escritos à mão: crie o arquivo em `src/uva/plugins/`, os testes em `tests/plugins/` e reinicie o bot (ou use `/reverter`/`/feature` para disparar um reload). Eles aparecem como `[plugin]` em `/comandos`.
+- Requer o repositório na branch `main`; mudanças suas ainda não commitadas não entram no clone.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.

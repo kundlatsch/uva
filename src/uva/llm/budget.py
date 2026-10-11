@@ -23,6 +23,7 @@ from uva.config import Settings
 class Scope(StrEnum):
     INTERACTIVE = "interactive"
     PROACTIVE = "proactive"
+    SELFCODE = "selfcode"  # has its own daily budget, outside the general one
 
 
 class UsageRecord(BaseModel):
@@ -51,9 +52,10 @@ class BudgetStatus:
 
 @dataclass(frozen=True, slots=True)
 class Spend:
-    today: float
-    month: float
+    today: float  # interactive + proactive (self-coding has its own budget)
+    month: float  # everything
     proactive_today: float
+    selfcode_today: float = 0.0
 
 
 class Budget:
@@ -64,10 +66,12 @@ class Budget:
 
     async def spend(self, now: datetime | None = None) -> Spend:
         day = start_of_day(self.tz, now)
+        selfcode = await self.store.total_cost(day, Scope.SELFCODE)
         return Spend(
-            today=await self.store.total_cost(day),
+            today=await self.store.total_cost(day) - selfcode,
             month=await self.store.total_cost(start_of_month(self.tz, now)),
             proactive_today=await self.store.total_cost(day, Scope.PROACTIVE),
+            selfcode_today=selfcode,
         )
 
     async def check(self, scope: Scope, now: datetime | None = None) -> BudgetStatus:
@@ -84,6 +88,14 @@ class Budget:
                 f"orçamento mensal de LLM atingido (US$ {spend.month:.2f} de "
                 f"{s.llm_monthly_budget_usd:.2f}); volta no próximo mês",
             )
+        if scope is Scope.SELFCODE:
+            if spend.selfcode_today >= s.selfcode_daily_budget_usd:
+                return BudgetStatus(
+                    False,
+                    f"orçamento diário de auto-código atingido (US$ {spend.selfcode_today:.2f} de "
+                    f"{s.selfcode_daily_budget_usd:.2f}); volta amanhã",
+                )
+            return BudgetStatus(True)
         if spend.today >= s.llm_daily_budget_usd:
             return BudgetStatus(
                 False,
