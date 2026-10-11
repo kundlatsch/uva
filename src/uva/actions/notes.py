@@ -78,7 +78,8 @@ def register(registry: ActionRegistry) -> None:
             return NO_VAULT
         hits = await asyncio.to_thread(vault.search, params.term)
         if not hits:
-            return ActionResult(text=f"Nenhuma nota com '{params.term}'.", data={"hits": []})
+            text = ctx.services.say("sem_resultado", termo=params.term)
+            return ActionResult(text=f"{text}\n(nenhuma nota com '{params.term}')", data={"hits": []})
         lines = [f"Notas com '{params.term}':"] + [f"- {h.path}: {h.snippet}" for h in hits]
         return ActionResult(
             text="\n".join(lines), data={"hits": [{"path": h.path, "title": h.title} for h in hits]}

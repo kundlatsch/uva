@@ -44,5 +44,5 @@ def register(registry: CommandRegistry) -> None:
             return "Uso: /buscar <termo>"
         hits = await asyncio.to_thread(vault.search, term, SEARCH_LIMIT)
         if not hits:
-            return f"Nenhuma nota com '{term}'."
+            return f"{ctx.services.say('sem_resultado', termo=term)}\n(nenhuma nota com '{term}')"
         return f"Notas com '{term}':\n" + "\n".join(f"- {h.path}\n  {h.snippet}" for h in hits)

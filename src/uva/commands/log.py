@@ -199,6 +199,8 @@ def _describe_route(data: dict) -> str:
         case "llm":
             actions = [a.get("type") for a in data.get("plan", {}).get("actions", [])]
             return "LLM" + (f" ({', '.join(actions)})" if actions else "")
+        case "small_talk":
+            return f"conversa ({data.get('category')})"
         case "llm_disabled":
             return "LLM desligada"
         case "similarity_miss":

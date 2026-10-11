@@ -55,6 +55,8 @@ class Action:
     long_running: bool = False
     # Shown to the user while a long-running action works in the background.
     progress_text: str = "Trabalhando nisso…"
+    # Phrase category used instead of progress_text when set (e.g. "pesquisando").
+    progress_phrase: str | None = None
 
 
 class InvalidActionError(ValueError):
@@ -84,6 +86,7 @@ class ActionRegistry:
         proactive_safe: bool = False,
         long_running: bool = False,
         progress_text: str = "Trabalhando nisso…",
+        progress_phrase: str | None = None,
     ) -> Callable[[ActionHandler], ActionHandler]:
         def decorator(func: ActionHandler) -> ActionHandler:
             self.register(
@@ -95,6 +98,7 @@ class ActionRegistry:
                     proactive_safe,
                     long_running,
                     progress_text,
+                    progress_phrase,
                 )
             )
             return func

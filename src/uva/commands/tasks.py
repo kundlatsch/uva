@@ -33,5 +33,5 @@ def register(registry: CommandRegistry) -> None:
             return "Uso: /cancelar <id> (veja os ids em /tarefas)"
         task_id = ctx.args[0]
         if await queue.cancel(task_id):
-            return f"Tarefa {task_id} cancelada."
+            return f"{ctx.services.say('cancelado', id=task_id)}\n(tarefa {task_id} cancelada)"
         return f"Não achei a tarefa {task_id} em andamento (/tarefas)."

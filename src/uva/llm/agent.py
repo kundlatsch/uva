@@ -23,12 +23,8 @@ from uva.logging.events import EventType, current_trace_id, emit
 from uva.replies import Reply
 from uva.services import Services
 
-LLM_DISABLED = (
-    "Não entendi, e a LLM não está configurada (LLM_API_KEY no .env). "
-    "Envie /help para ver os comandos."
-)
-LLM_FAILED = "Não consegui falar com a LLM agora. Tente de novo em instantes (/log erros)."
-BAD_PLAN = "Me enrolei para entender isso. Pode reformular? (o erro foi registrado)"
+LLM_DISABLED = "(a LLM não está configurada: falta LLM_API_KEY no .env)"
+QUOTA_MARKERS = ("429", "402", "quota", "insufficient", "credit", "billing", "rate limit")
 HISTORY_CHARS = 2000
 
 log = get_logger(__name__)
@@ -47,16 +43,13 @@ class Agent:
         services = self.services
         if services.llm is None or services.actions is None:
             await emit(EventType.ROUTE, tier="llm_disabled")
-            return Reply(LLM_DISABLED)
+            return Reply(f"{services.say('nao_entendi')}\n{LLM_DISABLED}")
 
         if services.budget is not None:
             status = await services.budget.check(INTERACTIVE)
             if not status.allowed:
                 await emit(EventType.BUDGET, scope=INTERACTIVE.value, blocked=True, reason=status.reason)
-                return Reply(
-                    f"Não posso usar a LLM agora: {status.reason}. "
-                    "Os comandos continuam funcionando (/help)."
-                )
+                return Reply(f"{services.say('sem_credito')}\n({status.reason})")
 
         actions = list(services.actions)
         system = assistant_system_prompt(
@@ -74,8 +67,10 @@ class Agent:
                 system=system,
                 json_schema=PLAN_SCHEMA,
             )
-        except LLMError:
-            return Reply(LLM_FAILED)
+        except LLMError as exc:
+            if is_quota_error(exc):
+                return Reply(f"{services.say('sem_credito')}\n(o provedor recusou por limite/crédito)")
+            return Reply(services.say("llm_erro"))
 
         try:
             plan = parse_plan(response.text)
@@ -83,13 +78,13 @@ class Agent:
         except (PlanError, InvalidActionError) as exc:
             # Nothing from a broken answer is executed.
             await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
-            return Reply(BAD_PLAN)
+            return Reply(services.say("llm_erro"))
 
         await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump())
         ctx = ActionContext(services, INTERACTIVE, self.run_command)
         results = [await self._run(action, params, ctx) for action, params in calls]
 
-        reply = compose_reply(plan.reply, results)
+        reply = compose_reply(plan.reply, results) or services.say("confirmacao")
         self._remember(text, reply)
         return Reply(reply)
 
@@ -118,8 +113,11 @@ class Agent:
                     action=action.name,
                     params=record.params,
                 )
+                progress = action.progress_text
+                if action.progress_phrase:
+                    progress = self.services.say(action.progress_phrase, **record.params)
                 return ActionResult(
-                    text=f"{action.progress_text} (tarefa {record.id}; /cancelar {record.id})",
+                    text=f"{progress} (tarefa {record.id}; /cancelar {record.id})",
                     data={"task_id": record.id},
                 )
         return await execute_action(action, params, ctx)
@@ -171,4 +169,10 @@ def compose_reply(plan_reply: str, results: list[ActionResult]) -> str:
         part = part.strip()
         if part and part not in parts:  # the LLM sometimes repeats "reply" as an action
             parts.append(part)
-    return "\n\n".join(parts) or "Feito."
+    return "\n\n".join(parts)
+
+
+def is_quota_error(exc: Exception) -> bool:
+    """Provider refused for lack of credit / rate limit (402/429)."""
+    text = str(exc).lower()
+    return any(marker in text for marker in QUOTA_MARKERS)

@@ -50,7 +50,8 @@ async def run_action_task(
                 action, validated = services.actions.validate(action_name, params)
             except InvalidActionError as exc:
                 await _finish(services, task_id, action_name, TaskStatus.FAILED, str(exc))
-                await notify(Reply(f"⚠️ A tarefa {task_id} ({action_name}) falhou: {exc}"))
+                phrase = services.say("tarefa_falhou", id=task_id)
+                await notify(Reply(f"⚠️ {phrase}\n({action_name}: {exc})"))
                 return TaskStatus.FAILED
 
             ctx = ActionContext(services, Scope.INTERACTIVE, allow_retry=attempt < max_retries)
@@ -67,7 +68,7 @@ async def run_action_task(
                 )
                 raise
 
-            await notify(Reply(result.text or "Tarefa concluída."))
+            await notify(Reply(result.text or services.say("tarefa_ok", id=task_id)))
             await _finish(services, task_id, action_name, TaskStatus.DONE)
             return TaskStatus.DONE
         finally:

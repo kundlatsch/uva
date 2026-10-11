@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from uva.clock import get_tz, utcnow
 from uva.config import Settings
+from uva.phrases import Phrases
 
 if TYPE_CHECKING:
     from uva.actions.registry import ActionRegistry
@@ -54,6 +55,16 @@ class Services:
     features: FeatureService | None = None
     # Called after code in the repo changed (e.g. a reverted plugin).
     on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
+    # Ready-made phrases in the bot's voice; defaults to data/fallback_phrases.json.
+    phrases: Phrases | None = None
+
+    def __post_init__(self) -> None:
+        if self.phrases is None:
+            self.phrases = Phrases(self.settings.phrases_file)
+
+    def say(self, category: str, **values: object) -> str:
+        assert self.phrases is not None
+        return self.phrases.pick(category, **values)
     busy: BusyTracker | None = None
     started_at: datetime = field(default_factory=utcnow)
     # Name -> async check returning True when the service is up (for /status).

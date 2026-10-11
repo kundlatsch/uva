@@ -6,7 +6,6 @@ import openai
 import pytest
 from fakes import FakeSearch, with_llm
 
-from uva.llm.agent import BAD_PLAN
 from uva.llm.anthropic_provider import AnthropicProvider
 from uva.llm.base import LLMMessage
 from uva.llm.budget import Scope, UsageRecord
@@ -75,7 +74,7 @@ async def test_wikipedia_search_returns_summary_with_sources(router, services, e
 async def test_invalid_json_executes_nothing(router, services, event_store):
     with_llm(services, "isso não é json")
     reply = await router.handle_text("faça algo")
-    assert reply.text == BAD_PLAN
+    assert reply.text in services.phrases.categories["llm_erro"]
     assert event_store.of_type(EventType.ACTION) == []
     error = event_store.of_type(EventType.ERROR)[0]
     assert error.data["where"] == "plan" and error.data["raw"] == "isso não é json"
@@ -90,13 +89,13 @@ async def test_unknown_action_rejects_whole_plan(router, services, event_store):
         ),
     )
     reply = await router.handle_text("apaga tudo")
-    assert reply.text == BAD_PLAN
+    assert reply.text in services.phrases.categories["llm_erro"]
     assert event_store.of_type(EventType.ACTION) == []
 
 
 async def test_invalid_params_reject_plan(router, services, event_store):
     with_llm(services, plan({"type": "search", "params": {"source": "wikipedia"}}))
-    assert (await router.handle_text("pesquisa")).text == BAD_PLAN
+    assert (await router.handle_text("pesquisa")).text in services.phrases.categories["llm_erro"]
 
 
 async def test_run_command_action(router, services):
@@ -122,7 +121,9 @@ async def test_daily_budget_blocks_llm(router, services, event_store):
         )
     )
     reply = await router.handle_text("conta uma piada")
-    assert "orçamento diário" in reply.text
+    phrase, reason = reply.text.split("\n")
+    assert phrase in services.phrases.categories["sem_credito"]
+    assert reason.startswith("(orçamento diário de LLM atingido") and "volta amanhã" in reason
     assert provider.calls == []
     assert event_store.of_type(EventType.BUDGET)[0].data["blocked"] is True
     # Commands keep working.

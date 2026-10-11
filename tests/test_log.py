@@ -61,11 +61,14 @@ async def test_log_shows_path_of_each_message(services):
     router = Router(services)
     await router.handle_text("/ping")
     await router.handle_text("bom dia")
+    await router.handle_text("qual o sentido da vida")
 
     text = (await router.handle_text("/log 1h")).text
     assert '"/ping" → comando /ping' in text
     bom_dia = next(line for line in text.splitlines() if '"bom dia"' in line)
-    assert bom_dia.endswith("LLM desligada")
+    assert bom_dia.endswith("conversa (saudacao)")
+    vida = next(line for line in text.splitlines() if '"qual o sentido da vida"' in line)
+    assert vida.endswith("LLM desligada")
 
 
 async def test_log_trace_detail(services, event_store):
@@ -93,7 +96,7 @@ async def test_errors_are_recorded(services, event_store):
 
     services.registry.command("boom", "explode")(boom)
     reply = await Router(services).handle_text("/boom")
-    assert "erro" in reply.text.lower()
+    assert "(registrado em /log erros)" in reply.text
     errors = event_store.of_type(EventType.ERROR)
     assert errors and "kaput" in errors[0].data["error"]
 

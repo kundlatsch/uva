@@ -38,11 +38,14 @@ async def test_help_lists_every_command(router):
 
 
 async def test_unknown_command(router):
-    assert "desconhecido" in await text_of(router, "/nope")
+    assert "/nope não existe" in await text_of(router, "/nope")
 
 
 async def test_free_text_falls_back(router):
-    assert await text_of(router, "qual a capital da França") == LLM_DISABLED
+    text = await text_of(router, "qual a capital da França")
+    first, second = text.split("\n")
+    assert first in router.services.phrases.categories["nao_entendi"]
+    assert second == LLM_DISABLED
 
 
 def test_registry_has_builtin_commands():

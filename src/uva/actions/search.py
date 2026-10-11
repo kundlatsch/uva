@@ -63,7 +63,7 @@ async def research(services: Services, query: str, source: str, scope: Scope) ->
     if response.summary is not None:
         summary = response.summary
     elif not response.results:
-        summary = "Não encontrei resultados para essa pesquisa."
+        summary = services.say("sem_resultado", termo=query)
     else:
         summary = await _summarize(services, query, response.results, scope)
 

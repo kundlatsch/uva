@@ -53,6 +53,7 @@ def register(registry: ActionRegistry) -> None:
         proactive_safe=True,
         long_running=True,
         progress_text="🔎 Pesquisando…",
+        progress_phrase="pesquisando",
     )
     async def search(params: SearchParams, ctx: ActionContext) -> ActionResult:
         try:

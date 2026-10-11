@@ -5,7 +5,7 @@ from uva.commands.log import extract_log_args
 from uva.logging.events import EventType
 from uva.matching import best_match
 from uva.llm.agent import LLM_DISABLED
-from uva.router import CONFIRM_DENIED, Router
+from uva.router import Router
 from uva.text import extract_duration, normalize
 
 
@@ -86,7 +86,7 @@ async def test_log_free_text_gets_arguments(router, event_store):
 
 async def test_capital_of_france_is_not_a_command(router, event_store):
     reply = await router.handle_text("qual a capital da França")
-    assert reply.text == LLM_DISABLED
+    assert reply.text.endswith(LLM_DISABLED)
     assert event_store.of_type(EventType.COMMAND) == []
 
 
@@ -107,7 +107,7 @@ async def test_confirmation_can_be_denied(router, services):
     services.settings.similarity_execute_threshold = 101
     reply = await router.handle_text("ping")
     denied = await router.handle_callback(reply.buttons[1].data)
-    assert denied.text == CONFIRM_DENIED
+    assert denied.text in services.phrases.categories["cancelado"]
 
 
 async def test_confirmation_keeps_the_original_trace(router, services, event_store):

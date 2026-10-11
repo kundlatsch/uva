@@ -43,6 +43,7 @@ docs/plano.md     # plano por fases
 | `/log [período] [tipo]`, `/log trace <id>` | o que aconteceu |
 | `/status`, `/llm` | saúde dos serviços, modelos e gastos com API |
 | `/tarefas`, `/cancelar <id>` | tarefas em segundo plano |
+| `/frases [categoria]` | frases prontas do bot |
 
 Fora dos comandos, é só escrever normalmente.
 
@@ -246,6 +247,15 @@ Peça com `/feature <descrição>` (ex.: `/feature /dado rola um dado de 6 lados
 - Orçamento próprio: `SELFCODE_DAILY_BUDGET_USD` (não consome o orçamento diário geral, mas conta no mensal).
 - Plugins também podem ser escritos à mão: crie o arquivo em `src/uva/plugins/`, os testes em `tests/plugins/` e reinicie o bot (ou use `/reverter`/`/feature` para disparar um reload). Eles aparecem como `[plugin]` em `/comandos`.
 - Requer o repositório na branch `main`; mudanças suas ainda não commitadas não entram no clone.
+
+## Frases prontas
+
+[data/fallback_phrases.json](data/fallback_phrases.json) tem 140+ frases no tom do soul.md, por categoria (`sem_credito`, `llm_erro`, `nao_entendi`, `ocupado`, `tarefa_falhou`, `tarefa_ok`, `pesquisando`, `saudacao`, `agradecimento`, `despedida`, `confirmacao`, `cancelado`, `sem_resultado`, `erro_generico`). Placeholders como `{id}` e `{termo}` ficam documentados no próprio arquivo.
+
+- Usadas quando a resposta não precisa da LLM: orçamento estourado ou provedor sem crédito (a frase + o motivo exato), erro da LLM, "não entendi", início de pesquisa, avisos de tarefa, cancelamentos, buscas vazias.
+- "oi", "valeu", "falou" e parecidos são respondidos direto daqui, sem gastar LLM.
+- Sorteio sem repetir as últimas 3 de cada categoria; o arquivo é validado e relido quando muda. Se estiver ausente ou quebrado, entram frases neutras embutidas.
+- `/frases` lista as categorias; `/frases <categoria>` mostra exemplos. A própria UVA pode editar o arquivo (`file_write`), e JSON inválido é recusado antes de gravar.
 
 ## Log e diagnóstico
 

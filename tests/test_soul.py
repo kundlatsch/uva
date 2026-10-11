@@ -27,7 +27,7 @@ async def test_every_llm_call_gets_the_soul_except_opt_out(services, tmp_path):
     provider, _ = with_llm(services, json.dumps({"actions": [], "reply": "Beleza, porra."}))
     services.llm.soul = Soul(path)
 
-    reply = await Router(services).handle_text("oi")
+    reply = await Router(services).handle_text("me conta uma piada")
     assert reply.text == "Beleza, porra."
     assert provider.calls[0]["system"].startswith(PREAMBLE + "Fala palavrão.")
 

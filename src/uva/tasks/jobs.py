@@ -12,6 +12,7 @@ from uva.actions.registry import RetryableActionError
 from uva.goals import runner as goals_runner
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
+from uva.phrases import Phrases
 from uva.replies import Reply
 from uva.selfmod.reload import request_reload
 from uva.selfmod.selfcode import build_feature
@@ -27,10 +28,11 @@ def backoff_seconds(retries: int) -> float:
     return min(300, 10 * 2**retries) + random.uniform(0, 5)
 
 
-def _notify_failure(what: str, exc: BaseException) -> None:
+def _notify_failure(what: str, exc: BaseException, task_id: str | None = None) -> None:
     """Best effort: a broken Telegram must not hide the original error."""
+    phrase = Phrases(settings.phrases_file).pick("tarefa_falhou", **({"id": task_id} if task_id else {}))
     try:
-        runtime.run(lambda: runtime.notify(Reply(f"⚠️ {what} falhou: {exc}")))
+        runtime.run(lambda: runtime.notify(Reply(f"⚠️ {phrase}\n({what} falhou: {exc})")))
     except Exception as notify_exc:
         log.warning("notify_failed", error=str(notify_exc))
 
@@ -56,7 +58,7 @@ def run_action(self, task_id: str, action: str, params: dict, trace_id: str | No
     except RetryableActionError as exc:
         raise self.retry(exc=exc, countdown=backoff_seconds(self.request.retries)) from exc
     except Exception as exc:
-        _notify_failure(f"A tarefa {task_id} ({action})", exc)
+        _notify_failure(f"A tarefa {task_id} ({action})", exc, task_id)
         raise
 
 

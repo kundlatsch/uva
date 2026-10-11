@@ -19,14 +19,12 @@ from uva.clock import utcnow
 from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
-from uva.matching import best_match
+from uva.matching import best_match, small_talk
 from uva.replies import Button, Reply
 from uva.services import Services
 
-UNKNOWN_COMMAND = "Comando desconhecido: /{name}. Envie /help para ver a lista."
-INTERNAL_ERROR = "Algo deu errado do meu lado. O erro foi registrado (/log erros)."
+UNKNOWN_COMMAND = "/{name} não existe. Envie /help para ver a lista."
 CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
-CONFIRM_DENIED = "Ok, não fiz nada."
 
 CONFIRM_TTL = timedelta(minutes=10)
 
@@ -78,7 +76,7 @@ class Router:
             reply = await coro
         except Exception as exc:
             await emit(EventType.ERROR, where="router", error=repr(exc))
-            reply = Reply(INTERNAL_ERROR)
+            reply = Reply(f"{self.services.say('erro_generico')}\n(registrado em /log erros)")
         await emit(EventType.REPLY, length=len(reply.text), file=reply.document is not None)
         return reply
 
@@ -86,6 +84,11 @@ class Router:
         # Tier 1: explicit command.
         if text.startswith("/"):
             return await self._dispatch_command(text, user_id)
+
+        # Small talk ("oi", "valeu", "falou") is answered without the LLM.
+        if category := small_talk(text):
+            await emit(EventType.ROUTE, tier="small_talk", category=category)
+            return Reply(self.services.say(category))
 
         # Tier 2: similarity against command names, aliases and examples.
         if reply := await self._try_similarity(text, user_id):
@@ -102,7 +105,8 @@ class Router:
         command = self.registry.get(name)
         if command is None:
             await emit(EventType.ROUTE, tier="unknown_command", command=name)
-            return Reply(UNKNOWN_COMMAND.format(name=name))
+            text = f"{self.services.say('nao_entendi')}\n{UNKNOWN_COMMAND.format(name=name)}"
+            return Reply(text)
 
         await emit(EventType.ROUTE, tier="command", command=command.name, invoked_as=name)
         return await self.run_command(command.name, args, user_id)
@@ -150,7 +154,7 @@ class Router:
             return Reply(CONFIRM_EXPIRED)
         if verb != "confirm":
             await emit(EventType.ROUTE, tier="confirm_denied", command=pending.name)
-            return Reply(CONFIRM_DENIED)
+            return Reply(self.services.say("cancelado"))
         await emit(EventType.ROUTE, tier="confirmed", command=pending.name)
         return await self.run_command(pending.name, pending.args, user_id)
 

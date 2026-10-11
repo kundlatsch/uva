@@ -1,8 +1,10 @@
 """Files the bot may read and change by itself, and nothing else.
 
 Allowed roots:
-  * ``data/...``  -> <repo>/data (soul.md, prompts): read, overwrite, append;
-                     every change becomes a git commit (UVA-Self-Edit).
+  * ``data/...``  -> <repo>/data (soul.md, fallback_phrases.json, prompts): read,
+                     overwrite, append (.md/.txt); every change becomes a git
+                     commit (UVA-Self-Edit). JSON files are validated before
+                     they are written and can't be appended to.
   * ``brain/...`` -> the second brain: read, create new notes, append;
                      existing notes are never overwritten (and not in git).
 Everything else (src/, security.py, .env, docker-compose.yml...) is refused.
@@ -10,12 +12,16 @@ Everything else (src/, security.py, .env, docker-compose.yml...) is refused.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from uva.phrases import PhrasesError
+from uva.phrases import validate as validate_phrases
 from uva.selfmod.git import SELF_EDIT, GitRepo
 
 ALLOWED_SUFFIXES = {".md", ".txt"}
+DATA_ONLY_SUFFIXES = {".json"}
 MAX_BYTES = 50_000
 
 
@@ -56,8 +62,9 @@ class FileAccess:
         if root_name not in self.roots:
             allowed = ", ".join(f"{r}/" for r in self.roots)
             raise FileAccessError(f"só posso mexer em {allowed} (pedido: {raw})")
-        if rel.suffix.lower() not in ALLOWED_SUFFIXES:
-            raise FileAccessError(f"só arquivos .md ou .txt (pedido: {raw})")
+        suffix = rel.suffix.lower()
+        if suffix not in ALLOWED_SUFFIXES and not (root_name == "data" and suffix in DATA_ONLY_SUFFIXES):
+            raise FileAccessError(f"só arquivos .md ou .txt (ou .json em data/) (pedido: {raw})")
 
         root = self.roots[root_name].resolve()
         path = (root / PurePosixPath(*parts[1:])).resolve()
@@ -79,12 +86,16 @@ class FileAccess:
         _check_size(content)
         if target.root == "brain" and target.path.exists():
             raise FileAccessError("notas do second brain não são sobrescritas; use file_append")
+        if target.path.suffix == ".json":
+            _validate_json(target, content)
         target.path.parent.mkdir(parents=True, exist_ok=True)
         target.path.write_text(content, encoding="utf-8")
         return Change(target, await self._commit(target, "write", reason))
 
     async def append(self, raw: str, content: str, reason: str) -> Change:
         target = self.resolve(raw)
+        if target.path.suffix == ".json":
+            raise FileAccessError("arquivos JSON não aceitam append; use file_write com o conteúdo completo")
         existing = target.path.read_text(encoding="utf-8") if target.path.exists() else ""
         _check_size(existing + content)
         target.path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,6 +112,19 @@ class FileAccess:
             body=reason or "Alteração feita pela UVA.",
             trailer=SELF_EDIT,
         )
+
+
+def _validate_json(target: Target, content: str) -> None:
+    """Refuse broken JSON (and broken phrase files) before touching the disk."""
+    try:
+        data = json.loads(content)
+    except ValueError as exc:
+        raise FileAccessError(f"JSON inválido: {exc}") from exc
+    if target.path.name == "fallback_phrases.json":
+        try:
+            validate_phrases(data)
+        except PhrasesError as exc:
+            raise FileAccessError(f"arquivo de frases inválido: {exc}") from exc
 
 
 def _check_size(content: str) -> None:

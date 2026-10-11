@@ -53,7 +53,7 @@ async def test_search_is_enqueued_not_run_inline(services, queue, event_store):
 
     task = queue.sent[0]
     assert (task.action, task.params) == ("search", {"query": "F1", "source": "web"})
-    assert "Pesquisando" in reply.text and f"/cancelar {task.id}" in reply.text
+    assert "🔎" in reply.text and f"(tarefa {task.id}; /cancelar {task.id})" in reply.text
     assert web.queries == []  # the worker does it
     assert event_store.of_type(EventType.TASK_ENQUEUED)[0].data["task_id"] == task.id
 
@@ -124,7 +124,7 @@ async def test_tasks_and_cancel_commands(services, queue):
     router = Router(services)
     listing = (await router.handle_text("/tarefas")).text
     assert record.id in listing and '"F1"' in listing and "na fila" in listing
-    assert "cancelada" in (await router.handle_text(f"/cancelar {record.id}")).text
+    assert f"(tarefa {record.id} cancelada)" in (await router.handle_text(f"/cancelar {record.id}")).text
     assert "Não achei" in (await router.handle_text(f"/cancelar {record.id}")).text
 
 
@@ -138,4 +138,4 @@ async def test_invalid_task_notifies_failure(services, queue):
     record = await queue.enqueue("rm_rf", {}, None)
     notify = Notifications()
     assert await run(services, record, notify=notify) is TaskStatus.FAILED
-    assert notify.texts[0].startswith(f"⚠️ A tarefa {record.id} (rm_rf) falhou")
+    assert notify.texts[0].startswith("⚠️ ") and "(rm_rf: " in notify.texts[0]

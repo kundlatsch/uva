@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from rapidfuzz import fuzz
@@ -15,6 +16,41 @@ FILLER_WORDS = frozenset(
     "por favor pf pfv me mostra mostre mostrar exibe exiba ver veja quero queria "
     "o a os as um uma de do da dos das pra para uva manda mande".split()
 )
+
+
+# Short social messages answered from the phrases file, without the LLM.
+SMALL_TALK: dict[str, tuple[str, ...]] = {
+    "saudacao": (
+        "oi", "ola", "oie", "opa", "e ai", "eai", "fala", "salve", "bom dia", "boa tarde",
+        "boa noite", "hey", "hello", "oi uva", "ola uva", "fala uva", "e ai uva", "tudo bem",
+        "tudo bom", "beleza", "suave",
+    ),
+    "agradecimento": (
+        "valeu", "vlw", "obrigado", "obrigada", "brigado", "brigada", "obg", "thanks",
+        "muito obrigado", "valeu uva", "obrigado uva", "show", "massa", "top",
+    ),
+    "despedida": (
+        "tchau", "falou", "flw", "ate mais", "ate logo", "ate amanha", "fui", "bye",
+        "tchau uva", "falou uva", "boa noite uva", "ate",
+    ),
+}
+SMALL_TALK_MAX_WORDS = 4
+
+
+def small_talk(text: str) -> str | None:
+    """Category of a short greeting/thanks/goodbye, or None."""
+    normalized = normalize(text)
+    if not normalized or len(normalized.split()) > SMALL_TALK_MAX_WORDS:
+        return None
+    for category, phrases in SMALL_TALK.items():
+        if normalized in phrases:
+            return category
+    # Tolerate typos and repeated letters ("valeuuu", "obrigadoo").
+    squeezed = re.sub(r"(.)\1+", r"\1", normalized)
+    best = max(
+        ((fuzz.ratio(squeezed, p), c) for c, ps in SMALL_TALK.items() for p in ps), default=(0, None)
+    )
+    return best[1] if best[0] >= 90 else None
 
 
 def strip_filler(normalized: str) -> str:

@@ -158,6 +158,10 @@ class Settings(BaseSettings):
         return default_plugins_dir()
 
     @property
+    def phrases_file(self) -> Path:
+        return self.repo_dir / "data" / "fallback_phrases.json"
+
+    @property
     def soul_file(self) -> Path:
         return Path(self.soul_path) if self.soul_path else self.repo_dir / "data" / "soul.md"
 

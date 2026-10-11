@@ -9,7 +9,10 @@ from uva.logging.events import EventType, emit
 from uva.selfmod.files import FileAccessError
 
 READ_LIMIT = 4000
-PATH_HELP = "Caminho relativo: data/soul.md, data/<arquivo>.md ou brain/<pasta>/<nota>.md"
+PATH_HELP = (
+    "Caminho relativo: data/soul.md, data/fallback_phrases.json, data/<arquivo>.md "
+    "ou brain/<pasta>/<nota>.md"
+)
 
 
 class FileReadParams(BaseModel):
