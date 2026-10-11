@@ -87,9 +87,10 @@ class Agent:
         ctx = ActionContext(services, INTERACTIVE, self.run_command)
         results = [await self._run(action, params, ctx) for action, params in calls]
 
-        reply = compose_reply(plan.reply, results) or services.say("confirmacao")
-        self._remember(text, reply)
-        return Reply(reply)
+        parts = reply_parts(plan.reply, results) or [services.say("confirmacao")]
+        reply = Reply.from_parts(parts)
+        self._remember(text, reply.text)
+        return reply
 
     async def _session_context(self) -> tuple[list[LLMMessage], str]:
         """Recent turns (as messages) and the "Contexto recente" block."""
@@ -189,13 +190,22 @@ async def execute_action(action: Action, params, ctx: ActionContext) -> ActionRe
     return result
 
 
-def compose_reply(plan_reply: str, results: list[ActionResult]) -> str:
+def reply_parts(plan_reply: str, results: list[ActionResult]) -> list[str]:
+    """One message for the LLM's reply, then one per action output, in order.
+
+    Empty outputs are skipped, and so is anything already said: the LLM often
+    repeats an action's output (or its own reply) word for word.
+    """
     parts: list[str] = []
     for part in [plan_reply, *(r.text for r in results)]:
         part = part.strip()
-        if part and part not in parts:  # the LLM sometimes repeats "reply" as an action
+        if part and part not in parts:
             parts.append(part)
-    return "\n\n".join(parts)
+    return parts
+
+
+def compose_reply(plan_reply: str, results: list[ActionResult]) -> str:
+    return "\n\n".join(reply_parts(plan_reply, results))
 
 
 def is_quota_error(exc: Exception) -> bool:

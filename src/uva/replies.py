@@ -23,6 +23,21 @@ class Reply:
     filename: str = "uva.md"
     # Short version kept in the short-term memory (command outputs are summarized).
     summary: str | None = None
+    # When set, each part is sent as its own message (``text`` is all of them
+    # joined, for logs and memory). Used for the LLM reply + one per action.
+    parts: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_parts(cls, parts: list[str]) -> Reply:
+        return cls(text="\n\n".join(parts), parts=list(parts))
+
+    def messages(self) -> list[Reply]:
+        """The Telegram messages to send, in order (buttons go on the last one)."""
+        if len(self.parts) <= 1:
+            return [self.fit_for_telegram()]
+        out = [Reply(text=part, filename=self.filename).fit_for_telegram() for part in self.parts]
+        out[-1].buttons = self.buttons
+        return out
 
     @classmethod
     def coerce(cls, value: str | Reply) -> Reply:

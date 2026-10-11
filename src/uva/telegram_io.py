@@ -17,7 +17,12 @@ def _keyboard(reply: Reply) -> InlineKeyboardMarkup | None:
 
 
 async def send_reply(bot: Bot, chat_id: int, reply: Reply) -> None:
-    reply = reply.fit_for_telegram()
+    """Send a reply; multi-part replies become several messages, in order."""
+    for message in reply.messages():
+        await _send_one(bot, chat_id, message)
+
+
+async def _send_one(bot: Bot, chat_id: int, reply: Reply) -> None:
     markup = _keyboard(reply)
     if reply.document is not None:
         await bot.send_document(

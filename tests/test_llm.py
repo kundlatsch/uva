@@ -286,3 +286,49 @@ async def test_wikipedia_backend():
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     response = await WikipediaBackend("pt", client=client).search("F1", 3)
     assert response.results == [SearchResult("Fórmula 1", "https://pt.wikipedia.org/wiki/F1", "Texto")]
+
+
+async def test_reply_and_each_action_output_are_separate_messages(router, services):
+    plan_text = json.dumps(
+        {
+            "actions": [
+                {"type": "reply", "params": {"text": "TESTE"}},
+                {"type": "reply", "params": {"text": "Convertendo, chefia."}},  # repeats the reply
+                {"type": "memory_save", "params": {"key": "x", "value": "y"}},  # no output
+            ],
+            "reply": "Convertendo, chefia.",
+        }
+    )
+    from fakes import InMemoryMemoryStore
+
+    from uva.memory import MemoryService
+
+    services.memory = MemoryService(InMemoryMemoryStore(), services.settings)
+    with_llm(services, plan_text)
+    reply = await router.handle_text("Deixa em letras grandes o texto: teste")
+    assert reply.parts == ["Convertendo, chefia.", "TESTE"]
+    assert [m.text for m in reply.messages()] == ["Convertendo, chefia.", "TESTE"]
+
+
+async def test_single_part_reply_is_one_message(router, services):
+    with_llm(services, plan(reply="Paris."))
+    reply = await router.handle_text("qual a capital da França")
+    assert [m.text for m in reply.messages()] == ["Paris."]
+
+
+async def test_send_reply_sends_parts_in_order():
+    from uva.replies import Button, Reply
+    from uva.telegram_io import send_reply
+
+    class FakeBot:
+        def __init__(self):
+            self.sent = []
+
+        async def send_message(self, chat_id, text, reply_markup=None):
+            self.sent.append((text, reply_markup is not None))
+
+    bot = FakeBot()
+    reply = Reply.from_parts(["primeira", "segunda"])
+    reply.buttons = [Button("Sim", "x")]
+    await send_reply(bot, 1, reply)
+    assert bot.sent == [("primeira", False), ("segunda", True)]
