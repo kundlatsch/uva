@@ -137,10 +137,10 @@ class Vault:
         directory.mkdir(parents=True, exist_ok=True)
         if any(directory.glob("*.md")):
             return self._relative(directory), None
+        # A truly empty marker file (like a Python __init__.py), named after the
+        # folder so it reads well in Obsidian.
         placeholder = directory / f"{directory.name}.md"
-        meta = {"title": directory.name, "created": self._timestamp(now), "tags": ["pasta"], "source": SOURCE}
-        front = yaml.safe_dump(meta, allow_unicode=True, sort_keys=False).strip()
-        placeholder.write_text(f"---\n{front}\n---\n", encoding="utf-8")
+        placeholder.write_bytes(b"")
         return self._relative(directory), self._relative(placeholder)
 
     def append(self, ref: str, text: str, now: datetime | None = None) -> Note:

@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fakes import with_llm
 
-from uva.brain.vault import Vault, parse_note
+from uva.brain.vault import Vault
 from uva.router import Router
 
 
@@ -18,8 +18,8 @@ def vault(tmp_path) -> Vault:
 def test_create_folder_with_empty_note(vault):
     folder, placeholder = vault.create_folder("areas", "Saúde")
     assert folder == "02-areas/Saúde" and placeholder == "02-areas/Saúde/Saúde.md"
-    meta, body = parse_note((vault.root / placeholder).read_text(encoding="utf-8"))
-    assert meta["title"] == "Saúde" and meta["tags"] == ["pasta"] and body.strip() == ""
+    assert (vault.root / placeholder).read_bytes() == b""  # empty, like a Python __init__.py
+    assert vault.read(placeholder).title == "Saúde"  # still readable/searchable as a note
 
 
 def test_existing_folder_is_left_alone(vault):
