@@ -7,13 +7,17 @@ import asyncio
 from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.brain.vault import title_from_text
 from uva.clock import format_local, utcnow
 from uva.media import EXTENSIONS, data_url_bytes
 from uva.stm.refs import remember_ref
 
 
 class ImageSaveParams(BaseModel):
-    title: str = Field(default="", description="Título curto para a nota/arquivo")
+    title: str = Field(
+        default="",
+        description="Título da nota/arquivo: o que o usuário pediu, ou um curto e descritivo (nunca vazio)",
+    )
     description: str = Field(default="", description="O que a imagem mostra (texto da nota)")
     folder: str = Field(default="inbox", description="Pasta da nota: inbox, projetos, areas, recursos")
 
@@ -33,7 +37,9 @@ def register(registry: ActionRegistry) -> None:
             return ActionResult(text="Não tenho imagem recente para salvar (manda de novo).")
         mime, data = data_url_bytes(photo)
         when = format_local(utcnow(), services.tz, "%Y-%m-%d %H%M")
-        title = params.title.strip() or f"Imagem {when}"
+        title = params.title.strip() or (
+            title_from_text(params.description, max_words=6) if params.description.strip() else f"Imagem {when}"
+        )
         folder = params.folder if params.folder in ("inbox", "projetos", "areas", "recursos") else "inbox"
 
         vault = services.vault
