@@ -30,6 +30,13 @@ class LLMPlan(BaseModel):
 PLAN_SCHEMA: dict[str, Any] = LLMPlan.model_json_schema()
 
 
+class GoalPlan(LLMPlan):
+    done: bool = Field(default=True, description="true quando não há mais nada útil a fazer agora")
+
+
+GOAL_PLAN_SCHEMA: dict[str, Any] = GoalPlan.model_json_schema()
+
+
 class PlanError(ValueError):
     pass
 
@@ -37,7 +44,7 @@ class PlanError(ValueError):
 _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
 
 
-def parse_plan(text: str) -> LLMPlan:
+def parse_plan(text: str, model: type[LLMPlan] = LLMPlan) -> LLMPlan:
     """Parse and validate the LLM answer, tolerating a ```json fence."""
     cleaned = _FENCE.sub("", text.strip())
     try:
@@ -45,6 +52,6 @@ def parse_plan(text: str) -> LLMPlan:
     except json.JSONDecodeError as exc:
         raise PlanError(f"JSON inválido: {exc}") from exc
     try:
-        return LLMPlan.model_validate(data)
+        return model.model_validate(data)
     except ValidationError as exc:
         raise PlanError(f"formato inválido: {exc}") from exc

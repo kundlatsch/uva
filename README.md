@@ -158,6 +158,23 @@ A UVA guarda o que vale a pena lembrar sobre você na coleção `memory` do Mong
 - **Limpeza diária** (beat, `MEMORY_MAINTENANCE_HOUR`): itens com validade vencida somem (índice TTL); itens com nota baixa e sem uso há `MEMORY_ARCHIVE_AFTER_DAYS` dias vão para `memory_archive`.
 - `/memoria` lista tudo (★ = memória de trabalho), `/memoria <chave>` mostra um item, `/lembrar <chave> <valor>` guarda, `/esquecer <chave>` apaga.
 
+## Objetivos e modo proativo
+
+Você pode pedir em linguagem natural: *"cria um objetivo de acompanhar notícias sobre energia solar toda semana"*. A LLM usa a ação `goal_create` (título, descrição, `recorrente` ou `unico`, prioridade 1–5, intervalo mínimo em horas) e o objetivo vai para a coleção `goals`.
+
+A cada `PROACTIVE_INTERVAL_MINUTES` o beat dispara o loop proativo:
+
+1. pega o objetivo ativo, vencido, de maior prioridade (se não houver, não faz nada);
+2. se o bot estiver ocupado (você conversando ou tarefas rodando), pula a vez;
+3. se o orçamento proativo do dia acabou, pula a vez;
+4. roda até `PROACTIVE_MAX_STEPS` rodadas com o modelo pesado, usando **só ações seguras** (pesquisa, notas e memória — nada de comandos, nem criar objetivos, nem esquecer memórias), com limite de `PROACTIVE_MAX_TOKENS_PER_RUN` tokens;
+5. escreve o resultado em `01-projetos/Objetivo - <título>.md`, registra no diário e reagenda (objetivos `unico` são concluídos quando a LLM diz que terminou).
+
+O modo proativo **nunca manda mensagem no Telegram**: você vê o que ele fez nas notas, em `/objetivos` e em `/log 1d goals`.
+
+- `/objetivos` — lista, com próxima execução e último resultado
+- `/pausar <id>`, `/retomar <id>`, `/remover <id>` (as notas ficam)
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.

@@ -116,3 +116,24 @@ async def test_memory_store_roundtrip(db):
     keys, computed_at = await store.load_working_set()
     assert keys == ["cidade"] and abs((computed_at - now).total_seconds()) < 1
     assert await store.delete("cidade") and not await store.delete("cidade")
+
+
+async def test_goal_store_due_and_updates(db):
+    from uva.goals.store import Goal, GoalResult, GoalStatus
+
+    store = mongo.MongoGoalStore(db)
+    await store.setup()
+    now = utcnow()
+    low = Goal(title="baixa", priority=1, next_run_at=now - timedelta(hours=1))
+    high = Goal(title="alta", priority=5, next_run_at=now - timedelta(minutes=1))
+    future = Goal(title="futura", priority=5, next_run_at=now + timedelta(hours=1))
+    for g in (low, high, future):
+        await store.add(g)
+
+    assert [g.title for g in await store.due(now)] == ["alta", "baixa"]
+    await store.update(high.id, status=GoalStatus.PAUSADO, results=[GoalResult(summary="ok")])
+    loaded = await store.get(high.id)
+    assert loaded.status is GoalStatus.PAUSADO and loaded.results[0].summary == "ok"
+    assert [g.title for g in await store.due(now)] == ["baixa"]
+    assert await store.delete(low.id)
+    assert len(await store.list()) == 2

@@ -1,0 +1,174 @@
+import json
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+import pytest
+from fakes import FakeBusy, FakeSearch, InMemoryGoalStore, with_llm
+
+from uva.brain.vault import Vault
+from uva.goals.runner import proactive_tick
+from uva.goals.store import Goal, GoalKind, GoalStatus, pick_due
+from uva.llm.budget import Scope, UsageRecord
+from uva.logging.events import EventType
+from uva.router import Router
+from uva.search.base import SearchResult
+
+NOW = datetime(2026, 10, 11, 15, 0, tzinfo=UTC)
+
+
+def step(*actions: dict, reply: str = "", done: bool = True) -> str:
+    return json.dumps({"actions": list(actions), "reply": reply, "done": done})
+
+
+@pytest.fixture
+def goals(services, tmp_path) -> InMemoryGoalStore:
+    services.goals = InMemoryGoalStore()
+    services.busy = FakeBusy()
+    services.vault = Vault(tmp_path / "brain", ZoneInfo("America/Sao_Paulo"))
+    services.vault.ensure_structure()
+    return services.goals
+
+
+def goal(**kw) -> Goal:
+    defaults = {"title": "Energia solar", "next_run_at": NOW - timedelta(minutes=1)}
+    return Goal(**{**defaults, **kw})
+
+
+def test_pick_due_orders_by_priority_then_age():
+    a = goal(title="a", priority=2, next_run_at=NOW - timedelta(hours=5))
+    b = goal(title="b", priority=5)
+    c = goal(title="c", priority=5, next_run_at=NOW - timedelta(hours=2))
+    later = goal(title="later", priority=5, next_run_at=NOW + timedelta(hours=1))
+    paused = goal(title="paused", priority=5, status=GoalStatus.PAUSADO)
+    assert [g.title for g in pick_due([a, b, c, later, paused], NOW)] == ["c", "b", "a"]
+
+
+async def test_nothing_due_is_quiet(services, goals, event_store):
+    with_llm(services)
+    await goals.add(goal(next_run_at=NOW + timedelta(hours=1)))
+    assert await proactive_tick(services, NOW) == "idle"
+    assert event_store.events == []
+
+
+async def test_busy_bot_skips_the_turn(services, goals, event_store):
+    provider, _ = with_llm(services)
+    await goals.add(goal())
+    await services.busy.mark("chat", 120)
+    assert await proactive_tick(services, NOW) == "busy"
+    assert provider.calls == []
+    assert event_store.of_type(EventType.GOAL_RUN)[0].data["reason"] == "busy"
+
+
+async def test_budget_exhausted_skips_the_turn(services, goals):
+    provider, usage = with_llm(services)
+    usage.records.append(
+        UsageRecord(
+            provider="p", model="m", input_tokens=0, output_tokens=0, scope=Scope.PROACTIVE,
+            cost_usd=services.settings.proactive_daily_budget_usd, purpose="goal",
+        )
+    )
+    await goals.add(goal())
+    assert await proactive_tick(services) == "budget"
+    assert provider.calls == []
+
+
+async def test_goal_run_searches_saves_note_and_reschedules(services, goals, event_store):
+    services.search = {"web": FakeSearch("web", SearchResult("Solar", "https://solar.example", "x"))}
+    provider, _ = with_llm(
+        services,
+        step({"type": "search", "params": {"query": "energia solar"}}, reply="Pesquisei.", done=False),
+        "Resumo sobre energia solar.",  # summary of the search, by the heavy model
+        step(reply="Nada mais a fazer hoje.", done=True),
+    )
+    g = goal(min_interval_hours=12)
+    await goals.add(g)
+    assert await proactive_tick(services, NOW) == "done"
+
+    updated = goals.goals[g.id]
+    assert updated.run_count == 1 and updated.last_run_at == NOW
+    assert updated.next_run_at == NOW + timedelta(hours=12)
+    assert updated.status is GoalStatus.ATIVO
+    assert "Pesquisei." in updated.results[-1].summary
+
+    note = services.vault.read("Objetivo - Energia solar")
+    assert note.path.startswith("01-projetos/")
+    assert "Resumo sobre energia solar." in note.body
+    # The research itself also became a reference note.
+    assert services.vault.read("Pesquisa - energia solar").path.startswith("03-recursos/")
+
+    # Uses the heavy model, proactive scope, and only safe actions in the prompt.
+    assert provider.calls[0]["model"] == "heavy-model"
+    assert "goal_create" not in provider.calls[0]["system"]
+    assert "run_command" not in provider.calls[0]["system"]
+    assert "memory_forget" not in provider.calls[0]["system"]
+    assert services.busy.markers == {}
+    run_event = event_store.of_type(EventType.GOAL_RUN)[-1]
+    assert run_event.data["status"] == "done" and run_event.data["steps"] == 2
+
+
+async def test_unsafe_action_aborts_the_run(services, goals, event_store):
+    provider, _ = with_llm(services, step({"type": "run_command", "params": {"command": "ping"}}))
+    g = goal()
+    await goals.add(g)
+    assert await proactive_tick(services, NOW) == "failed"
+    assert event_store.of_type(EventType.ACTION) == []
+    assert goals.goals[g.id].results[-1].ok is False
+
+
+async def test_single_goal_is_concluded(services, goals):
+    with_llm(services, step(reply="Feito.", done=True))
+    g = goal(kind=GoalKind.UNICO)
+    await goals.add(g)
+    assert await proactive_tick(services, NOW) == "concluido"
+    assert goals.goals[g.id].status is GoalStatus.CONCLUIDO
+
+
+async def test_step_limit(services, goals):
+    services.settings.proactive_max_steps = 2
+    provider, _ = with_llm(services, step(reply="1", done=False), step(reply="2", done=False))
+    # Without actions the loop stops after the first step even if not done.
+    await goals.add(goal())
+    await proactive_tick(services, NOW)
+    assert len(provider.calls) == 1
+
+
+async def test_token_limit(services, goals):
+    services.settings.proactive_max_tokens_per_run = 100  # each fake call uses 150
+    services.search = {"web": FakeSearch("web")}
+    provider, _ = with_llm(
+        services,
+        step({"type": "note_search", "params": {"term": "x"}}, done=False),
+        step(reply="nunca chamado"),
+    )
+    g = goal()
+    await goals.add(g)
+    await proactive_tick(services, NOW)
+    assert len(provider.calls) == 1
+    assert "tokens" in goals.goals[g.id].results[-1].summary
+
+
+async def test_goal_create_and_commands(services, goals):
+    create = json.dumps(
+        {
+            "actions": [
+                {
+                    "type": "goal_create",
+                    "params": {"title": "Notícias de energia solar", "priority": 4, "min_interval_hours": 168},
+                }
+            ],
+            "reply": "Combinado!",
+        }
+    )
+    with_llm(services, create)
+    router = Router(services)
+    reply = await router.handle_text("acompanha notícias de energia solar toda semana")
+    goal_id = next(iter(goals.goals))
+    assert f"🎯 Objetivo criado ({goal_id})" in reply.text
+
+    listing = (await router.handle_text("/objetivos")).text
+    assert goal_id in listing and "prioridade 4" in listing and "a cada 168h" in listing
+    assert "pausado" in (await router.handle_text(f"/pausar {goal_id}")).text
+    assert goals.goals[goal_id].status is GoalStatus.PAUSADO
+    assert "ativo" in (await router.handle_text(f"/retomar {goal_id}")).text
+    assert "removido" in (await router.handle_text(f"/remover {goal_id}")).text
+    assert goals.goals == {}

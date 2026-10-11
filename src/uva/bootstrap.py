@@ -53,6 +53,8 @@ def build_services(settings: Settings) -> Services:
     services.vault = Vault(Path(settings.second_brain_path), services.tz)
     memory_store = mongo.MongoMemoryStore(db)
     services.memory = MemoryService(memory_store, settings)
+    goal_store = mongo.MongoGoalStore(db)
+    services.goals = goal_store
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
@@ -63,6 +65,7 @@ def build_services(settings: Settings) -> Services:
             usage.setup,
             task_store.setup,
             memory_store.setup,
+            goal_store.setup,
             # "At startup": compute the working memory once.
             services.memory.recompute_working_set,
             lambda: _setup_vault(services.vault),

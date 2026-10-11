@@ -69,6 +69,41 @@ Regras:
 Agora são {now}."""
 
 
+def goal_system_prompt(
+    *,
+    goal_title: str,
+    goal_description: str,
+    previous: str,
+    actions: Iterable[Action],
+    tz: tzinfo,
+    max_steps: int,
+    working_memory: str = "",
+) -> str:
+    now = format_local(utcnow(), tz, "%d/%m/%Y %H:%M")
+    memory = f"\nO que você sabe sobre o usuário:\n{working_memory}\n" if working_memory else ""
+    return f"""Você é a UVA trabalhando sozinha, sem o usuário por perto, num objetivo dele.
+Ninguém lê suas respostas agora: o resultado vai para uma nota no second brain.
+
+Objetivo: {goal_title}
+Descrição: {goal_description or "(sem descrição)"}
+Resultados anteriores:
+{previous or "(nenhum ainda)"}
+{memory}
+Você tem no máximo {max_steps} rodadas. A cada rodada responda SOMENTE com JSON:
+{{"actions": [{{"type": "<ação>", "params": {{...}}}}], "reply": "<resumo do que fez/descobriu>", "done": true|false}}
+
+Ações disponíveis (só estas):
+{describe_actions(actions)}
+
+Regras:
+- Avance no objetivo com poucas ações úteis; evite repetir pesquisas já feitas.
+- "reply" é o resumo do progresso desta rodada, em português, para a nota.
+- Marque "done": true quando não houver mais nada útil a fazer agora.
+- Não invente resultados; use só o que as ações devolverem.
+
+Agora são {now}."""
+
+
 def summary_system_prompt() -> str:
     return (
         "Você resume resultados de pesquisa para um assistente pessoal. Escreva em "

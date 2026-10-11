@@ -14,6 +14,7 @@ from uva.llm.budget import Budget, Scope, UsageRecord
 from uva.llm.client import LLMClient
 from uva.llm.pricing import PriceTable
 from uva.logging.events import Event, EventQuery
+from uva.goals.store import Goal, pick_due
 from uva.memory.store import MemoryItem
 from uva.search.base import SearchResponse, SearchResult
 from uva.services import Services
@@ -202,6 +203,29 @@ class InMemoryMemoryStore:
 
     async def save_working_set(self, keys: list[str], computed_at: datetime) -> None:
         self.working_set = (keys, computed_at)
+
+
+class InMemoryGoalStore:
+    def __init__(self) -> None:
+        self.goals: dict[str, Goal] = {}
+
+    async def add(self, goal: Goal) -> None:
+        self.goals[goal.id] = goal
+
+    async def get(self, goal_id: str) -> Goal | None:
+        return self.goals.get(goal_id)
+
+    async def update(self, goal_id: str, **fields: Any) -> None:
+        self.goals[goal_id] = self.goals[goal_id].model_copy(update=fields)
+
+    async def delete(self, goal_id: str) -> bool:
+        return self.goals.pop(goal_id, None) is not None
+
+    async def list(self, status=None) -> list[Goal]:
+        return [g for g in self.goals.values() if status is None or g.status == status]
+
+    async def due(self, now: datetime) -> list[Goal]:
+        return pick_due(list(self.goals.values()), now)
 
 
 class FakeBusy:

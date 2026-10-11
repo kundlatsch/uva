@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from uva.actions.registry import ActionRegistry
     from uva.brain.vault import Vault
     from uva.commands.registry import CommandRegistry
+    from uva.goals.store import GoalStore
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
     from uva.memory.service import MemoryService
@@ -42,6 +43,7 @@ class Services:
     tasks: TaskQueue | None = None
     vault: Vault | None = None
     memory: MemoryService | None = None
+    goals: GoalStore | None = None
     busy: BusyTracker | None = None
     started_at: datetime = field(default_factory=utcnow)
     # Name -> async check returning True when the service is up (for /status).

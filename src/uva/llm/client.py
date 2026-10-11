@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from uva.config import LLMProvider as ProviderName
@@ -14,6 +17,31 @@ from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
 
 log = get_logger(__name__)
+
+
+class TokenMeter:
+    """Counts tokens of every LLM call made inside a ``metered()`` block."""
+
+    def __init__(self) -> None:
+        self.input_tokens = 0
+        self.output_tokens = 0
+
+    @property
+    def total(self) -> int:
+        return self.input_tokens + self.output_tokens
+
+
+_meter: ContextVar[TokenMeter | None] = ContextVar("uva_token_meter", default=None)
+
+
+@contextmanager
+def metered() -> Iterator[TokenMeter]:
+    meter = TokenMeter()
+    token = _meter.set(meter)
+    try:
+        yield meter
+    finally:
+        _meter.reset(token)
 
 
 class LLMClient:
@@ -87,6 +115,9 @@ class LLMClient:
     async def _account(
         self, response: LLMResponse, purpose: str, scope: Scope, started: float, request: str
     ) -> None:
+        if (meter := _meter.get()) is not None:
+            meter.input_tokens += response.input_tokens
+            meter.output_tokens += response.output_tokens
         cost = self.prices.cost(response.model, response.input_tokens, response.output_tokens)
         cost += response.extra.get("web_search_requests", 0) * WEB_SEARCH_COST_USD
         duration_ms = round((time.perf_counter() - started) * 1000)

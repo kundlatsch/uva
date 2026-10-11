@@ -26,7 +26,7 @@ app.conf.update(
     worker_hijack_root_logger=False,
 )
 
-# Periodic jobs. The goal loop (phase 8) is added here when it lands.
+# Periodic jobs.
 app.conf.beat_schedule = {
     "heartbeat": {"task": "uva.heartbeat", "schedule": timedelta(minutes=1)},
     "memory-maintenance": {
@@ -34,6 +34,11 @@ app.conf.beat_schedule = {
         "schedule": crontab(hour=settings.memory_maintenance_hour, minute=0),
     },
 }
+if settings.proactive_interval_minutes > 0:
+    app.conf.beat_schedule["proactive-tick"] = {
+        "task": "uva.proactive_tick",
+        "schedule": timedelta(minutes=settings.proactive_interval_minutes),
+    }
 
 
 @signals.setup_logging.connect

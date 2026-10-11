@@ -70,7 +70,10 @@ class Settings(BaseSettings):
 
     # Proactive behaviour
     proactive_daily_budget_usd: float = 0.5
+    # 0 disables the goal loop.
     proactive_interval_minutes: int = 60
+    proactive_max_steps: int = 3  # LLM rounds per goal run
+    proactive_max_tokens_per_run: int = 30000
 
     # Storage
     mongo_uri: str = "mongodb://mongo:27017/uva"

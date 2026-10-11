@@ -10,6 +10,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from uva.clock import utcnow
 from uva.llm.budget import Scope, UsageRecord
+from uva.goals.store import Goal, GoalKind, GoalStatus, pick_due
 from uva.logging.events import Event, EventQuery
 from uva.memory.store import MemoryItem
 from uva.tasks.queue import TaskRecord, TaskStatus
@@ -183,3 +184,51 @@ class MongoMemoryStore:
             {"keys": keys, "computed_at": computed_at},
             upsert=True,
         )
+
+
+class MongoGoalStore:
+    """Collection ``goals``."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["goals"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index("id", unique=True)
+        await self.collection.create_index([("status", ASCENDING), ("next_run_at", ASCENDING)])
+
+    @staticmethod
+    def _doc(goal: Goal) -> dict[str, Any]:
+        doc = goal.model_dump()
+        doc["kind"], doc["status"] = goal.kind.value, goal.status.value
+        return doc
+
+    async def add(self, goal: Goal) -> None:
+        await self.collection.insert_one(self._doc(goal))
+
+    async def get(self, goal_id: str) -> Goal | None:
+        doc = await self.collection.find_one({"id": goal_id}, {"_id": False})
+        return Goal.model_validate(doc) if doc else None
+
+    async def update(self, goal_id: str, **fields: Any) -> None:
+        clean: dict[str, Any] = {}
+        for key, value in fields.items():
+            if isinstance(value, GoalStatus | GoalKind):
+                value = value.value
+            elif key == "results":
+                value = [r.model_dump() for r in value]
+            clean[key] = value
+        await self.collection.update_one({"id": goal_id}, {"$set": clean})
+
+    async def delete(self, goal_id: str) -> bool:
+        return (await self.collection.delete_one({"id": goal_id})).deleted_count > 0
+
+    async def list(self, status: GoalStatus | None = None) -> list[Goal]:
+        query = {"status": status.value} if status else {}
+        cursor = self.collection.find(query, {"_id": False}).sort("created_at", ASCENDING)
+        return [Goal.model_validate(d) async for d in cursor]
+
+    async def due(self, now: datetime) -> list[Goal]:
+        cursor = self.collection.find(
+            {"status": GoalStatus.ATIVO.value, "next_run_at": {"$lte": now}}, {"_id": False}
+        )
+        return pick_due([Goal.model_validate(d) async for d in cursor], now)

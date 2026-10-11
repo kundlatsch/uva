@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 
 from uva.actions.registry import RetryableActionError
+from uva.goals import runner as goals_runner
 from uva.logging.events import EventType, emit, trace
 from uva.tasks import runtime
 from uva.tasks.app import app, settings
@@ -46,6 +47,14 @@ def memory_maintenance() -> dict:
             result = await services.memory.maintenance()  # type: ignore[union-attr]
             await emit(EventType.MEMORY, op="maintenance", **result)
         return result
+
+    return runtime.run(job)
+
+
+@app.task(name="uva.proactive_tick")
+def proactive_tick() -> str:
+    async def job() -> str:
+        return await goals_runner.proactive_tick(await runtime.get_services())
 
     return runtime.run(job)
 
