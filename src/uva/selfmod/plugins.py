@@ -18,6 +18,7 @@ from uva.clock import utcnow
 from uva.commands.registry import Command, CommandContext, CommandRegistry
 from uva.logging import get_logger
 from uva.plugins.api import PluginCommand, PluginContext, commands_in
+from uva.selfmod.plugin_data import make_data_view
 
 log = get_logger(__name__)
 
@@ -100,7 +101,8 @@ def _register_all(registry: CommandRegistry, found: list[PluginCommand]) -> None
 def _to_command(pc: PluginCommand) -> Command:
     async def handler(ctx: CommandContext) -> str:
         now = utcnow().astimezone(ctx.services.tz)
-        result = pc.handler(PluginContext(args=list(ctx.args), now=now))
+        data = make_data_view(ctx.services)
+        result = pc.handler(PluginContext(args=list(ctx.args), now=now, data=data))
         if inspect.isawaitable(result):
             result = await result
         return str(result)

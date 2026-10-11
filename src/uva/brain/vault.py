@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, tzinfo
+from datetime import UTC, datetime, tzinfo
 from pathlib import Path
 
 import yaml
@@ -44,6 +44,13 @@ class Note:
     body: str
     created: str = ""
     tags: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class RecentNote:
+    path: str
+    title: str
+    changed: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +158,17 @@ class Vault:
             elif needle in normalize(body):
                 body_hits.append(hit)
         return (title_hits + body_hits)[:limit]
+
+    def recent(self, limit: int = 10) -> list[RecentNote]:
+        """Most recently modified notes (LEIA-ME excluded)."""
+        paths = [p for p in self.root.rglob("*.md") if p.name != README_NAME]
+        paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        notes = []
+        for path in paths[:limit]:
+            meta, _ = parse_note(path.read_text(encoding="utf-8", errors="replace"))
+            changed = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
+            notes.append(RecentNote(self._relative(path), str(meta.get("title") or path.stem), changed))
+        return notes
 
     # --- helpers ---------------------------------------------------------
 

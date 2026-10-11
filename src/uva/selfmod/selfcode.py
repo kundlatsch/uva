@@ -359,6 +359,11 @@ tests/plugins/test_<name>.py. Responda SOMENTE com JSON no formato pedido.
 - Proibido: open, eval, exec, compile, __import__, getattr/setattr, globals, atributos
   começando com "_", import relativo, os, sys, subprocess, pathlib, socket, config, segurança.
 - O plugin não acessa arquivos, processos nem variáveis de ambiente.
+- Para LER dados do bot (memórias, objetivos, contexto recente, gastos, notas), use só
+  `await ctx.data.<método>(...)` (veja DataView na interface); o handler fica `async def`.
+  Não há como gravar dados. Nos testes, passe dados falsos com
+  `run(handler, data=StaticData(goals=[...], working_memory=[...]))`
+  (import: `from uva.plugins.testing import StaticData, run`).
 - Textos para o usuário em português do Brasil; identificadores em inglês.
 - Valide os argumentos e devolva uma mensagem de uso clara quando estiverem errados.
 - Os testes devem ser funções síncronas usando uva.plugins.testing.run, determinísticos
