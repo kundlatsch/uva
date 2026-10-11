@@ -8,16 +8,42 @@ O plano completo, fase a fase, está em [docs/plano.md](docs/plano.md).
 
 ```
 src/uva/
-  main.py        # ponto de entrada: monta o bot e inicia o long polling
-  config.py      # configurações via .env (pydantic-settings)
-  security.py    # filtro de usuário único, roda antes de qualquer handler
-  router.py      # texto -> resposta (comandos; fallbacks 2 e 3 marcados como TODO)
-  commands/      # registro de comandos + comandos embutidos
-  logging/       # logs estruturados em JSON (structlog)
-  actions/ llm/ memory/ goals/ brain/ tasks/ storage/   # reservados para fases futuras
-tests/           # pytest, sem acessar o Telegram
-scripts/windows/ # inicialização automática no Windows
+  main.py         # ponto de entrada do bot (long polling)
+  bootstrap.py    # monta os serviços (Mongo, Redis, LLM, vault, SQLite) para bot e worker
+  config.py       # configurações via .env (pydantic-settings)
+  security.py     # filtro de usuário único, roda antes de qualquer handler
+  router.py       # texto -> resposta: comando, similaridade ou LLM
+  matching.py     # fallback 2 (similaridade com rapidfuzz)
+  commands/       # comandos do bot (/help é gerado a partir do registro)
+  actions/        # ações que a LLM pode pedir (registro + validação Pydantic)
+  llm/            # provedores (Anthropic, OpenAI-compatível), agente, prompts, orçamento
+  search/         # backends de pesquisa (Anthropic, Wikipédia, DuckDuckGo)
+  brain/          # second brain em Markdown (Obsidian)
+  memory/         # memória de longo prazo
+  goals/          # objetivos e loop proativo
+  tasks/          # Celery: app, tarefas, fila, lock de "ocupado"
+  storage/        # Mongo, SQLite (gastos)
+  logging/        # logs JSON e eventos com trace_id
+tests/            # pytest (Telegram e LLM simulados)
+scripts/          # testes de integração e inicialização no Windows
+docs/plano.md     # plano por fases
 ```
+
+## Comandos
+
+| Comando | O que faz |
+|---|---|
+| `/help` | lista tudo (gerado automaticamente) |
+| `/ping`, `/start` | teste e apresentação |
+| `/nota <texto>`, `/buscar <termo>` | second brain |
+| `/memoria [chave]`, `/lembrar <chave> <valor>`, `/esquecer <chave>` | memória |
+| `/objetivos`, `/pausar <id>`, `/retomar <id>`, `/remover <id>` | objetivos do modo proativo |
+| `/gasto <valor> <categoria> [descrição]`, `/gastos [hoje\|semana\|mes\|ano\|tudo]` | gastos (SQLite) |
+| `/log [período] [tipo]`, `/log trace <id>` | o que aconteceu |
+| `/status`, `/llm` | saúde dos serviços, modelos e gastos com API |
+| `/tarefas`, `/cancelar <id>` | tarefas em segundo plano |
+
+Fora dos comandos, é só escrever normalmente.
 
 ## Configuração
 
@@ -174,6 +200,15 @@ O modo proativo **nunca manda mensagem no Telegram**: você vê o que ele fez na
 
 - `/objetivos` — lista, com próxima execução e último resultado
 - `/pausar <id>`, `/retomar <id>`, `/remover <id>` (as notas ficam)
+
+## SQLite (dados estruturados)
+
+Para dados com formato fixo há um SQLite em `SQLITE_PATH` (volume `sqlite-data`), em modo WAL. As migrações ficam em `src/uva/storage/sqlite.py` (lista `MIGRATIONS`; o número aplicado fica em `PRAGMA user_version`). Para mudar o esquema, acrescente uma migração nova no fim, nunca edite as antigas.
+
+Exemplo incluído: gastos.
+- `/gasto 25,90 mercado pão e leite` grava (aceita `25`, `25,90`, `R$ 1.234,56`)
+- `/gastos mes` soma por categoria (também `hoje`, `semana`, `ano`, `tudo`)
+- Em texto livre também funciona: "gastei 30 no mercado" (ação `expense_add`)
 
 ## Log e diagnóstico
 

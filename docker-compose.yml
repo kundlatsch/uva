@@ -10,7 +10,9 @@ x-app: &app
     MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/uva}
     REDIS_URL: redis://redis:6379/0
     SECOND_BRAIN_PATH: /data/second-brain
+    SQLITE_PATH: /data/sqlite/uva.db
   volumes:
+    - sqlite-data:/data/sqlite
     # Second brain: a folder on the host (default ./brain, gitignored) so the
     # notes can be opened in Obsidian. Set SECOND_BRAIN_HOST_PATH to change it.
     - ${SECOND_BRAIN_HOST_PATH:-./brain}:/data/second-brain
@@ -49,3 +51,4 @@ services:
 volumes:
   mongo-data:
   redis-data:
+  sqlite-data:

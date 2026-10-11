@@ -20,6 +20,8 @@ from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
 from uva.storage import mongo
+from uva.storage.expenses import ExpenseRepository
+from uva.storage.sqlite import Database
 from uva.tasks.busy import HEARTBEAT_KEY, BusyTracker
 from uva.tasks.celery_queue import CeleryTaskQueue
 
@@ -55,6 +57,8 @@ def build_services(settings: Settings) -> Services:
     services.memory = MemoryService(memory_store, settings)
     goal_store = mongo.MongoGoalStore(db)
     services.goals = goal_store
+    sqlite_db = Database(Path(settings.sqlite_path))
+    services.expenses = ExpenseRepository(sqlite_db)
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
@@ -69,6 +73,7 @@ def build_services(settings: Settings) -> Services:
             # "At startup": compute the working memory once.
             services.memory.recompute_working_set,
             lambda: _setup_vault(services.vault),
+            lambda: _setup_sqlite(sqlite_db),
         ]
     )
     return services
@@ -77,6 +82,12 @@ def build_services(settings: Settings) -> Services:
 async def _setup_vault(vault: Vault) -> None:
     if await asyncio.to_thread(vault.ensure_structure):
         log.info("vault_created", path=str(vault.root))
+
+
+async def _setup_sqlite(db: Database) -> None:
+    applied = await asyncio.to_thread(db.migrate)
+    if applied:
+        log.info("sqlite_migrated", path=str(db.path), applied=applied)
 
 
 async def _redis_ping(redis: Redis) -> bool:

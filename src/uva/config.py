@@ -77,6 +77,7 @@ class Settings(BaseSettings):
 
     # Storage
     mongo_uri: str = "mongodb://mongo:27017/uva"
+    sqlite_path: str = "/data/sqlite/uva.db"
     second_brain_path: str = "/data/second-brain"
 
     # Background tasks (Celery + Redis)

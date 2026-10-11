@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from uva.memory.service import MemoryService
     from uva.logging.events import EventStore
     from uva.search.base import SearchBackend
+    from uva.storage.expenses import ExpenseRepository
     from uva.tasks.busy import BusyTracker
     from uva.tasks.queue import TaskQueue
 
@@ -44,6 +45,7 @@ class Services:
     vault: Vault | None = None
     memory: MemoryService | None = None
     goals: GoalStore | None = None
+    expenses: ExpenseRepository | None = None
     busy: BusyTracker | None = None
     started_at: datetime = field(default_factory=utcnow)
     # Name -> async check returning True when the service is up (for /status).
