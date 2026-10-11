@@ -197,7 +197,9 @@ A cada `PROACTIVE_INTERVAL_MINUTES` o beat dispara o loop proativo:
 4. roda até `PROACTIVE_MAX_STEPS` rodadas com o modelo pesado, usando **só ações seguras** (pesquisa, notas e memória — nada de comandos, nem criar objetivos, nem esquecer memórias), com limite de `PROACTIVE_MAX_TOKENS_PER_RUN` tokens;
 5. escreve o resultado em `01-projetos/Objetivo - <título>.md`, registra no diário e reagenda (objetivos `unico` são concluídos quando a LLM diz que terminou).
 
-O modo proativo **nunca manda mensagem no Telegram**: você vê o que ele fez nas notas, em `/objetivos` e em `/log 1d goals`.
+Ao terminar cada execução, a UVA manda no Telegram um resumo curto com o caminho da nota (`PROACTIVE_NOTIFY=true`, padrão; com `false` o modo proativo fica silencioso). Vezes puladas (ocupado, orçamento) não geram aviso. Tudo também fica nas notas, em `/objetivos` e em `/log 1d goals`.
+
+Toda tarefa em segundo plano avisa quando termina: pesquisas mandam o resultado, falhas finais mandam o erro, e a limpeza diária da memória só fala se falhar.
 
 - `/objetivos` — lista, com próxima execução e último resultado
 - `/pausar <id>`, `/retomar <id>`, `/remover <id>` (as notas ficam)

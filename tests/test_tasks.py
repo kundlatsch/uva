@@ -132,3 +132,10 @@ def test_backoff_grows_and_is_capped():
     assert 10 <= backoff_seconds(0) < 16
     assert 40 <= backoff_seconds(2) < 46
     assert backoff_seconds(10) <= 305
+
+
+async def test_invalid_task_notifies_failure(services, queue):
+    record = await queue.enqueue("rm_rf", {}, None)
+    notify = Notifications()
+    assert await run(services, record, notify=notify) is TaskStatus.FAILED
+    assert notify.texts[0].startswith(f"⚠️ A tarefa {record.id} (rm_rf) falhou")

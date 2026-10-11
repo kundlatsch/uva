@@ -7,7 +7,7 @@ Every PROACTIVE_INTERVAL_MINUTES the beat triggers :func:`proactive_tick`:
   4. run up to PROACTIVE_MAX_STEPS LLM rounds with only proactive-safe
      actions (search, notes, memory) and a token cap;
   5. write the outcome to a note in 01-projetos/ and reschedule the goal.
-It never sends Telegram messages.
+With PROACTIVE_NOTIFY the owner gets a summary of each finished run.
 """
 
 from __future__ import annotations
@@ -27,7 +27,9 @@ from uva.llm.prompts import goal_system_prompt
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
 from uva.memory.service import render_memory
+from uva.replies import Reply
 from uva.services import Services
+from uva.tasks.runner import Notifier
 
 log = get_logger(__name__)
 
@@ -50,8 +52,14 @@ class GoalRun:
         return " ".join(s for s in self.summaries if s).strip() or (self.error or "Sem progresso.")
 
 
-async def proactive_tick(services: Services, now: datetime | None = None) -> str:
-    """One turn of the loop. Returns what happened (also logged as an event)."""
+async def proactive_tick(
+    services: Services, now: datetime | None = None, notify: Notifier | None = None
+) -> str:
+    """One turn of the loop. Returns what happened (also logged as an event).
+
+    With ``notify`` (PROACTIVE_NOTIFY), the owner gets a short summary of each
+    finished run; skipped turns are never announced.
+    """
     now = now or utcnow()
     if services.goals is None or services.llm is None or services.actions is None:
         return "disabled"
@@ -101,7 +109,18 @@ async def proactive_tick(services: Services, now: datetime | None = None) -> str
             summary=run.summary,
             error=run.error,
         )
+        if notify is not None:
+            await notify(Reply(describe_run(run, status, note)))
         return status
+
+
+def describe_run(run: GoalRun, status: str, note: str | None) -> str:
+    label = {"done": "rodou", "concluido": "concluído ✅", "failed": "falhou ⚠️"}.get(status, status)
+    summary = run.summary if len(run.summary) <= 400 else run.summary[:399] + "…"
+    lines = [f"🎯 Objetivo \"{run.goal.title}\" {label}", summary]
+    if note:
+        lines.append(f"📝 {note}")
+    return "\n".join(lines)
 
 
 async def run_goal(services: Services, goal: Goal) -> GoalRun:

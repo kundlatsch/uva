@@ -172,3 +172,30 @@ async def test_goal_create_and_commands(services, goals):
     assert "ativo" in (await router.handle_text(f"/retomar {goal_id}")).text
     assert "removido" in (await router.handle_text(f"/remover {goal_id}")).text
     assert goals.goals == {}
+
+
+class Inbox:
+    def __init__(self) -> None:
+        self.texts: list[str] = []
+
+    async def __call__(self, reply) -> None:
+        self.texts.append(reply.text)
+
+
+async def test_finished_goal_run_notifies_owner(services, goals):
+    with_llm(services, step(reply="Achei três novidades.", done=True))
+    await goals.add(goal())
+    inbox = Inbox()
+    assert await proactive_tick(services, NOW, notify=inbox) == "done"
+    assert inbox.texts[0].startswith('🎯 Objetivo "Energia solar" rodou')
+    assert "Achei três novidades." in inbox.texts[0]
+    assert "📝 01-projetos/Objetivo - Energia solar.md" in inbox.texts[0]
+
+
+async def test_skipped_turn_is_not_announced(services, goals):
+    with_llm(services)
+    await goals.add(goal())
+    await services.busy.mark("chat", 60)
+    inbox = Inbox()
+    assert await proactive_tick(services, NOW, notify=inbox) == "busy"
+    assert inbox.texts == []

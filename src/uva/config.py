@@ -74,6 +74,8 @@ class Settings(BaseSettings):
     proactive_interval_minutes: int = 60
     proactive_max_steps: int = 3  # LLM rounds per goal run
     proactive_max_tokens_per_run: int = 30000
+    # Tell the owner on Telegram when background work (incl. goal runs) finishes.
+    proactive_notify: bool = True
 
     # Storage
     mongo_uri: str = "mongodb://mongo:27017/uva"

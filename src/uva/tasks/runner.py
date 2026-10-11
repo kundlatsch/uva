@@ -50,6 +50,7 @@ async def run_action_task(
                 action, validated = services.actions.validate(action_name, params)
             except InvalidActionError as exc:
                 await _finish(services, task_id, action_name, TaskStatus.FAILED, str(exc))
+                await notify(Reply(f"⚠️ A tarefa {task_id} ({action_name}) falhou: {exc}"))
                 return TaskStatus.FAILED
 
             ctx = ActionContext(services, Scope.INTERACTIVE, allow_retry=attempt < max_retries)
