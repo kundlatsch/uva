@@ -101,7 +101,7 @@ Resultados anteriores:
 {previous or "(nenhum ainda)"}
 {memory}
 Você tem no máximo {max_steps} rodadas. A cada rodada responda SOMENTE com JSON:
-{{"actions": [{{"type": "<ação>", "params": {{...}}}}], "reply": "<resumo do que fez/descobriu>", "done": true|false}}
+{{"actions": [{{"type": "<ação>", "params": {{...}}}}], "reply": "<resumo do que fez/descobriu>", "done": true|false, "needs_feature": null}}
 
 Ações disponíveis (só estas):
 {describe_actions(actions)}
@@ -110,6 +110,10 @@ Regras:
 - Avance no objetivo com poucas ações úteis; evite repetir pesquisas já feitas.
 - "reply" é o resumo do progresso desta rodada, em português, para a nota.
 - Marque "done": true quando não houver mais nada útil a fazer agora.
+- Você não programa diretamente. Se o objetivo exigir um comando ou funcionalidade nova do
+  bot, preencha "needs_feature" com uma descrição curta e completa do comando (ex.:
+  "/painel mostra a memória de trabalho e os objetivos ativos") e marque "done": true;
+  o pedido segue para o auto-código (com testes e revisão automática) ou vira sugestão.
 - Não invente resultados; use só o que as ações devolverem.
 
 Agora são {now}."""

@@ -39,9 +39,12 @@ app.conf.beat_schedule["stm-promotion"] = {
     "schedule": timedelta(minutes=30),
 }
 if settings.proactive_interval_minutes > 0:
+    # A wall-clock crontab, not a timedelta from beat's start: beat is recreated on
+    # every deploy/boot, and a 60-min timedelta restarted its countdown each time
+    # (goals never ran). The loop itself enforces PROACTIVE_INTERVAL_MINUTES.
     app.conf.beat_schedule["proactive-tick"] = {
         "task": "uva.proactive_tick",
-        "schedule": timedelta(minutes=settings.proactive_interval_minutes),
+        "schedule": crontab(minute=f"*/{max(1, settings.proactive_poll_minutes)}"),
     }
 
 

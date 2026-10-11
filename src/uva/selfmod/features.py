@@ -26,6 +26,7 @@ class FeatureRecord(BaseModel):
     description: str
     status: FeatureStatus = FeatureStatus.QUEUED
     trace_id: str | None = None
+    goal_id: str | None = None  # set when a goal run asked for it
     plugin: str | None = None  # module name
     command: str | None = None
     summary: str = ""
@@ -57,10 +58,12 @@ class FeatureService:
         self.store = store
         self.enqueue = enqueue
 
-    async def request(self, description: str, trace_id: str | None) -> FeatureRecord:
+    async def request(
+        self, description: str, trace_id: str | None, goal_id: str | None = None
+    ) -> FeatureRecord:
         if self.enqueue is None:
             raise RuntimeError("a fila de tarefas não está configurada")
-        record = FeatureRecord(description=description.strip(), trace_id=trace_id)
+        record = FeatureRecord(description=description.strip(), trace_id=trace_id, goal_id=goal_id)
         await self.store.add(record)
         await self.enqueue(record.id)
         return record

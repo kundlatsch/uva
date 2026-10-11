@@ -190,7 +190,7 @@ A UVA guarda o que vale a pena lembrar sobre você na coleção `memory` do Mong
 
 Você pode pedir em linguagem natural: *"cria um objetivo de acompanhar notícias sobre energia solar toda semana"*. A LLM usa a ação `goal_create` (título, descrição, `recorrente` ou `unico`, prioridade 1–5, intervalo mínimo em horas) e o objetivo vai para a coleção `goals`.
 
-A cada `PROACTIVE_INTERVAL_MINUTES` o beat dispara o loop proativo:
+O beat verifica a cada `PROACTIVE_POLL_MINUTES` (5) se há objetivo vencido, e o loop roda no máximo uma execução a cada `PROACTIVE_INTERVAL_MINUTES` (60):
 
 1. pega o objetivo ativo, vencido, de maior prioridade (se não houver, não faz nada);
 2. se o bot estiver ocupado (você conversando ou tarefas rodando), pula a vez;
@@ -202,7 +202,8 @@ Ao terminar cada execução, a UVA manda no Telegram um resumo curto com o camin
 
 Toda tarefa em segundo plano avisa quando termina: pesquisas mandam o resultado, falhas finais mandam o erro, e a limpeza diária da memória só fala se falhar.
 
-- `/objetivos` — lista, com próxima execução e último resultado
+- `/objetivos` — lista, com próxima execução, **última tentativa** (ok, falhou, ou pulado e por quê) e número de execuções
+- Se um objetivo precisa de um comando que não existe, a execução pede ao auto-código (`PROACTIVE_ALLOW_SELFCODE=true`, uma vez por execução, nunca repetindo uma feature já pronta ou em construção) e avisa; com `false`, pausa o objetivo e sugere o `/feature` exato.
 - `/pausar <id>`, `/retomar <id>`, `/remover <id>` (as notas ficam)
 
 ## SQLite (dados estruturados)

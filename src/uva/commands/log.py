@@ -175,6 +175,8 @@ def _summarize_trace(trace_id: str, group: list[Event], tz: tzinfo) -> str:
                 parts.append(f"tarefa {data.get('status')}")
             case EventType.GOAL_RUN:
                 reason = f", {data['reason']}" if data.get("reason") else ""
+                if data.get("needs_feature"):
+                    reason = f", precisa de /feature {data['needs_feature'][:40]}"
                 parts.append(f"objetivo '{data.get('title')}' ({data.get('status')}{reason})")
             case EventType.ERROR:
                 parts.append(f"ERRO: {_preview(str(data.get('error', '')), 60)}")

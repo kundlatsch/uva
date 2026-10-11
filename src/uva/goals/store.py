@@ -45,6 +45,12 @@ class Goal(BaseModel):
     next_run_at: datetime = Field(default_factory=utcnow)
     run_count: int = 0
     results: list[GoalResult] = Field(default_factory=list)
+    # Last time the loop picked this goal, whatever happened ("ok", "falhou",
+    # "pulado: ocupado"...), so a goal that never runs can be debugged.
+    last_attempt_at: datetime | None = None
+    last_attempt: str | None = None
+    # Set when the goal needs a capability goal runs don't have (a new command).
+    needs_feature: str | None = None
 
     @property
     def min_interval(self) -> timedelta:

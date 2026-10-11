@@ -199,3 +199,102 @@ async def test_skipped_turn_is_not_announced(services, goals):
     inbox = Inbox()
     assert await proactive_tick(services, NOW, notify=inbox) == "busy"
     assert inbox.texts == []
+
+
+# --- last attempt, spacing, schedule, features ------------------------------------------
+
+
+def test_beat_polls_on_the_wall_clock():
+    from celery.schedules import crontab
+
+    from uva.tasks.app import app
+
+    schedule = app.conf.beat_schedule["proactive-tick"]["schedule"]
+    assert isinstance(schedule, crontab)  # not a timedelta reset by every restart
+
+
+async def test_skips_are_recorded_as_last_attempt(services, goals):
+    with_llm(services)
+    g = goal()
+    await goals.add(g)
+    await services.busy.mark("chat", 60)
+    await proactive_tick(services, NOW)
+    assert goals.goals[g.id].last_attempt == "pulado: ocupado (chat)"
+    assert goals.goals[g.id].last_attempt_at == NOW
+    text = (await Router(services).handle_text("/objetivos")).text
+    assert "última tentativa: " in text and "pulado: ocupado" in text and "execuções: 0" in text
+
+
+async def test_runs_are_spaced_by_the_interval(services, goals):
+    with_llm(services, step(reply="Feito.", done=True))
+    ran = goal(title="já rodou", last_run_at=NOW - timedelta(minutes=10), next_run_at=NOW + timedelta(hours=5))
+    waiting = goal(title="esperando")
+    await goals.add(ran)
+    await goals.add(waiting)
+    assert await proactive_tick(services, NOW) == "interval"
+    assert goals.goals[waiting.id].last_attempt == "pulado: intervalo entre execuções"
+    assert await proactive_tick(services, NOW + timedelta(minutes=61)) == "done"
+
+
+async def test_never_attempted_goal_says_so(services, goals):
+    await goals.add(goal())
+    text = (await Router(services).handle_text("/objetivos")).text
+    assert "última tentativa: nunca · execuções: 0" in text and "(atrasada" in text
+
+
+def feature_step():
+    return json.dumps(
+        {"actions": [], "reply": "Isso precisa de um comando.", "done": True,
+         "needs_feature": "/painel mostra memória e objetivos"}
+    )
+
+
+@pytest.fixture
+def features(services):
+    from uva.selfmod.features import FeatureService
+    from uva.selfmod.git import GitRepo
+    from test_selfcode import InMemoryFeatureStore
+
+    enqueued: list[str] = []
+
+    async def enqueue(feature_id):
+        enqueued.append(feature_id)
+
+    services.features = FeatureService(InMemoryFeatureStore(), enqueue)
+    services.repo = GitRepo(services.settings.repo_dir, "t", "t@t")  # only checked for presence
+    return enqueued
+
+
+async def test_goal_requests_feature_once_and_notifies(services, goals, features):
+    with_llm(services, feature_step(), feature_step())
+    g = goal(min_interval_hours=1)
+    await goals.add(g)
+    inbox = Inbox()
+
+    assert await proactive_tick(services, NOW, notify=inbox) == "needs_feature"
+    assert len(features) == 1
+    record = services.features.store.records[features[0]]
+    assert record.goal_id == g.id and record.description == "/painel mostra memória e objetivos"
+    assert "pedi:" in inbox.texts[0] and f"feature {record.id}" in inbox.texts[0]
+    assert goals.goals[g.id].status is GoalStatus.ATIVO
+    assert goals.goals[g.id].last_attempt == f"pediu a feature {record.id}"
+
+    # Next run: the same feature is already on its way, so nothing new is requested.
+    later = NOW + timedelta(hours=2)
+    await proactive_tick(services, later, notify=inbox)
+    assert len(features) == 1
+    assert "já existe a feature" in inbox.texts[1]
+    assert goals.goals[g.id].status is GoalStatus.ATIVO
+
+
+async def test_goal_feature_disabled_pauses_with_suggestion(services, goals, features):
+    services.settings.proactive_allow_selfcode = False
+    with_llm(services, feature_step())
+    g = goal()
+    await goals.add(g)
+    inbox = Inbox()
+    await proactive_tick(services, NOW, notify=inbox)
+    assert features == []
+    assert "Se quiser, manda: /feature /painel mostra memória e objetivos" in inbox.texts[0]
+    assert goals.goals[g.id].status is GoalStatus.PAUSADO
+    assert goals.goals[g.id].needs_feature == "/painel mostra memória e objetivos"

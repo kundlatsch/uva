@@ -32,6 +32,10 @@ PLAN_SCHEMA: dict[str, Any] = LLMPlan.model_json_schema()
 
 class GoalPlan(LLMPlan):
     done: bool = Field(default=True, description="true quando não há mais nada útil a fazer agora")
+    needs_feature: str | None = Field(
+        default=None,
+        description="Se o objetivo exige um comando/funcionalidade nova: o texto para /feature",
+    )
 
 
 GOAL_PLAN_SCHEMA: dict[str, Any] = GoalPlan.model_json_schema()

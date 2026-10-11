@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from uva.clock import format_local
+from uva.clock import format_local, utcnow
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.goals.store import Goal, GoalStatus
 from uva.services import Services
@@ -23,7 +23,15 @@ def describe_goal(goal: Goal, services: Services) -> str:
         f"   {goal.title}",
     ]
     if goal.status is GoalStatus.ATIVO:
-        lines.append(f"   próxima execução: {format_local(goal.next_run_at, tz, '%d/%m %H:%M')}")
+        late = " (atrasada; roda assim que der)" if goal.next_run_at < utcnow() else ""
+        lines.append(f"   próxima execução: {format_local(goal.next_run_at, tz, '%d/%m %H:%M')}{late}")
+    if goal.last_attempt_at:
+        when = format_local(goal.last_attempt_at, tz, "%d/%m %H:%M")
+        lines.append(f"   última tentativa: {when} ({goal.last_attempt}) · execuções: {goal.run_count}")
+    else:
+        lines.append(f"   última tentativa: nunca · execuções: {goal.run_count}")
+    if goal.needs_feature:
+        lines.append(f"   precisa de: /feature {goal.needs_feature}")
     if goal.results:
         last = goal.results[-1]
         lines.append(f"   última ({format_local(last.at, tz, '%d/%m %H:%M')}): {last.summary[:150]}")
