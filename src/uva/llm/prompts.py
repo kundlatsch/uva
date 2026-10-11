@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from datetime import tzinfo
+from typing import Any
 
 from uva.actions.registry import Action
 from uva.clock import format_local, utcnow
@@ -15,11 +16,29 @@ WEEKDAYS = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "doming
 PLAN_FORMAT = '{"actions": [{"type": "<nome da ação>", "params": {...}}], "reply": "<texto>"}'
 
 
+def inline_refs(node: Any, defs: dict[str, Any], expansions: int = 0) -> Any:
+    """Replace {"$ref": "#/$defs/X"} with the definition, so nested params
+    (e.g. decide's questions) are visible to the LLM. Recursive refs stop
+    after a few expansions."""
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            if expansions >= 5:
+                return {"type": "object"}
+            target = defs.get(ref.removeprefix("#/$defs/"), {})
+            return inline_refs({k: v for k, v in target.items() if k != "title"}, defs, expansions + 1)
+        return {k: inline_refs(v, defs, expansions) for k, v in node.items() if k != "title"}
+    if isinstance(node, list):
+        return [inline_refs(v, defs, expansions) for v in node]
+    return node
+
+
 def describe_actions(actions: Iterable[Action]) -> str:
     lines = []
     for action in actions:
         schema = action.params_model.model_json_schema()
-        params = json.dumps(schema.get("properties", {}), ensure_ascii=False)
+        properties = inline_refs(schema.get("properties", {}), schema.get("$defs", {}))
+        params = json.dumps(properties, ensure_ascii=False)
         required = schema.get("required", [])
         lines.append(f"- {action.name}: {action.description}\n  params: {params}; obrigatórios: {required}")
     return "\n".join(lines)

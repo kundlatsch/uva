@@ -16,7 +16,10 @@ class DecideParams(BaseModel):
     questions: list[Question] = Field(
         description=(
             f"1 a {MAX_QUESTIONS} perguntas independentes: predicate (chance de ser verdade), "
-            "choice (uma de choices[{value}]) ou score (levels[{label}] do mais baixo ao mais alto)"
+            "choice (uma de choices[{value}]) ou score (levels[{label}] do mais baixo ao mais alto). "
+            'Ex.: [{"type": "predicate", "name": "sarcasmo", "instructions": "A frase é sarcástica?"}, '
+            '{"type": "choice", "name": "tom", "instructions": "Qual o tom?", "choices": '
+            '[{"value": "irônico"}, {"value": "sincero"}]}]'
         )
     )
 

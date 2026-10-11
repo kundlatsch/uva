@@ -197,3 +197,12 @@ def test_parse_usage_errors():
             parse(text)
     evidence, questions = parse("nota beleza | feio, ok, lindo", has_photo=True)
     assert questions[0].type == "score" and evidence == ""
+
+
+def test_prompt_shows_nested_question_schema():
+    from uva.actions import build_action_registry
+    from uva.llm.prompts import describe_actions
+
+    text = describe_actions([build_action_registry().get("decide")])
+    assert "$ref" not in text
+    assert '"instructions"' in text and '"predicate"' in text and '"levels"' in text
