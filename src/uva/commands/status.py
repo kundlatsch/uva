@@ -26,6 +26,11 @@ async def collect_status(services: Services) -> list[str]:
 
 
 def register(registry: CommandRegistry) -> None:
-    @registry.command("status", "Serviços, uptime, fila e gastos", aliases=("estado",))
+    @registry.command(
+        "status",
+        "Serviços, uptime, fila e gastos",
+        aliases=("estado",),
+        examples=("status do sistema", "servicos no ar", "quanto gastei de api"),
+    )
     async def status(ctx: CommandContext) -> str:
         return "\n".join(await collect_status(ctx.services))

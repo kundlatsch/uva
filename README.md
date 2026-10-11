@@ -105,6 +105,14 @@ async def hora(ctx: CommandContext) -> str:
     return datetime.now().strftime("%H:%M")
 ```
 
+## Como a UVA entende mensagens
+
+1. **Comando explícito** (`/log 2h`): executado direto, por nome ou apelido.
+2. **Similaridade**: texto livre é normalizado (minúsculas, sem acentos e pontuação, sem palavras de enchimento como "me mostra", "por favor") e comparado com nome, apelidos e frases de exemplo de cada comando (rapidfuzz). Nota ≥ `SIMILARITY_EXECUTE_THRESHOLD` (90) executa; ≥ `SIMILARITY_CONFIRM_THRESHOLD` (75) pergunta "Você quis dizer /x?" com botões Sim/Não; abaixo disso segue para o próximo nível. Argumentos simples são extraídos do texto: "log de erros das últimas 2 horas" vira `/log 2h erros`.
+3. **LLM** (fase 4).
+
+Cada decisão fica no log com a nota, então dá para ajustar os limiares olhando `/log`.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.

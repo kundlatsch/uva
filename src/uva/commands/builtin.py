@@ -6,18 +6,32 @@ from uva.commands.registry import CommandContext, CommandRegistry
 
 
 def register(registry: CommandRegistry) -> None:
-    @registry.command("start", "Apresentação do bot", aliases=("inicio", "início"))
+    @registry.command(
+        "start",
+        "Apresentação do bot",
+        aliases=("inicio", "início"),
+        examples=("quem e voce", "se apresenta"),
+    )
     async def start(ctx: CommandContext) -> str:
         return (
             "Olá! Eu sou a UVA, sua assistente pessoal.\n"
             "Envie /help para ver os comandos, ou simplesmente me escreva."
         )
 
-    @registry.command("help", "Lista os comandos disponíveis", aliases=("ajuda", "comandos"))
+    @registry.command(
+        "help",
+        "Lista os comandos disponíveis",
+        aliases=("ajuda", "comandos"),
+        examples=("o que voce sabe fazer", "o que voce faz", "lista de comandos", "socorro"),
+    )
     async def help_(ctx: CommandContext) -> str:
         return render_help(ctx.registry)
 
-    @registry.command("ping", "Verifica se o bot está vivo")
+    @registry.command(
+        "ping",
+        "Verifica se o bot está vivo",
+        examples=("esta viva", "ta ai", "voce esta ai"),
+    )
     async def ping(ctx: CommandContext) -> str:
         return "pong"
 

@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://mongo:27017/uva"
     second_brain_path: str = "/data/second-brain"
 
+    # Fallback tier 2 (similarity, 0-100): at/above "execute" the command runs,
+    # at/above "confirm" the bot asks first, below goes to the LLM.
+    similarity_execute_threshold: float = 90
+    similarity_confirm_threshold: float = 75
+
     # Logging / events
     log_level: str = "INFO"
     events_ttl_days: int = 90

@@ -12,6 +12,7 @@ from uva.clock import format_local, start_of_day, utcnow
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.logging.events import Event, EventQuery, EventType
 from uva.replies import Reply
+from uva.text import extract_duration, extract_keywords
 
 USAGE = (
     "Uso: /log [período] [tipo]  ou  /log trace <id>\n"
@@ -76,12 +77,40 @@ def parse_log_args(args: list[str], tz: tzinfo, now: datetime | None = None) -> 
     return LogRequest(EventQuery(since=since, until=until, types=types), label)
 
 
+# Free-text words that map to /log arguments ("log de erros hoje").
+_KEYWORDS = {
+    "hoje": "hoje",
+    "ontem": "ontem",
+    "llm": "llm",
+    "ia": "llm",
+    "erro": "erros",
+    "erros": "erros",
+    "objetivo": "goals",
+    "objetivos": "goals",
+    "goals": "goals",
+    "tarefa": "tarefas",
+    "tarefas": "tarefas",
+    "memoria": "memoria",
+    "acao": "acoes",
+    "acoes": "acoes",
+}
+
+
+def extract_log_args(normalized: str) -> tuple[str, list[str]]:
+    """'log de erros das ultimas 2 horas' -> ('log de das', ['2h', 'erros'])."""
+    remaining, duration = extract_duration(normalized)
+    remaining, keywords = extract_keywords(remaining, _KEYWORDS)
+    return remaining, ([duration] if duration else []) + keywords
+
+
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "log",
         "Mostra o que aconteceu (eventos)",
         aliases=("logs", "eventos"),
         usage="[período] [tipo] | trace <id>",
+        examples=("o que aconteceu", "historico de eventos", "ultimos eventos"),
+        extract_args=extract_log_args,
     )
     async def log_command(ctx: CommandContext) -> str | Reply:
         store = ctx.services.events
@@ -167,6 +196,14 @@ def _describe_route(data: dict) -> str:
             return f"confirmação /{command}? ({data.get('score', 0):.0f})"
         case "llm":
             return "LLM"
+        case "similarity_miss":
+            return f"sem comando parecido (melhor: /{command} {data.get('score', 0):.0f})"
+        case "confirmed":
+            return f"confirmado /{command}"
+        case "confirm_denied":
+            return f"recusado /{command}"
+        case "confirm_expired":
+            return "confirmação expirada"
         case "none":
             return "não entendido"
         case "unknown_command":

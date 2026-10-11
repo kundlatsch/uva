@@ -6,7 +6,13 @@ import sys
 
 from pydantic import ValidationError
 from telegram import Update
-from telegram.ext import Application, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 from uva.commands import build_registry
 from uva.config import Settings, get_settings
@@ -61,8 +67,20 @@ def build_application(settings: Settings, services: Services) -> Application:
         reply = await router.handle_text(message.text, user_id=user_id)
         await send_reply(context.bot, message.chat_id, reply)
 
+    async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        query = update.callback_query
+        if query is None or query.data is None or query.message is None:
+            return
+        await query.answer()
+        # Remove the buttons so the question can't be answered twice.
+        await query.edit_message_reply_markup(reply_markup=None)
+        user_id = update.effective_user.id if update.effective_user else None
+        reply = await router.handle_callback(query.data, user_id=user_id)
+        await send_reply(context.bot, query.message.chat.id, reply)
+
     # One text handler (commands included) keeps all routing logic in Router.
     application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, on_text))
+    application.add_handler(CallbackQueryHandler(on_button))
     application.add_error_handler(_on_error)
     return application
 

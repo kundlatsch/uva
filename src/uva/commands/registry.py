@@ -26,6 +26,8 @@ class CommandContext:
 
 
 CommandHandler = Callable[[CommandContext], Awaitable[str | Reply]]
+# Receives normalized free text, returns (text without the arguments, args).
+ArgExtractor = Callable[[str], tuple[str, list[str]]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +40,9 @@ class Command:
     aliases: tuple[str, ...] = ()
     # Usage hint shown in /help, e.g. "<período> [tipo]".
     usage: str = ""
+    # Example phrases for similarity matching ("o que aconteceu" -> /log).
+    examples: tuple[str, ...] = ()
+    extract_args: ArgExtractor | None = None
 
     @property
     def all_names(self) -> tuple[str, ...]:
@@ -65,11 +70,15 @@ class CommandRegistry:
         description: str,
         aliases: tuple[str, ...] = (),
         usage: str = "",
+        examples: tuple[str, ...] = (),
+        extract_args: ArgExtractor | None = None,
     ) -> Callable[[CommandHandler], CommandHandler]:
         """Decorator form of :meth:`register`."""
 
         def decorator(func: CommandHandler) -> CommandHandler:
-            self.register(Command(name, description, func, tuple(aliases), usage))
+            self.register(
+                Command(name, description, func, aliases, usage, examples, extract_args)
+            )
             return func
 
         return decorator
