@@ -17,6 +17,7 @@ from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
 from uva.llm.prompts import assistant_system_prompt
+from uva.memory.service import render_memory
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.replies import Reply
@@ -59,7 +60,10 @@ class Agent:
 
         actions = list(services.actions)
         system = assistant_system_prompt(
-            actions=actions, registry=services.registry, tz=services.tz
+            actions=actions,
+            registry=services.registry,
+            tz=services.tz,
+            working_memory=await self._working_memory(),
         )
         messages = [*self.history, LLMMessage("user", text)]
         try:
@@ -88,6 +92,15 @@ class Agent:
         reply = compose_reply(plan.reply, results)
         self._remember(text, reply)
         return Reply(reply)
+
+    async def _working_memory(self) -> str:
+        if self.services.memory is None:
+            return ""
+        try:
+            return render_memory(await self.services.memory.working_memory())
+        except Exception as exc:  # Mongo down: answer without memory
+            log.warning("working_memory_unavailable", error=str(exc))
+            return ""
 
     async def _run(self, action: Action, params, ctx: ActionContext) -> ActionResult:
         """Slow actions go to the background queue; the rest run right away."""

@@ -11,6 +11,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from uva.clock import utcnow
 from uva.llm.budget import Scope, UsageRecord
 from uva.logging.events import Event, EventQuery
+from uva.memory.store import MemoryItem
 from uva.tasks.queue import TaskRecord, TaskStatus
 
 DEFAULT_DB_NAME = "uva"
@@ -130,3 +131,55 @@ class MongoTaskStore:
     async def recent(self, limit: int) -> list[TaskRecord]:
         cursor = self.collection.find({}, {"_id": False}).sort("created_at", DESCENDING).limit(limit)
         return [TaskRecord.model_validate(doc) async for doc in cursor]
+
+
+class MongoMemoryStore:
+    """Collections ``memory`` (TTL on expires_at), ``memory_archive`` and ``memory_meta``."""
+
+    WORKING_SET_ID = "working_set"
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["memory"]
+        self.archive_collection = db["memory_archive"]
+        self.meta = db["memory_meta"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index("key", unique=True)
+        # expireAfterSeconds=0: each document expires at its own expires_at.
+        await self.collection.create_index("expires_at", expireAfterSeconds=0)
+
+    async def get(self, key: str) -> MemoryItem | None:
+        doc = await self.collection.find_one({"key": key}, {"_id": False})
+        return MemoryItem.model_validate(doc) if doc else None
+
+    async def upsert(self, item: MemoryItem) -> None:
+        doc = item.model_dump()
+        doc["category"] = item.category.value
+        await self.collection.replace_one({"key": item.key}, doc, upsert=True)
+
+    async def delete(self, key: str) -> bool:
+        result = await self.collection.delete_one({"key": key})
+        return result.deleted_count > 0
+
+    async def all(self) -> list[MemoryItem]:
+        return [MemoryItem.model_validate(d) async for d in self.collection.find({}, {"_id": False})]
+
+    async def archive(self, items: list[MemoryItem], reason: str) -> None:
+        now = utcnow()
+        docs = [
+            {**i.model_dump(), "category": i.category.value, "archived_at": now, "reason": reason}
+            for i in items
+        ]
+        await self.archive_collection.insert_many(docs)
+        await self.collection.delete_many({"key": {"$in": [i.key for i in items]}})
+
+    async def load_working_set(self) -> tuple[list[str], datetime] | None:
+        doc = await self.meta.find_one({"_id": self.WORKING_SET_ID})
+        return (doc["keys"], doc["computed_at"]) if doc else None
+
+    async def save_working_set(self, keys: list[str], computed_at: datetime) -> None:
+        await self.meta.replace_one(
+            {"_id": self.WORKING_SET_ID},
+            {"keys": keys, "computed_at": computed_at},
+            upsert=True,
+        )

@@ -84,6 +84,13 @@ class Settings(BaseSettings):
     # After each message the bot counts as "busy" for this long (goal loop waits).
     busy_after_message_seconds: int = 120
 
+    # Long-term memory
+    memory_working_size: int = 20  # items injected into the prompt
+    memory_half_life_days: float = 30
+    memory_archive_score: float = 0.05
+    memory_archive_after_days: int = 90
+    memory_maintenance_hour: int = 4  # local time, daily (beat)
+
     # Fallback tier 2 (similarity, 0-100): at/above "execute" the command runs,
     # at/above "confirm" the bot asks first, below goes to the LLM.
     similarity_execute_threshold: float = 90

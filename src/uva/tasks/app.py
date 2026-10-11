@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from celery import Celery, signals
+from celery.schedules import crontab
 
 from uva.config import get_settings
 from uva.logging import configure_logging
@@ -25,10 +26,13 @@ app.conf.update(
     worker_hijack_root_logger=False,
 )
 
-# Periodic jobs. Memory maintenance (phase 7) and the goal loop (phase 8)
-# are added here as those phases land.
+# Periodic jobs. The goal loop (phase 8) is added here when it lands.
 app.conf.beat_schedule = {
     "heartbeat": {"task": "uva.heartbeat", "schedule": timedelta(minutes=1)},
+    "memory-maintenance": {
+        "task": "uva.memory_maintenance",
+        "schedule": crontab(hour=settings.memory_maintenance_hour, minute=0),
+    },
 }
 
 

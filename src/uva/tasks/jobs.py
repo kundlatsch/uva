@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 
 from uva.actions.registry import RetryableActionError
+from uva.logging.events import EventType, emit, trace
 from uva.tasks import runtime
 from uva.tasks.app import app, settings
 from uva.tasks.runner import record_heartbeat, run_action_task
@@ -35,6 +36,18 @@ def run_action(self, task_id: str, action: str, params: dict, trace_id: str | No
         return runtime.run(job)
     except RetryableActionError as exc:
         raise self.retry(exc=exc, countdown=backoff_seconds(self.request.retries)) from exc
+
+
+@app.task(name="uva.memory_maintenance")
+def memory_maintenance() -> dict:
+    async def job() -> dict:
+        services = await runtime.get_services()
+        with trace():
+            result = await services.memory.maintenance()  # type: ignore[union-attr]
+            await emit(EventType.MEMORY, op="maintenance", **result)
+        return result
+
+    return runtime.run(job)
 
 
 @app.task(name="uva.heartbeat")

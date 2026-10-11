@@ -62,6 +62,9 @@ Regras:
   o resultado de uma ação.
 - Use run_command só quando o usuário claramente quiser algo que um comando faz.
 - Não repita o texto de "reply" numa ação reply.
+- Quando o usuário contar algo duradouro sobre si (nome, cidade, preferências,
+  rotina, pessoas próximas), guarde com memory_save. Use uma chave curta e estável;
+  se a chave já existe na memória abaixo, use memory_update. Não guarde coisas triviais.
 {memory}
 Agora são {now}."""
 

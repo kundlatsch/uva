@@ -149,6 +149,15 @@ A UVA mantém um cofre de notas compatível com o **Obsidian**, na pasta `brain/
 
 Para abrir no Obsidian: *Open folder as vault* → escolha a pasta `brain`.
 
+## Memória
+
+A UVA guarda o que vale a pena lembrar sobre você na coleção `memory` do Mongo: chave, valor, categoria (`perfil`, `preferencia`, `fato`, `contexto`), relevância (0 a 1), datas de criação e último uso, contagem de uso e validade opcional.
+
+- A LLM decide sozinha quando guardar (ações `memory_save`, `memory_update`, `memory_forget`). Exemplo: "meu gato se chama Mingau" vira `nome_do_gato = Mingau`.
+- **Memória de trabalho**: cada item tem uma nota = relevância × recência × frequência. Os `MEMORY_WORKING_SIZE` melhores vão no prompt de toda conversa. A lista é recalculada na subida, uma vez por dia e sempre que a memória muda.
+- **Limpeza diária** (beat, `MEMORY_MAINTENANCE_HOUR`): itens com validade vencida somem (índice TTL); itens com nota baixa e sem uso há `MEMORY_ARCHIVE_AFTER_DAYS` dias vão para `memory_archive`.
+- `/memoria` lista tudo (★ = memória de trabalho), `/memoria <chave>` mostra um item, `/lembrar <chave> <valor>` guarda, `/esquecer <chave>` apaga.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.

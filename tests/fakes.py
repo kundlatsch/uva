@@ -14,6 +14,7 @@ from uva.llm.budget import Budget, Scope, UsageRecord
 from uva.llm.client import LLMClient
 from uva.llm.pricing import PriceTable
 from uva.logging.events import Event, EventQuery
+from uva.memory.store import MemoryItem
 from uva.search.base import SearchResponse, SearchResult
 from uva.services import Services
 from uva.tasks.queue import TaskRecord, TaskStatus
@@ -171,6 +172,36 @@ class FakeTaskQueue:
 
     async def queue_size(self) -> int | None:
         return sum(1 for r in self.store.records.values() if r.status is TaskStatus.QUEUED)
+
+
+class InMemoryMemoryStore:
+    def __init__(self) -> None:
+        self.items: dict[str, MemoryItem] = {}
+        self.archived: list[tuple[MemoryItem, str]] = []
+        self.working_set: tuple[list[str], datetime] | None = None
+
+    async def get(self, key: str) -> MemoryItem | None:
+        return self.items.get(key)
+
+    async def upsert(self, item: MemoryItem) -> None:
+        self.items[item.key] = item
+
+    async def delete(self, key: str) -> bool:
+        return self.items.pop(key, None) is not None
+
+    async def all(self) -> list[MemoryItem]:
+        return list(self.items.values())
+
+    async def archive(self, items: list[MemoryItem], reason: str) -> None:
+        for item in items:
+            self.archived.append((item, reason))
+            self.items.pop(item.key, None)
+
+    async def load_working_set(self) -> tuple[list[str], datetime] | None:
+        return self.working_set
+
+    async def save_working_set(self, keys: list[str], computed_at: datetime) -> None:
+        self.working_set = (keys, computed_at)
 
 
 class FakeBusy:

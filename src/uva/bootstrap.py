@@ -15,6 +15,7 @@ from uva.commands import build_registry
 from uva.config import Settings
 from uva.llm.budget import Budget
 from uva.llm.client import build_llm_client
+from uva.memory.service import MemoryService
 from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
@@ -50,12 +51,22 @@ def build_services(settings: Settings) -> Services:
     services.busy = BusyTracker(redis)
 
     services.vault = Vault(Path(settings.second_brain_path), services.tz)
+    memory_store = mongo.MongoMemoryStore(db)
+    services.memory = MemoryService(memory_store, settings)
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
     services.health_checks["Worker + agendador"] = lambda: _heartbeat_fresh(redis)
     services.setup_hooks.extend(
-        [event_store.setup, usage.setup, task_store.setup, lambda: _setup_vault(services.vault)]
+        [
+            event_store.setup,
+            usage.setup,
+            task_store.setup,
+            memory_store.setup,
+            # "At startup": compute the working memory once.
+            services.memory.recompute_working_set,
+            lambda: _setup_vault(services.vault),
+        ]
     )
     return services
 

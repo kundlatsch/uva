@@ -94,3 +94,25 @@ async def test_busy_tracker_with_real_redis():
     await busy.clear("chat")
     assert not await busy.is_busy()
     await redis.aclose()
+
+
+async def test_memory_store_roundtrip(db):
+    from uva.memory.store import MemoryCategory, MemoryItem
+
+    store = mongo.MongoMemoryStore(db)
+    await store.setup()
+    await store.upsert(MemoryItem(key="cidade", value="Curitiba", category=MemoryCategory.PERFIL))
+    await store.upsert(MemoryItem(key="cidade", value="Floripa", category=MemoryCategory.PERFIL))
+    await store.upsert(MemoryItem(key="gato", value="Mingau"))
+    assert (await store.get("cidade")).value == "Floripa"
+    assert len(await store.all()) == 2
+
+    await store.archive([await store.get("gato")], reason="teste")
+    assert await store.get("gato") is None
+    assert await db["memory_archive"].count_documents({"key": "gato"}) == 1
+
+    now = utcnow()
+    await store.save_working_set(["cidade"], now)
+    keys, computed_at = await store.load_working_set()
+    assert keys == ["cidade"] and abs((computed_at - now).total_seconds()) < 1
+    assert await store.delete("cidade") and not await store.delete("cidade")
