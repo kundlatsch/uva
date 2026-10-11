@@ -44,6 +44,7 @@ docs/plano.md     # plano por fases
 | `/status`, `/llm` | saúde dos serviços, modelos e gastos com API |
 | `/tarefas`, `/cancelar <id>` | tarefas em segundo plano |
 | `/frases [categoria]` | frases prontas do bot |
+| `/contexto [limpar]` | memória de curto prazo da conversa |
 
 Fora dos comandos, é só escrever normalmente.
 
@@ -176,6 +177,15 @@ A UVA mantém um cofre de notas compatível com o **Obsidian**, na pasta `brain/
 - A UVA **nunca apaga nem sobrescreve** notas: só cria e acrescenta.
 
 Para abrir no Obsidian: *Open folder as vault* → escolha a pasta `brain`.
+
+## Memória de curto prazo
+
+A UVA lembra o que aconteceu na conversa de agora, inclusive o que **ela mesma** fez: uma sessão no Redis (`stm:<seu id>`), compartilhada por bot e worker, com os últimos turnos (saídas de comando resumidas e avisos que ela mandou sozinha), referências a tudo que disparou ou criou (pesquisas, tarefas, notas, objetivos, features, gastos) com o status atualizado pelo worker, e qual delas está "em foco". Detalhes em [docs/memoria-curto-prazo.md](docs/memoria-curto-prazo.md).
+
+- "como tá aquela pesquisa?", "e a tarefa?", "deu certo?" são respondidos direto, sem LLM, com o status real da referência em foco.
+- A LLM recebe um bloco "Contexto recente" e as ações `task_status`, `retry` e `cancel` (aceitam a ref, ex.: `t3`, ou "aquela").
+- `/contexto` mostra a sessão; `/contexto limpar` apaga.
+- Validade `STM_TTL_HOURS` (12h), com no máximo `STM_MAX_TURNS` turnos e `STM_MAX_REFS` referências; o que ainda está rodando não expira. Depois de `STM_PROMOTE_IDLE_HOURS` (3h) parada, o modelo barato decide o que vale ir para a memória longa e a sessão é descartada.
 
 ## Memória
 
