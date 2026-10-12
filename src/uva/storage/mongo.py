@@ -343,4 +343,4 @@ class MongoProjectStore:
 
     async def cost_since(self, since: datetime) -> float:
         cursor = self.collection.find({"created_at": {"$gte": since}}, {"cost_usd": True})
-        return sum(float(d.get("cost_usd") or 0) async for d in cursor)
+        return sum([float(d.get("cost_usd") or 0) async for d in cursor])

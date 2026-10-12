@@ -145,3 +145,16 @@ async def test_extra_store_accumulates_per_day(db):
     assert await store.add("2026-10-11", 1.5) == 1.5
     assert await store.add("2026-10-11", 0.5) == 2.0
     assert await store.get("2026-10-12") == 0.0
+
+
+async def test_project_store_roundtrip(db):
+    from uva.projects.store import ProjectRecord, ProjectStatus
+
+    store = mongo.MongoProjectStore(db)
+    await store.setup()
+    record = ProjectRecord(description="um site", slug="site")
+    await store.add(record)
+    await store.update(record.id, status=ProjectStatus.DONE, cost_usd=0.5)
+    got = await store.get(record.id)
+    assert got.status is ProjectStatus.DONE and (await store.recent(5))[0].id == record.id
+    assert await store.cost_since(utcnow() - timedelta(hours=1)) == 0.5
