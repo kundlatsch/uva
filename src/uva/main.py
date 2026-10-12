@@ -98,6 +98,18 @@ def build_application(settings: Settings, services: Services) -> Application:
         for reply in await router.handle_audio(data, seconds=media.duration, user_id=user_id):
             await send_reply(context.bot, message.chat_id, reply)
 
+    async def on_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        message = update.effective_message
+        if message is None or message.sticker is None:
+            return
+        sticker = message.sticker
+        user_id = update.effective_user.id if update.effective_user else None
+        reply = await router.handle_sticker(
+            sticker.file_unique_id, file_id=sticker.file_id, emoji=sticker.emoji or "",
+            set_name=sticker.set_name or "", user_id=user_id,
+        )
+        await send_reply(context.bot, message.chat_id, reply)
+
     async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
         if query is None or query.data is None or query.message is None:
@@ -121,6 +133,7 @@ def build_application(settings: Settings, services: Services) -> Application:
     )
     audio = filters.VOICE | filters.AUDIO | filters.VIDEO_NOTE
     application.add_handler(MessageHandler(audio & filters.ChatType.PRIVATE, on_audio))
+    application.add_handler(MessageHandler(filters.Sticker.ALL & filters.ChatType.PRIVATE, on_sticker))
     application.add_handler(CallbackQueryHandler(on_button))
     application.add_error_handler(_on_error)
     return application

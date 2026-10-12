@@ -21,6 +21,7 @@ from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
 from uva.llm.base import LLMError, LLMMessage
 from uva.media import current_photo, mentions_image
+from uva.stickers import SKIP, StickerFocus, action_message, action_request, as_message
 from uva.stm.refs import remember_ref
 from uva.text import normalize
 from uva.matching import best_match, small_talk, status_question
@@ -64,6 +65,8 @@ class Router:
         # Paginated replies by token: (pages, created at).
         self._pages: dict[str, tuple[list[str], datetime]] = {}
         self.agent = Agent(services, run_command=self._run_command_for_llm)
+        # The last sticker sent (waiting for its meaning, or target of "toda vez que...").
+        self._sticker: StickerFocus | None = None
 
     @property
     def registry(self) -> CommandRegistry:
@@ -102,6 +105,78 @@ class Router:
             reply = await self._safely(self._describe_photo(photo))
             await self._remember("[foto sem legenda]", reply)
             return reply
+
+    async def handle_sticker(
+        self, unique_id: str, *, file_id: str = "", emoji: str = "", set_name: str = "",
+        user_id: int | None = None,
+    ) -> Reply:
+        """A sticker: known ones are understood by their meaning (no vision) or run
+        their action; a new one makes the bot ask what it means."""
+        await self._mark_busy()
+        with trace():
+            await emit(EventType.MESSAGE_RECEIVED, text=f"[figurinha {emoji}]", kind="sticker", sticker=unique_id)
+            reply, label = await self._sticker_reply(unique_id, file_id, emoji, set_name, user_id)
+            await self._remember(label, reply)
+            return self._first_page(reply)
+
+    async def _sticker_reply(
+        self, unique_id: str, file_id: str, emoji: str, set_name: str, user_id: int | None
+    ) -> tuple[Reply, str]:
+        repo = self.services.stickers
+        if repo is None:
+            return Reply(f"{emoji or '🙂'} (sem o SQLite não consigo aprender figurinhas)"), f"[figurinha {emoji}]"
+        try:
+            sticker = await repo.get(unique_id)
+            if sticker is None:
+                sticker = await repo.upsert(unique_id, file_id=file_id, emoji=emoji, set_name=set_name)
+            await repo.used(unique_id)
+        except Exception as exc:
+            await emit(EventType.ERROR, where="stickers", error=repr(exc))
+            return Reply(self.services.say("erro_generico")), f"[figurinha {emoji}]"
+        self._sticker = StickerFocus(unique_id, sticker.emoji or emoji, utcnow(), asking=not sticker.meaning)
+        if sticker.action:
+            await emit(EventType.ROUTE, tier="sticker_action", sticker=sticker.id, action=sticker.action)
+            reply = await self._safely(self._route(action_message(sticker), user_id))
+            return reply, f"{as_message(sticker) if sticker.meaning else f'[figurinha {sticker.emoji}]'} → {sticker.action}"
+        if sticker.meaning:
+            await emit(EventType.ROUTE, tier="sticker", sticker=sticker.id)
+            reply = await self._safely(self.agent.handle(as_message(sticker)))
+            return reply, as_message(sticker)
+        await emit(EventType.ROUTE, tier="sticker_new", sticker=sticker.id)
+        reply = Reply(
+            f"🤔 Essa figurinha {sticker.emoji} é nova pra mim. O que ela significa?\n"
+            "(sua próxima mensagem vira o significado; /pular para deixar sem)"
+        )
+        return reply, f"[figurinha nova {sticker.emoji}]"
+
+    async def _try_sticker_text(self, text: str) -> Reply | None:
+        """The meaning of the sticker just asked about, or "toda vez que eu mandar
+        essa figurinha, ..." for the sticker in focus."""
+        focus, repo = self._sticker, self.services.stickers
+        if focus is None or repo is None or not focus.fresh():
+            return None
+        action = action_request(text)
+        if action is not None:
+            sticker = await repo.upsert(focus.unique_id, action=action)
+            self._sticker = None
+            await emit(EventType.ROUTE, tier="sticker_learn", sticker=sticker.id, field="action")
+            return Reply(
+                f"✅ Combinado: toda vez que você mandar {sticker.emoji}, eu faço: {action}\n"
+                f"(/figurinha {sticker.id} sem-acao para desfazer)"
+            )
+        if not focus.asking:
+            return None
+        self._sticker = None
+        if text.strip().lower() in SKIP or text.startswith("/"):
+            if text.startswith("/") and text.strip().lower() not in SKIP:
+                return None  # another command: just forget the question
+            return Reply("Ok, ela fica sem significado. Se quiser, depois: /figurinhas")
+        sticker = await repo.upsert(focus.unique_id, meaning=text.strip())
+        await emit(EventType.ROUTE, tier="sticker_learn", sticker=sticker.id, field="meaning")
+        return Reply(
+            f"✅ Anotado: {sticker.emoji} = “{sticker.meaning}”. Da próxima vez eu já sei.\n"
+            "(para ela fazer algo sempre: “toda vez que eu mandar essa figurinha, ...”)"
+        )
 
     async def _describe_photo(self, photo: str) -> Reply:
         services = self.services
@@ -247,6 +322,9 @@ class Router:
         return reply
 
     async def _route(self, text: str, user_id: int | None, photo: str | None = None) -> Reply:
+        # Teaching a sticker: its meaning, or "toda vez que eu mandar essa figurinha...".
+        if photo is None and (reply := await self._try_sticker_text(text)) is not None:
+            return reply
         # Tier 1: explicit command (captions too: "/decidir ..." uses the photo).
         if text.startswith("/"):
             return await self._dispatch_command(text, user_id)

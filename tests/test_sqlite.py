@@ -23,10 +23,12 @@ def repo(db) -> ExpenseRepository:
 
 
 def test_migrations_run_once_and_enable_wal(tmp_path):
+    from uva.storage.sqlite import MIGRATIONS
+
     database = Database(tmp_path / "x.db")
-    assert database.migrate() == 1
+    assert database.migrate() == len(MIGRATIONS)
     assert database.migrate() == 0
-    assert database.version() == 1
+    assert database.version() == len(MIGRATIONS)
     with database.connect() as conn:
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
 

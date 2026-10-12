@@ -300,6 +300,16 @@ A UVA tem uma pasta só dela, `/uva`, onde roda comandos Linux e Python livremen
 - limites: `SHELL_MEMORY` (1g), `SHELL_CPUS` (1), 256 processos e `SHELL_TIMEOUT_SECONDS` (60 s) por comando;
 - rede: fica numa rede interna (`shellnet`) que só o bot e o worker alcançam, então não chega no Mongo nem no Redis. Tem internet para pip e curl, que dá para cortar com `SHELL_NO_INTERNET=true`.
 
+## Figurinhas
+
+A UVA aprende o que suas figurinhas querem dizer. São duas coisas diferentes, e as duas ficam na tabela `stickers` do SQLite, com o `file_unique_id` da figurinha como chave, mais o emoji e o pacote:
+
+1. **Significado.** Na primeira vez que você manda uma figurinha sozinha, ela pergunta "o que ela significa?", e a sua próxima mensagem (texto ou áudio) vira o significado (`/pular` deixa sem). Depois disso, a figurinha chega para a LLM como `[figurinha 😴: quando eu tô morto de cansaço]`, junto com o contexto da conversa, sem interpretar a imagem.
+2. **Ação.** "toda vez que eu mandar essa figurinha, me deseja boa noite e me lembra de beber água", logo depois de mandar a figurinha, prende um pedido a ela. A cada envio, o pedido passa pelo roteador normal, como se você tivesse digitado, com o mesmo orçamento e as mesmas travas. Pode ser um comando também (`/figurinha 3 acao /log 1h`).
+
+- `/figurinhas`: lista com o significado, a ação e o uso de cada uma.
+- `/figurinha <n> significado <texto>`, `/figurinha <n> acao <pedido>`, `/figurinha <n> sem-acao`, `/figurinha <n> remover`.
+
 ## Áudio
 
 Mande um áudio (mensagem de voz, arquivo de áudio ou vídeo redondo) e a UVA transcreve com a OpenAI (`TRANSCRIBE_MODEL`, padrão `gpt-4o-mini-transcribe`, com `whisper-1` de reserva), responde "🎙️ entendi: ..." e trata o texto **exatamente como se você tivesse digitado**: comandos, similaridade e LLM.

@@ -33,6 +33,21 @@ MIGRATIONS: list[str] = [
     CREATE INDEX idx_expenses_spent_at ON expenses (spent_at);
     CREATE INDEX idx_expenses_category ON expenses (category);
     """,
+    # 2: stickers (meaning and optional action per sticker)
+    """
+    CREATE TABLE stickers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        unique_id TEXT NOT NULL UNIQUE,  -- Telegram file_unique_id
+        file_id TEXT NOT NULL DEFAULT '',
+        emoji TEXT NOT NULL DEFAULT '',
+        set_name TEXT NOT NULL DEFAULT '',
+        meaning TEXT NOT NULL DEFAULT '',
+        action TEXT NOT NULL DEFAULT '',
+        uses INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    """,
 ]
 
 

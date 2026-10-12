@@ -22,6 +22,7 @@ from uva.commands import (
     shell,
     soul,
     status,
+    stickers,
     tasks,
 )
 from uva.commands.builtin import render_help
@@ -32,6 +33,7 @@ _MODULES = (
     builtin,
     brain,
     memory,
+    stickers,
     context,
     goals,
     proactive,

@@ -23,6 +23,7 @@ from uva.search import build_search_backends
 from uva.services import Services
 from uva.projects.service import ProjectService
 from uva.shell.service import ShellService
+from uva.storage.stickers import StickerRepository
 from uva.selfmod.features import FeatureService
 from uva.selfmod.files import FileAccess
 from uva.selfmod.git import GitRepo
@@ -74,6 +75,7 @@ def build_services(settings: Settings) -> Services:
     services.initiatives = initiative_store
     sqlite_db = Database(Path(settings.sqlite_path))
     services.expenses = ExpenseRepository(sqlite_db)
+    services.stickers = StickerRepository(sqlite_db)
 
     repo_dir = settings.repo_dir
     if (repo_dir / ".git").exists():
