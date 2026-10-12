@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from uva.brain.vault import Vault
     from uva.commands.registry import CommandRegistry
     from uva.goals.store import GoalStore
+    from uva.initiatives import InitiativeStore
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
     from uva.llm.decisions import DecisionsClient
@@ -53,6 +54,7 @@ class Services:
     vault: Vault | None = None
     memory: MemoryService | None = None
     goals: GoalStore | None = None
+    initiatives: InitiativeStore | None = None
     expenses: ExpenseRepository | None = None
     repo: GitRepo | None = None
     files: FileAccess | None = None

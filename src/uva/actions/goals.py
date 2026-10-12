@@ -14,12 +14,17 @@ class GoalCreateParams(BaseModel):
     title: str = Field(min_length=3, description="Título curto do objetivo")
     description: str = Field(default="", description="O que exatamente fazer / acompanhar")
     kind: GoalKind = Field(
-        default=GoalKind.RECORRENTE,
-        description="recorrente (repete a cada intervalo) ou unico (termina quando concluído)",
+        default=GoalKind.UNICO,
+        description=(
+            "unico: uma tarefa com fim (criar, descobrir, organizar algo) — é concluída quando "
+            "feita; recorrente: acompanhar algo continuamente (notícias, preços, um tema)"
+        ),
     )
     priority: int = Field(default=3, ge=1, le=5, description="1 a 5 (5 = mais importante)")
     min_interval_hours: float = Field(
-        default=24, ge=1, description="Intervalo mínimo entre execuções, em horas"
+        default=6,
+        ge=0.25,
+        description="Intervalo entre execuções em horas (recorrente; ex.: 6 = 4x por dia, 24 = diário)",
     )
 
 

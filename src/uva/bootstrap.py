@@ -68,6 +68,8 @@ def build_services(settings: Settings) -> Services:
     services.memory = MemoryService(memory_store, settings)
     goal_store = mongo.MongoGoalStore(db)
     services.goals = goal_store
+    initiative_store = mongo.MongoInitiativeStore(db)
+    services.initiatives = initiative_store
     sqlite_db = Database(Path(settings.sqlite_path))
     services.expenses = ExpenseRepository(sqlite_db)
 
@@ -88,6 +90,7 @@ def build_services(settings: Settings) -> Services:
             task_store.setup,
             memory_store.setup,
             goal_store.setup,
+            initiative_store.setup,
             feature_store.setup,
             # "At startup": compute the working memory once.
             services.memory.recompute_working_set,

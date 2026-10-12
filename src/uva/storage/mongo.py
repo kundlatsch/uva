@@ -280,3 +280,35 @@ class MongoExtraStore:
             {"_id": day}, {"$inc": {"extra_usd": amount}}, upsert=True, return_document=True
         )
         return float(doc["extra_usd"])
+
+
+class MongoInitiativeStore:
+    """Collections ``initiatives`` (what was sent) and ``runtime_flags`` (/proativo on|off)."""
+
+    FLAG_ID = "proactive_messages"
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["initiatives"]
+        self.flags = db["runtime_flags"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index([("at", DESCENDING)])
+
+    async def add(self, record) -> None:
+        await self.collection.insert_one(record.model_dump())
+
+    async def recent(self, limit: int):
+        from uva.initiatives import InitiativeRecord
+
+        cursor = self.collection.find({}, {"_id": False}).sort("at", DESCENDING).limit(limit)
+        return [InitiativeRecord.model_validate(d) async for d in cursor]
+
+    async def count_since(self, since: datetime) -> int:
+        return await self.collection.count_documents({"at": {"$gte": since}})
+
+    async def get_enabled(self) -> bool | None:
+        doc = await self.flags.find_one({"_id": self.FLAG_ID})
+        return None if doc is None else bool(doc["enabled"])
+
+    async def set_enabled(self, enabled: bool) -> None:
+        await self.flags.replace_one({"_id": self.FLAG_ID}, {"enabled": enabled}, upsert=True)

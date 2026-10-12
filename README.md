@@ -202,23 +202,23 @@ A UVA guarda o que vale a pena lembrar sobre você na coleção `memory` do Mong
 
 ## Objetivos e modo proativo
 
-Você pode pedir em linguagem natural: *"cria um objetivo de acompanhar notícias sobre energia solar toda semana"*. A LLM usa a ação `goal_create` (título, descrição, `recorrente` ou `unico`, prioridade 1–5, intervalo mínimo em horas) e o objetivo vai para a coleção `goals`.
+**Objetivos.** Peça em linguagem natural ("cria um objetivo de acompanhar notícias de energia solar", "descobre por qual livro o Ricardo Terto foi semifinalista do Jabuti"). A LLM cria com `goal_create`:
+- `unico` (padrão): tarefa com fim. É **concluída** quando a LLM diz que terminou, ou quando a feature que ela pediu fica pronta.
+- `recorrente`: acompanhar algo; roda a cada `min_interval_hours` (padrão 6h; notícias 6–12h, preços 2–6h...).
 
-O beat verifica a cada `PROACTIVE_POLL_MINUTES` (5) se há objetivo vencido, e o loop roda no máximo uma execução a cada `PROACTIVE_INTERVAL_MINUTES` (60):
+O beat verifica a cada `PROACTIVE_POLL_MINUTES` (5) e roda no máximo um objetivo a cada `PROACTIVE_INTERVAL_MINUTES` (15). Cada execução usa só ações seguras (pesquisa, notas, memória), tem limite de rodadas e tokens, grava em `01-projetos/Objetivo - <título>.md` e **sempre manda relatório** no Telegram (`PROACTIVE_NOTIFY=true`). Se o objetivo precisa de um comando novo, ela pede ao auto-código (`PROACTIVE_ALLOW_SELFCODE`).
 
-1. pega o objetivo ativo, vencido, de maior prioridade (se não houver, não faz nada);
-2. se o bot estiver ocupado (você conversando ou tarefas rodando), pula a vez;
-3. se o orçamento proativo do dia acabou, pula a vez;
-4. roda até `PROACTIVE_MAX_STEPS` rodadas com o modelo pesado, usando **só ações seguras** (pesquisa, notas e memória — nada de comandos, nem criar objetivos, nem esquecer memórias), com limite de `PROACTIVE_MAX_TOKENS_PER_RUN` tokens;
-5. escreve o resultado em `01-projetos/Objetivo - <título>.md`, registra no diário e reagenda (objetivos `unico` são concluídos quando a LLM diz que terminou).
+**Iniciativas.** Além dos objetivos, a UVA aparece por conta própria. A cada ciclo, o modelo barato olha a memória longa, a conversa recente, as notas do brain e os objetivos, e escolhe:
+- `research`: pesquisa um tema do seu interesse e manda o resumo (salvo em `03-recursos/`);
+- `message`: um lembrete, uma pergunta de acompanhamento ("voltou pro livro do Terto?") ou uma sugestão;
+- `nothing`: quando não vale interromper.
 
-Ao terminar cada execução, a UVA manda no Telegram um resumo curto com o caminho da nota (`PROACTIVE_NOTIFY=true`, padrão; com `false` o modo proativo fica silencioso). Vezes puladas (ocupado, orçamento) não geram aviso. Tudo também fica nas notas, em `/objetivos` e em `/log 1d goals`.
+Travas: no máximo `PROACTIVE_MAX_MESSAGES_PER_DAY` (4) por dia, com `PROACTIVE_MIN_GAP_MINUTES` (120) entre elas; nada no horário de silêncio (`PROACTIVE_QUIET_START_HOUR`–`_END_HOUR`, 23h–8h); nada enquanto você conversa; tudo dentro de `PROACTIVE_DAILY_BUDGET_USD`.
 
-Toda tarefa em segundo plano avisa quando termina: pesquisas mandam o resultado, falhas finais mandam o erro, e a limpeza diária da memória só fala se falhar.
-
-- `/objetivos` — lista, com próxima execução, **última tentativa** (ok, falhou, ou pulado e por quê) e número de execuções
-- Se um objetivo precisa de um comando que não existe, a execução pede ao auto-código (`PROACTIVE_ALLOW_SELFCODE=true`, uma vez por execução, nunca repetindo uma feature já pronta ou em construção) e avisa; com `false`, pausa o objetivo e sugere o `/feature` exato.
-- `/pausar <id>`, `/retomar <id>`, `/remover <id>` (as notas ficam)
+- `/proativo` — status (ligado?, mensagens hoje, silêncio, próxima iniciativa, objetivos, últimas iniciativas)
+- `/proativo on` / `/proativo off` — liga/desliga as iniciativas (os objetivos continuam)
+- `/proativo agora` — manda uma iniciativa já (respeita só o orçamento)
+- `/objetivos`, `/pausar <id>`, `/retomar <id>`, `/remover <id>`; `/log 1d goals` e `/log 1d iniciativas`
 
 ## SQLite (dados estruturados)
 

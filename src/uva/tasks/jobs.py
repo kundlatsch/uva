@@ -9,6 +9,7 @@ from __future__ import annotations
 import random
 
 from uva.actions.registry import RetryableActionError
+from uva import initiatives
 from uva.goals import runner as goals_runner
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
@@ -118,6 +119,18 @@ def selfcode(feature_id: str) -> str:
 def stm_promotion() -> dict:
     async def job() -> dict:
         return await promote_idle_sessions(await runtime.get_services())
+
+    return runtime.run(job)
+
+
+@app.task(name="uva.initiative_tick")
+def initiative_tick() -> str:
+    async def job() -> str:
+        services = await runtime.get_services()
+        status, message = await initiatives.initiative_tick(services)
+        if message:
+            await runtime.notify(Reply(message))
+        return status
 
     return runtime.run(job)
 

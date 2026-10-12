@@ -89,12 +89,20 @@ class Settings(BaseSettings):
 
     # Proactive behaviour
     proactive_daily_budget_usd: float = 0.5
-    # Minimum spacing between goal runs; 0 disables the goal loop.
-    proactive_interval_minutes: int = 60
+    # Minimum spacing between goal runs / initiatives; 0 disables the loop.
+    proactive_interval_minutes: int = 15
     # How often beat checks for due goals (cheap; restarts don't delay runs).
     proactive_poll_minutes: int = 5
     # Goal runs may ask for a new command (self-coding) when they need one.
     proactive_allow_selfcode: bool = True
+    # Initiatives: messages the bot sends on its own (research on your interests,
+    # follow-ups, reminders). Toggle at runtime with /proativo on|off.
+    proactive_messages_enabled: bool = True
+    proactive_max_messages_per_day: int = 4
+    proactive_min_gap_minutes: int = 120
+    # Quiet hours (local time, TIMEZONE): no goal runs or initiatives.
+    proactive_quiet_start_hour: int = 23
+    proactive_quiet_end_hour: int = 8
     proactive_max_steps: int = 3  # LLM rounds per goal run
     proactive_max_tokens_per_run: int = 30000
     # Tell the owner on Telegram when background work (incl. goal runs) finishes.

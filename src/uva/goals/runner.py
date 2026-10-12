@@ -53,6 +53,7 @@ class GoalRun:
     feature_id: str | None = None  # self-code request made for it, if any
     feature_note: str = ""  # why no request was made (or that one already exists)
     feature_later: bool = False  # couldn't ask now (busy/budget) but may next time
+    feature_ready: bool = False  # the feature this goal needed is already merged
 
     @property
     def summary(self) -> str:
@@ -70,6 +71,9 @@ async def proactive_tick(
     now = now or utcnow()
     if services.goals is None or services.llm is None or services.actions is None:
         return "disabled"
+
+    if in_quiet_hours(services, now):
+        return "quiet"
 
     due = await services.goals.due(now)
     if not due:
@@ -110,13 +114,16 @@ async def proactive_tick(
             if run.needs_feature:
                 request = await _request_feature(services, goal, run.needs_feature)
                 run.feature_id, run.feature_note, run.feature_later = request
+                run.feature_ready = run.feature_note.endswith("(pronta)")
             note = _write_note(services, run, now)
             await _reschedule(services, run, note, now)
         finally:
             if services.busy is not None:
                 await services.busy.clear(busy_key)
 
-        if run.needs_feature:
+        if run.feature_ready:
+            status = "concluido"
+        elif run.needs_feature:
             status = "needs_feature"
         else:
             status = "failed" if not run.ok else ("concluido" if _completes(run) else "done")
@@ -138,6 +145,8 @@ async def proactive_tick(
 
 
 def describe_run(run: GoalRun, status: str, note: str | None) -> str:
+    if run.feature_ready:
+        return f"🎯 Objetivo \"{run.goal.title}\" concluído ✅ ({run.feature_note})"
     if run.feature_id:
         lines = [
             f"🎯 Objetivo \"{run.goal.title}\" precisava de um comando novo, então pedi:",
@@ -242,6 +251,31 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
     return run
 
 
+def in_quiet_hours(services: Services, now: datetime) -> bool:
+    """True between PROACTIVE_QUIET_START_HOUR and _END_HOUR (local time)."""
+    s = services.settings
+    start, end = s.proactive_quiet_start_hour, s.proactive_quiet_end_hour
+    if start == end:
+        return False
+    hour = now.astimezone(services.tz).hour
+    return start <= hour < end if start < end else (hour >= start or hour < end)
+
+
+async def complete_goal_for_feature(services: Services, goal_id: str, command: str | None) -> Goal | None:
+    """A feature requested by a goal was merged: the goal is done."""
+    if services.goals is None:
+        return None
+    goal = await services.goals.get(goal_id)
+    if goal is None or goal.status is GoalStatus.CONCLUIDO:
+        return None
+    label = f"/{command} pronto" if command else "feature pronta"
+    await services.goals.update(
+        goal_id, status=GoalStatus.CONCLUIDO, last_attempt=f"concluído: {label}", last_attempt_at=utcnow()
+    )
+    await emit(EventType.GOAL_RUN, goal_id=goal_id, title=goal.title, status="concluido", reason=label)
+    return goal
+
+
 async def _attempted(services: Services, goal: Goal, now: datetime, result: str) -> None:
     assert services.goals is not None
     await services.goals.update(goal.id, last_attempt_at=now, last_attempt=result)
@@ -326,7 +360,10 @@ async def _reschedule(services: Services, run: GoalRun, note: str | None, now: d
         "last_attempt": "ok" if run.ok else f"falhou: {run.error}",
         "needs_feature": run.needs_feature,
     }
-    if run.feature_id:
+    if run.feature_ready:
+        fields["status"] = GoalStatus.CONCLUIDO
+        fields["last_attempt"] = f"concluído: {run.feature_note}"
+    elif run.feature_id:
         fields["last_attempt"] = f"pediu a feature {run.feature_id}"
     elif run.needs_feature:
         fields["last_attempt"] = f"precisa de /feature {run.needs_feature}"

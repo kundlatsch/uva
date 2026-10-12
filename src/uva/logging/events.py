@@ -36,6 +36,7 @@ class EventType(StrEnum):
     TASK_ENQUEUED = "task_enqueued"
     TASK_FINISHED = "task_finished"
     GOAL_RUN = "goal_run"
+    INITIATIVE = "initiative"  # a message the bot decided to send on its own
     MEMORY = "memory"
     BUDGET = "budget"
     SELF_EDIT = "self_edit"  # the bot changed one of its own files

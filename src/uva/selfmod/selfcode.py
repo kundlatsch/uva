@@ -106,6 +106,11 @@ async def build_feature(
         assert final is not None
         ok = final.status is FeatureStatus.MERGED
         await _feature_ref(services, feature_id, "ok" if ok else "falhou", None if ok else final.error)
+        completed_goal = None
+        if ok and final.goal_id:
+            from uva.goals.runner import complete_goal_for_feature  # avoid an import cycle
+
+            completed_goal = await complete_goal_for_feature(services, final.goal_id, final.command)
         await emit(
             EventType.SELFCODE,
             op="finish",
@@ -117,7 +122,10 @@ async def build_feature(
             commit=final.commit,
             error=final.error,
         )
-        await notify(Reply(_announcement(final)))
+        announcement = _announcement(final)
+        if completed_goal is not None:
+            announcement += f"\n🎯 Objetivo \"{completed_goal.title}\" concluído ✅"
+        await notify(Reply(announcement))
         return final
 
 

@@ -236,3 +236,18 @@ async def test_reverter_undoes_a_self_coded_feature(services, setup, repo):
     assert not (repo / "src/uva/plugins/dado.py").exists()
     assert services.features.store.records[record.id].status is FeatureStatus.REVERTED
     assert reloaded == [1]
+
+
+async def test_feature_of_a_goal_completes_it(services, setup, repo):
+    from fakes import InMemoryGoalStore
+
+    from uva.goals.store import Goal, GoalStatus
+
+    services.goals = InMemoryGoalStore()
+    await services.goals.add(Goal(id="g9", title="Ter um dado"))
+    with_llm(services, generated())
+    record = await services.features.request("/dado rola um dado", None, goal_id="g9")
+    inbox = Inbox()
+    await build_feature(services, record.id, inbox, request_reload=reload_ok, run_tests=runner(True))
+    assert services.goals.goals["g9"].status is GoalStatus.CONCLUIDO
+    assert 'Objetivo "Ter um dado" concluído ✅' in inbox.texts[0]
