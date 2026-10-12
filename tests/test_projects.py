@@ -126,6 +126,7 @@ async def test_build_runs_claude_in_a_new_git_repo_and_announces(services, proj,
         "kundlatsch <gustavo.kundlatsch@gmail.com>|Primeira versão",
     ]
     assert final.commits == 2
+    assert "__pycache__" not in git(folder, "ls-files")
     assert inbox.texts[0].startswith(f"🚀 Projeto {record.slug} pronto")
     assert "D:/uva-projects/" in inbox.texts[0] and "US$ 0.42" in inbox.texts[0]
     assert "SEGREDO VISTO" not in final.summary  # the bot's secrets never reach Claude Code

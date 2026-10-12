@@ -29,6 +29,7 @@ log = get_logger(__name__)
 
 Notify = Callable[[Reply], Awaitable[None]]
 POLL_SECONDS = 3
+GIT_EXCLUDE = ("__pycache__/", "*.pyc", ".pytest_cache/", ".venv/", "venv/", "node_modules/", ".env")
 SUMMARY_CHARS = 2500
 
 PROMPT = """You are creating a brand-new software project, on your own, in the current directory
@@ -236,6 +237,13 @@ async def build_project(services: Services, project_id: str, notify: Notify | No
             await _git(cwd, env, account, "init", "-q", "-b", "main")
             await _git(cwd, env, account, "config", "user.name", services.settings.git_author_name)
             await _git(cwd, env, account, "config", "user.email", services.settings.git_author_email)
+            # Build output never goes into the commits (Claude's or ours).
+            exclude = cwd / ".git" / "info" / "exclude"
+            exclude.parent.mkdir(parents=True, exist_ok=True)
+            with exclude.open("a", encoding="utf-8") as fh:
+                fh.write("
+".join(GIT_EXCLUDE) + "
+")
             outcome = await _run_claude(services, record, cwd, env, account)
             if not outcome.cancelled:
                 await _commit_leftovers(cwd, env, account)
