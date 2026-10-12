@@ -21,6 +21,8 @@ pathlib.Path("README.md").write_text("# Receitas\n", encoding="utf-8")
 subprocess.run(["git", "add", "-A"], check=True)
 subprocess.run(["git", "commit", "-q", "-m", "Primeira versão"], check=True)
 pathlib.Path("app.py").write_text("print('oi')\n", encoding="utf-8")  # left uncommitted
+pathlib.Path("__pycache__").mkdir()
+pathlib.Path("__pycache__/app.cpython-312.pyc").write_bytes(b"x")
 secret_seen = "TELEGRAM_BOT_TOKEN" in os.environ or "LLM_API_KEY" in os.environ
 print(json.dumps({
     "type": "result", "subtype": "success", "is_error": mode == "error",

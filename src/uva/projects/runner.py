@@ -241,9 +241,7 @@ async def build_project(services: Services, project_id: str, notify: Notify | No
             exclude = cwd / ".git" / "info" / "exclude"
             exclude.parent.mkdir(parents=True, exist_ok=True)
             with exclude.open("a", encoding="utf-8") as fh:
-                fh.write("
-".join(GIT_EXCLUDE) + "
-")
+                fh.write("\n".join(GIT_EXCLUDE) + "\n")
             outcome = await _run_claude(services, record, cwd, env, account)
             if not outcome.cancelled:
                 await _commit_leftovers(cwd, env, account)
