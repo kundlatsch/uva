@@ -141,6 +141,8 @@ async def hora(ctx: CommandContext) -> str:
 2. **Similaridade**: texto livre é normalizado (minúsculas, sem acentos e pontuação, sem palavras de enchimento como "me mostra", "por favor") e comparado com nome, apelidos e frases de exemplo de cada comando (rapidfuzz). Nota ≥ `SIMILARITY_EXECUTE_THRESHOLD` (90) executa; ≥ `SIMILARITY_CONFIRM_THRESHOLD` (75) pergunta "Você quis dizer /x?" com botões Sim/Não; abaixo disso segue para o próximo nível. Argumentos simples são extraídos do texto: "log de erros das últimas 2 horas" vira `/log 2h erros`.
 3. **LLM**: o texto vai para o modelo rápido (`LLM_MODEL_ROUTER`), que responde **sempre** com um JSON `{"actions": [...], "reply": "..."}`. As ações possíveis ficam num registro (`uva/actions`): funções Python com nome, descrição e schema Pydantic. A resposta é validada; JSON inválido ou ação desconhecida não executa nada (vai para `/log erros`). A LLM nunca roda código livre.
 
+**Antes da LLM, a UVA procura em todos os sistemas** (`uva/recall.py`, sem gastar LLM): as palavras da mensagem são buscadas na memória longa inteira (não só na de trabalho), nas notas do brain (título e conteúdo; as 2 melhores vão com o texto, versões em `04-arquivo` ficam de fora), nos objetivos e no que eles descobriram e, se a mensagem fala de dinheiro, nos gastos. O que bate entra no prompt, então "me fala sobre o livro X que eu li" é respondido numa chamada só, com a sua nota e as pesquisas sobre o autor. Se ela ainda precisar ler algo (`recall`, `note_search`, `note_read`), o resultado volta para ela e a resposta sai na mesma mensagem (até 2 consultas extras), em vez de "quer que eu abra a nota?".
+
 Cada decisão fica no log com a nota, então dá para ajustar os limiares olhando `/log`.
 
 ## LLM, pesquisa e orçamento
@@ -314,6 +316,12 @@ Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, açã
 - `/status` — serviços no ar, uptime, fila e gastos
 
 Respostas longas chegam como arquivo `.md`.
+
+Para testar uma pergunta pelo roteador de verdade, sem o Telegram (não entra na memória curta; `--record` para entrar):
+
+```bash
+docker compose exec bot python /repo/scripts/ask.py "me fala sobre o livro X que eu li"
+```
 
 Testes de integração (Mongo/Redis reais) rodam num container descartável na rede do compose:
 

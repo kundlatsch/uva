@@ -57,6 +57,9 @@ class Action:
     progress_text: str = "Trabalhando nisso…"
     # Phrase category used instead of progress_text when set (e.g. "pesquisando").
     progress_phrase: str | None = None
+    # Read-only lookups (note_read, recall...): in a conversation their output goes
+    # back to the LLM, which then answers in the same turn.
+    lookup: bool = False
 
 
 class InvalidActionError(ValueError):
@@ -87,6 +90,7 @@ class ActionRegistry:
         long_running: bool = False,
         progress_text: str = "Trabalhando nisso…",
         progress_phrase: str | None = None,
+        lookup: bool = False,
     ) -> Callable[[ActionHandler], ActionHandler]:
         def decorator(func: ActionHandler) -> ActionHandler:
             self.register(
@@ -99,6 +103,7 @@ class ActionRegistry:
                     long_running,
                     progress_text,
                     progress_phrase,
+                    lookup,
                 )
             )
             return func

@@ -8,6 +8,7 @@ The vault only ever creates and appends: nothing is deleted or overwritten.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, tzinfo
 from pathlib import Path
@@ -27,6 +28,7 @@ FOLDERS: dict[str, str] = {
     "diario": "diario",
 }
 README_NAME = "LEIA-ME.md"
+ARCHIVE_PREFIX = FOLDERS["arquivo"] + "/"
 SOURCE = "uva-bot"
 MAX_TITLE = 80
 MAX_SUBFOLDER_DEPTH = 3
@@ -279,6 +281,14 @@ class Vault:
             counter += 1
         path.write_bytes(data)
         return self._relative(path)
+
+    def iter_notes(self) -> Iterator[tuple[str, str, str]]:
+        """(path, title, body) of every visible note (LEIA-ME excluded)."""
+        for path in sorted(self.root.rglob("*.md")):
+            if path.name == README_NAME or not self._visible(path):
+                continue
+            meta, body = parse_note(path.read_text(encoding="utf-8", errors="replace"))
+            yield self._relative(path), str(meta.get("title") or path.stem), body
 
     def recent(self, limit: int = 10) -> list[RecentNote]:
         """Most recently modified notes (LEIA-ME excluded)."""

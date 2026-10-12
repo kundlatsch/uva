@@ -63,6 +63,10 @@ class NoteReadParams(BaseModel):
     note: str = Field(description="Título ou caminho da nota")
 
 
+class RecallParams(BaseModel):
+    query: str = Field(description="O que procurar (palavras-chave)")
+
+
 def _vault(ctx: ActionContext) -> Vault | None:
     return ctx.services.vault
 
@@ -148,7 +152,8 @@ def register(registry: ActionRegistry) -> None:
         )
 
     @registry.action(
-        "note_search", "Procura notas no second brain", NoteSearchParams, proactive_safe=True
+        "note_search", "Procura notas no second brain", NoteSearchParams, proactive_safe=True,
+        lookup=True,
     )
     async def note_search(params: NoteSearchParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
@@ -162,7 +167,9 @@ def register(registry: ActionRegistry) -> None:
             text="\n".join(lines), data={"hits": [{"path": h.path, "title": h.title} for h in hits]}
         )
 
-    @registry.action("note_read", "Lê uma nota do second brain", NoteReadParams, proactive_safe=True)
+    @registry.action(
+        "note_read", "Lê uma nota do second brain", NoteReadParams, proactive_safe=True, lookup=True
+    )
     async def note_read(params: NoteReadParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
             return NO_VAULT
@@ -172,3 +179,19 @@ def register(registry: ActionRegistry) -> None:
             return ActionResult(text=f"Não achei a nota '{params.note}'.", data={"found": False})
         body = note.body if len(note.body) <= READ_LIMIT else note.body[:READ_LIMIT] + "…"
         return ActionResult(text=f"{note.path}\n\n{body}", data={"path": note.path, "body": body})
+
+    @registry.action(
+        "recall",
+        "Busca em TODOS os seus sistemas de uma vez (memória longa, notas do brain, objetivos, "
+        "gastos) por palavras-chave",
+        RecallParams,
+        proactive_safe=True,
+        lookup=True,
+    )
+    async def recall_action(params: RecallParams, ctx: ActionContext) -> ActionResult:
+        from uva.recall import recall
+
+        found = await recall(ctx.services, params.query)
+        if not found:
+            return ActionResult(text=f"Nada encontrado para '{params.query}'.", data={"found": False})
+        return ActionResult(text=found.render(), data={"notes": found.notes})

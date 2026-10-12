@@ -18,6 +18,7 @@ from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
 from uva.llm.prompts import assistant_system_prompt
 from uva.memory.service import render_memory
+from uva.recall import recall
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.replies import Reply
@@ -27,6 +28,9 @@ from uva.stm.refs import remember_ref, task_label
 LLM_DISABLED = "(a LLM não está configurada: falta LLM_API_KEY no .env)"
 QUOTA_MARKERS = ("429", "402", "quota", "insufficient", "credit", "billing", "rate limit")
 HISTORY_CHARS = 2000
+# Extra LLM calls allowed per message to read what lookup actions found.
+MAX_LOOKUP_ROUNDS = 2
+LOOKUP_CHARS = 8000
 
 log = get_logger(__name__)
 
@@ -55,39 +59,64 @@ class Agent:
 
         actions = list(services.actions)
         history, recent_context = await self._session_context()
+        found = await recall(services, text) if text else None
+        if found:
+            await emit(EventType.ROUTE, tier="recall", notes=found.notes, sections=len(found.sections))
         system = assistant_system_prompt(
             actions=actions,
             registry=services.registry,
             tz=services.tz,
             working_memory=await self._working_memory(),
             recent_context=recent_context,
+            recalled=found.render() if found else "",
         )
         images = (image,) if image else ()
         messages = [*history, LLMMessage("user", text or "(imagem sem legenda)", images=images)]
-        try:
-            response = await services.llm.complete(
-                messages,
-                purpose="plan_vision" if image else "plan",
-                scope=INTERACTIVE,
-                model=services.llm.vision_model if image else None,
-                system=system,
-                json_schema=PLAN_SCHEMA,
-            )
-        except LLMError as exc:
-            if is_quota_error(exc):
-                return Reply(f"{services.say('sem_credito')}\n(o provedor recusou por limite/crédito)")
-            return Reply(services.say("llm_erro"))
-
-        try:
-            plan = parse_plan(response.text)
-            calls = [services.actions.validate(c.type, c.params) for c in plan.actions]
-        except (PlanError, InvalidActionError) as exc:
-            # Nothing from a broken answer is executed.
-            await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
-            return Reply(services.say("llm_erro"))
-
-        await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump(), image=image is not None)
         ctx = ActionContext(services, INTERACTIVE, self.run_command)
+        for round_ in range(MAX_LOOKUP_ROUNDS + 1):
+            try:
+                response = await services.llm.complete(
+                    messages,
+                    purpose=("plan_vision" if image else "plan") if round_ == 0 else "plan_lookup",
+                    scope=INTERACTIVE,
+                    model=services.llm.vision_model if image else None,
+                    system=system,
+                    json_schema=PLAN_SCHEMA,
+                )
+            except LLMError as exc:
+                if is_quota_error(exc):
+                    return Reply(f"{services.say('sem_credito')}\n(o provedor recusou por limite/crédito)")
+                return Reply(services.say("llm_erro"))
+
+            try:
+                plan = parse_plan(response.text)
+                calls = [services.actions.validate(c.type, c.params) for c in plan.actions]
+            except (PlanError, InvalidActionError) as exc:
+                # Nothing from a broken answer is executed.
+                await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
+                return Reply(services.say("llm_erro"))
+
+            await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump(), image=image is not None, round=round_)
+            lookups_only = bool(calls) and all(action.lookup for action, _ in calls)
+            if not lookups_only or round_ == MAX_LOOKUP_ROUNDS:
+                break
+            # Only reading: hand what was found back to the LLM so it answers now,
+            # instead of replying "quer que eu abra a nota?".
+            looked = [await self._run(action, params, ctx) for action, params in calls]
+            found_text = "\n\n".join(
+                f"[{action.name} {params.model_dump_json()}]\n{result.text}"
+                for (action, params), result in zip(calls, looked)
+            )[:LOOKUP_CHARS]
+            messages = [
+                *messages,
+                LLMMessage("assistant", response.text),
+                LLMMessage(
+                    "user",
+                    "Resultado das suas consultas (o usuário ainda não viu):\n"
+                    f"{found_text}\n\nAgora responda à mensagem dele usando isso.",
+                ),
+            ]
+
         results = [await self._run(action, params, ctx) for action, params in calls]
 
         parts = reply_parts(plan.reply, results) or [services.say("confirmacao")]

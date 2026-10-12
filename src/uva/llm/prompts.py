@@ -57,12 +57,18 @@ def assistant_system_prompt(
     tz: tzinfo,
     working_memory: str = "",
     recent_context: str = "",
+    recalled: str = "",
 ) -> str:
     now_local = utcnow().astimezone(tz)
     now = f"{WEEKDAYS[now_local.weekday()]}, {format_local(now_local, tz, '%d/%m/%Y %H:%M')}"
     memory = f"\nO que você sabe sobre o usuário (memória):\n{working_memory}\n" if working_memory else ""
     if recent_context:
         memory += f"\nContexto recente (o que você fez nesta sessão):\n{recent_context}\n"
+    if recalled:
+        memory += (
+            "\nEncontrado nos seus sistemas para esta mensagem (memória longa, notas, objetivos, "
+            f"gastos):\n{recalled}\n"
+        )
     return f"""Você é a UVA, assistente pessoal de um único usuário, conversando pelo Telegram.
 Responda sempre em português do Brasil, de forma direta e cordial.
 
@@ -77,6 +83,11 @@ Comandos do bot (podem ser executados com a ação run_command):
 
 Regras:
 - Se você sabe responder, responda direto em "reply" com "actions": [].
+- Perguntas sobre o que o usuário viveu, leu, anotou ou pediu ("me fala do livro X que eu li",
+  "o que descobri sobre Y?"): responda com a memória e com o que foi "Encontrado nos seus
+  sistemas" abaixo, juntando tudo: o que ele contou/anotou E o que suas pesquisas e objetivos
+  descobriram sobre o assunto (ex.: dados do autor), dizendo de qual nota veio cada parte. Não ofereça "abrir a nota": leia você. Se faltar algo, use recall,
+  note_search ou note_read — o resultado volta para você e aí você responde, na mesma vez.
 - Use search quando o usuário pedir uma pesquisa ou quando a resposta depender de
   informação atual. Se ele pedir Wikipédia, use "source": "wikipedia".
 - Quando uma ação vai produzir o resultado (ex.: search), deixe "reply" curto
