@@ -137,3 +137,11 @@ async def test_goal_store_due_and_updates(db):
     assert [g.title for g in await store.due(now)] == ["baixa"]
     assert await store.delete(low.id)
     assert len(await store.list()) == 2
+
+
+async def test_extra_store_accumulates_per_day(db):
+    store = mongo.MongoExtraStore(db)
+    assert await store.get("2026-10-11") == 0.0
+    assert await store.add("2026-10-11", 1.5) == 1.5
+    assert await store.add("2026-10-11", 0.5) == 2.0
+    assert await store.get("2026-10-12") == 0.0

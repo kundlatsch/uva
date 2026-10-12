@@ -38,6 +38,16 @@ class UsageRecord(BaseModel):
     trace_id: str | None = None
 
 
+class ExtraStore(Protocol):
+    """Extra daily allowance granted with /liberar, per local day ("2026-10-11")."""
+
+    async def get(self, day: str) -> float: ...
+
+    async def add(self, day: str, amount: float) -> float:
+        """Add to the day's extra; returns the new total."""
+        ...
+
+
 class UsageStore(Protocol):
     async def add(self, record: UsageRecord) -> None: ...
 
@@ -56,13 +66,29 @@ class Spend:
     month: float  # everything
     proactive_today: float
     selfcode_today: float = 0.0
+    extra_today: float = 0.0  # granted with /liberar, valid until local midnight
+
+    def daily_limit(self, settings: Settings) -> float:
+        return settings.llm_daily_budget_usd + self.extra_today
 
 
 class Budget:
-    def __init__(self, store: UsageStore, settings: Settings, tz: tzinfo) -> None:
+    def __init__(
+        self, store: UsageStore, settings: Settings, tz: tzinfo, extras: ExtraStore | None = None
+    ) -> None:
         self.store = store
         self.settings = settings
         self.tz = tz
+        self.extras = extras
+
+    def day_key(self, now: datetime | None = None) -> str:
+        return (now or utcnow()).astimezone(self.tz).strftime("%Y-%m-%d")
+
+    async def grant_extra(self, amount: float, now: datetime | None = None) -> float:
+        """Allow ``amount`` USD more today (the monthly budget still applies)."""
+        if self.extras is None:
+            raise RuntimeError("liberação de orçamento não está configurada")
+        return await self.extras.add(self.day_key(now), amount)
 
     async def spend(self, now: datetime | None = None) -> Spend:
         day = start_of_day(self.tz, now)
@@ -72,6 +98,7 @@ class Budget:
             month=await self.store.total_cost(start_of_month(self.tz, now)),
             proactive_today=await self.store.total_cost(day, Scope.PROACTIVE),
             selfcode_today=selfcode,
+            extra_today=await self.extras.get(self.day_key(now)) if self.extras else 0.0,
         )
 
     async def check(self, scope: Scope, now: datetime | None = None) -> BudgetStatus:
@@ -96,11 +123,12 @@ class Budget:
                     f"{s.selfcode_daily_budget_usd:.2f}); volta amanhã",
                 )
             return BudgetStatus(True)
-        if spend.today >= s.llm_daily_budget_usd:
+        if spend.today >= spend.daily_limit(s):
+            extra = f", com US$ {spend.extra_today:.2f} liberados" if spend.extra_today else ""
             return BudgetStatus(
                 False,
                 f"orçamento diário de LLM atingido (US$ {spend.today:.2f} de "
-                f"{s.llm_daily_budget_usd:.2f}); volta amanhã",
+                f"{spend.daily_limit(s):.2f}{extra}); volta amanhã ou use /liberar",
             )
         if scope is Scope.PROACTIVE and spend.proactive_today >= s.proactive_daily_budget_usd:
             return BudgetStatus(False, "orçamento diário do modo proativo atingido")

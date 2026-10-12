@@ -38,6 +38,7 @@ BUILTIN: dict[str, str] = {
     "cancelado": "Ok, cancelado.",
     "sem_resultado": "Não encontrei nada.",
     "erro_generico": "Algo deu errado do meu lado. O erro foi registrado.",
+    "transcrevendo": "🎙️ Transcrevendo o áudio…",
 }
 
 

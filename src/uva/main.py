@@ -89,6 +89,9 @@ def build_application(settings: Settings, services: Services) -> Application:
             text = f"{services.say('erro_generico')}\n(o áudio passa de 20 MB, o limite do Telegram para bots)"
             await send_reply(context.bot, message.chat_id, Reply(text))
             return
+        if services.transcriber is not None:
+            # Transcription takes a few seconds: say we're on it.
+            await send_reply(context.bot, message.chat_id, Reply(services.say("transcrevendo")))
         file = await media.get_file()
         data = bytes(await file.download_as_bytearray())
         user_id = update.effective_user.id if update.effective_user else None

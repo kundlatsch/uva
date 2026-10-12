@@ -260,3 +260,23 @@ class MongoFeatureStore:
     async def recent(self, limit: int) -> list[FeatureRecord]:
         cursor = self.collection.find({}, {"_id": False}).sort("created_at", DESCENDING).limit(limit)
         return [FeatureRecord.model_validate(d) async for d in cursor]
+
+
+class MongoExtraStore:
+    """Collection ``budget_extras``: extra daily allowance per local day (/liberar)."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["budget_extras"]
+
+    async def setup(self) -> None:
+        pass  # keyed by _id (the day); nothing to index
+
+    async def get(self, day: str) -> float:
+        doc = await self.collection.find_one({"_id": day})
+        return float(doc["extra_usd"]) if doc else 0.0
+
+    async def add(self, day: str, amount: float) -> float:
+        doc = await self.collection.find_one_and_update(
+            {"_id": day}, {"$inc": {"extra_usd": amount}}, upsert=True, return_document=True
+        )
+        return float(doc["extra_usd"])

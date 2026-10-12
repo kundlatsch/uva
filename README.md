@@ -151,6 +151,7 @@ Cada decisão fica no log com a nota, então dá para ajustar os limiares olhand
 - **Custo**: cada chamada registra modelo, tokens, custo estimado e duração (`/log 1d llm`). A tabela de preços já conhece os modelos Anthropic; para outros, configure `LLM_PRICES` (US$ por 1M tokens). Sem preço, usa `LLM_DEFAULT_PRICE_*` (pessimista).
 - **Orçamento**: `LLM_DAILY_BUDGET_USD` e `LLM_MONTHLY_BUDGET_USD` (conversa) e `PROACTIVE_DAILY_BUDGET_USD` (modo proativo). Ao bater o limite, o fallback 3 desliga até virar o dia/mês e o bot avisa; os comandos continuam funcionando.
 - `/llm` mostra provedor, modelos, backends de pesquisa e gastos.
+- `/liberar [valor]` libera gasto extra de LLM **só hoje** (até a meia-noite): `/liberar 2` dá US$ 2 a mais; sem valor, mais um limite diário inteiro. Pode repetir (soma). O limite mensal continua valendo; `/status` e `/llm` mostram o que foi liberado.
 - As últimas `LLM_HISTORY_MESSAGES` mensagens da conversa vão como contexto (ficam só na memória do processo).
 
 ## Tarefas em segundo plano
@@ -265,6 +266,7 @@ Peça com `/feature <descrição>` (ex.: `/feature /dado rola um dado de 6 lados
 
 Mande um áudio (mensagem de voz, arquivo de áudio ou vídeo redondo) e a UVA transcreve com a OpenAI (`TRANSCRIBE_MODEL`, padrão `gpt-4o-mini-transcribe`, com `whisper-1` de reserva), responde "🎙️ entendi: ..." e trata o texto **exatamente como se você tivesse digitado**: comandos, similaridade e LLM.
 
+- Assim que o áudio chega, ela avisa que está transcrevendo (frases da categoria `transcrevendo` em `data/fallback_phrases.json`).
 - O ffmpeg converte o áudio do Telegram (OGG/Opus) para MP3 mono antes de enviar.
 - Limite de 20 MB por arquivo (limite do Telegram para bots).
 - Custo por minuto de áudio entra no orçamento e em `/log 1d llm` (`kind=transcribe`); a transcrição fica na memória de curto prazo como `[voz] ...`.

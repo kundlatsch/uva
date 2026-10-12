@@ -52,7 +52,8 @@ def build_services(settings: Settings) -> Services:
         llm=llm,
         search=build_search_backends(settings, llm),
     )
-    services.budget = Budget(usage, settings, services.tz)
+    extras = mongo.MongoExtraStore(db)
+    services.budget = Budget(usage, settings, services.tz, extras)
     services.decisions = build_decisions_client(settings, usage)
     services.transcriber = build_transcriber(settings, usage)
 

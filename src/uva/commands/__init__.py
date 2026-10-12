@@ -4,6 +4,7 @@ from pathlib import Path
 
 from uva.commands import (
     brain,
+    budget,
     builtin,
     catalog,
     context,
@@ -35,6 +36,7 @@ _MODULES = (
     log,
     status,
     llm,
+    budget,
     soul,
     phrases,
     revert,

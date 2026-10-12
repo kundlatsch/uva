@@ -14,8 +14,9 @@ async def describe_spend(services: Services) -> list[str]:
         spend = await services.budget.spend()
     except Exception:
         return ["Gasto: indisponível (Mongo fora?)"]
+    extra = f" (inclui US$ {spend.extra_today:.2f} liberados hoje)" if spend.extra_today else ""
     return [
-        f"Gasto hoje: US$ {spend.today:.4f} de {s.llm_daily_budget_usd:.2f}",
+        f"Gasto hoje: US$ {spend.today:.4f} de {spend.daily_limit(s):.2f}{extra}",
         f"Gasto no mês: US$ {spend.month:.4f} de {s.llm_monthly_budget_usd:.2f}",
         f"Proativo hoje: US$ {spend.proactive_today:.4f} de {s.proactive_daily_budget_usd:.2f}",
         f"Auto-código hoje: US$ {spend.selfcode_today:.4f} de {s.selfcode_daily_budget_usd:.2f}",
