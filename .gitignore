@@ -22,3 +22,23 @@ Thumbs.db
 # Local data
 logs/
 /brain/
+.env.*
+!.env.example
+
+# Databases, dumps and runtime state
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.dump
+*.bson
+celerybeat-schedule*
+*.log
+
+# Bot data that lives outside the code (volumes / sibling folders)
+/data/sqlite/
+/uva-home/
+/uva-projects/
+/snapshots/
+node_modules/
+*.tmp.py
