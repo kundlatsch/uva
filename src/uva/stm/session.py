@@ -19,6 +19,7 @@ RefStatus = Literal["na fila", "rodando", "ok", "falhou"]
 ACTIVE: tuple[RefStatus, ...] = ("na fila", "rodando")
 TURN_CHARS = 500
 NOTICE_CHARS = 2000  # proactive messages carry results the user may ask about
+VOICE_CHARS = 6000  # long dictations ("anota tudo isso...") must survive until acted on
 
 
 class Turn(BaseModel):

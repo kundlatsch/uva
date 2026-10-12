@@ -170,6 +170,8 @@ class Router:
             await emit(EventType.ROUTE, tier="voice", chars=len(transcript.text), model=transcript.model)
             heard = Reply(f"🎙️ entendi: {_clip(transcript.text, HEARD_CHARS)}")
             reply = await self._safely(self._route(transcript.text.strip(), user_id))
+            if services.budget is not None and not (await services.budget.check(Scope.INTERACTIVE)).allowed:
+                reply.text += "\n(guardei a transcrição inteira; depois do /liberar é só pedir de novo)"
             await self._remember(f"[voz] {transcript.text}", reply)
             return [heard, reply]
 

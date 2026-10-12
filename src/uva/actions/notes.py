@@ -45,6 +45,16 @@ class NoteAppendParams(BaseModel):
     text: str = Field(description="Texto a acrescentar no fim")
 
 
+class NoteUpdateParams(BaseModel):
+    note: str = Field(description="Título ou caminho da nota existente")
+    title: str | None = Field(default=None, description="Novo título (renomeia o arquivo)")
+    body: str | None = Field(
+        default=None,
+        description="Conteúdo COMPLETO novo (sem cabeçalho YAML). Omita para só renomear",
+    )
+    tags: list[str] | None = None
+
+
 class NoteSearchParams(BaseModel):
     term: str = Field(description="Termo a procurar no título e no conteúdo")
 
@@ -72,7 +82,7 @@ def register(registry: ActionRegistry) -> None:
                 params.title, params.body, folder=params.folder, subfolder=params.subfolder,
                 tags=params.tags, links=params.links,
             )
-        except ValueError as exc:
+        except ValueError as exc:  # bad folder or placeholders instead of content
             return ActionResult(text=f"Não criei a nota: {exc}", data={"ok": False})
         vault.append_daily(f"Nota criada: [[{note.title}]]")
         await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
@@ -109,7 +119,33 @@ def register(registry: ActionRegistry) -> None:
             note = vault.append(params.note, params.text)
         except NoteNotFoundError:
             return ActionResult(text=f"Não achei a nota '{params.note}'.", data={"found": False})
+        except ValueError as exc:
+            return ActionResult(text=f"Não alterei a nota: {exc}", data={"ok": False})
         return ActionResult(text=f"📝 Texto acrescentado em {note.path}", data={"path": note.path})
+
+    @registry.action(
+        "note_update",
+        "Corrige uma nota existente: renomeia e/ou reescreve o conteúdo inteiro (a versão "
+        "anterior é guardada em 04-arquivo/Versões)",
+        NoteUpdateParams,
+    )
+    async def note_update(params: NoteUpdateParams, ctx: ActionContext) -> ActionResult:
+        if (vault := _vault(ctx)) is None:
+            return NO_VAULT
+        try:
+            note, backup = vault.update_note(
+                params.note, title=params.title, body=params.body, tags=params.tags
+            )
+        except NoteNotFoundError:
+            return ActionResult(text=f"Não achei a nota '{params.note}'.", data={"found": False})
+        except ValueError as exc:  # placeholders instead of content
+            return ActionResult(text=f"Não alterei a nota: {exc}", data={"ok": False})
+        vault.append_daily(f"Nota atualizada: [[{note.title}]]")
+        await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
+        return ActionResult(
+            text=f"✏️ Nota atualizada: {note.path} (versão anterior em {backup})",
+            data={"path": note.path, "backup": backup},
+        )
 
     @registry.action(
         "note_search", "Procura notas no second brain", NoteSearchParams, proactive_safe=True

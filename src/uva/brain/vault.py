@@ -39,6 +39,25 @@ class NoteNotFoundError(LookupError):
     pass
 
 
+class PlaceholderError(ValueError):
+    """The text has a stand-in like "<texto anterior mantido aqui>" instead of content."""
+
+
+_PLACEHOLDER = re.compile(
+    r"<[^<>\n]{0,80}\b(anterior|restante|mantid[oa]|conte[uú]do (original|existente)|resto)\b[^<>\n]{0,80}>"
+    r"|\[(\.\.\.|…)?\s*(restante|resto|conte[uú]do anterior)[^\]]{0,60}\]",
+    re.IGNORECASE,
+)
+
+
+def check_no_placeholders(text: str) -> None:
+    if match := _PLACEHOLDER.search(text):
+        raise PlaceholderError(
+            f"o texto tem um marcador em vez de conteúdo ({match.group(0)!r}); "
+            "leia a nota e mande o conteúdo completo"
+        )
+
+
 @dataclass(slots=True)
 class Note:
     path: str  # relative to the vault root, with forward slashes
@@ -106,6 +125,7 @@ class Vault:
         links: list[str] | tuple[str, ...] = (),
         now: datetime | None = None,
     ) -> Note:
+        check_no_placeholders(body)
         title = clean_title(title)
         directory = self.folder_path(folder, subfolder)
         directory.mkdir(parents=True, exist_ok=True)
@@ -153,7 +173,48 @@ class Vault:
         placeholder.write_bytes(b"")
         return self._relative(directory), self._relative(placeholder)
 
+    def update_note(
+        self,
+        ref: str,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+        tags: list[str] | None = None,
+        now: datetime | None = None,
+    ) -> tuple[Note, str]:
+        """Rewrite and/or rename a note. The previous version is copied to
+        04-arquivo/Versões first, so nothing is ever lost. Returns (note, backup)."""
+        path = self._resolve(ref)
+        old_text = path.read_text(encoding="utf-8")
+        meta, old_body = parse_note(old_text)
+        new_body = old_body if body is None else body
+        check_no_placeholders(new_body)
+
+        stamp = (now or utcnow()).astimezone(self.tz).strftime("%Y-%m-%d %H%M%S")
+        versions = self.root / FOLDERS["arquivo"] / "Versões"
+        versions.mkdir(parents=True, exist_ok=True)
+        backup = _unique_path(versions, clean_title(f"{path.stem} {stamp}"))
+        backup.write_text(old_text, encoding="utf-8")
+
+        new_title = clean_title(title) if title else str(meta.get("title") or path.stem)
+        target = path
+        if new_title != path.stem:
+            target = _unique_path(path.parent, new_title)
+            new_title = target.stem
+        if body is None:
+            # Keep the text, but fix the H1 that repeats the old title.
+            old_heading = f"# {meta.get('title') or path.stem}"
+            if new_body.lstrip().startswith(old_heading + "\n") or new_body.strip() == old_heading:
+                new_body = new_body.lstrip()[len(old_heading):].lstrip("\n")
+        created = str(meta.get("created") or self._timestamp(now))
+        new_tags = tags if tags is not None else list(meta.get("tags") or [])
+        target.write_text(render_note(new_title, new_body, created=created, tags=new_tags, links=[]), encoding="utf-8")
+        if target != path:
+            path.unlink()  # the old content lives on in the backup copy
+        return self.read(self._relative(target)), self._relative(backup)
+
     def append(self, ref: str, text: str, now: datetime | None = None) -> Note:
+        check_no_placeholders(text)
         path = self._resolve(ref)
         stamp = (now or utcnow()).astimezone(self.tz).strftime("%d/%m/%Y %H:%M")
         with path.open("a", encoding="utf-8") as fh:
@@ -288,9 +349,14 @@ class Vault:
             return candidate
 
         wanted = normalize(Path(ref).stem)
-        for path in sorted(self.root.rglob("*.md")):
-            if normalize(path.stem) == wanted and self._visible(path):
+        notes = [p for p in sorted(self.root.rglob("*.md")) if self._visible(p)]
+        for path in notes:
+            if normalize(path.stem) == wanted:
                 return path
+        # Partial title ("marmitas"): accept it only when it is unambiguous.
+        partial = [p for p in notes if wanted and wanted in normalize(p.stem)]
+        if len(partial) == 1:
+            return partial[0]
         raise NoteNotFoundError(ref)
 
     def _relative(self, path: Path) -> str:
@@ -315,7 +381,9 @@ def title_from_text(text: str, max_words: int = 8) -> str:
 def render_note(title: str, body: str, *, created: str, tags: list[str], links: list[str]) -> str:
     meta = {"title": title, "created": created, "tags": tags, "source": SOURCE}
     front = yaml.safe_dump(meta, allow_unicode=True, sort_keys=False).strip()
-    parts = [f"---\n{front}\n---", f"# {title}"]
+    parts = [f"---\n{front}\n---"]
+    if not body.lstrip().startswith("# "):  # the body may bring its own title
+        parts.append(f"# {title}")
     if body.strip():
         parts.append(body.strip())
     if links:

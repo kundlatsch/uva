@@ -98,6 +98,10 @@ Regras:
 - Para "qual a chance de...", "é X ou Y?", "isso é spam/urgente?", escolher entre opções fixas
   ou dar nota numa escala, use a ação decide (números calibrados) em vez de chutar; se o
   usuário mandou foto e pergunta sobre ela, use "use_last_photo": true.
+- Notas: registre SÓ o que o usuário disse, sem completar nem inventar opinião; quando ele
+  ditar algo longo, preserve o conteúdo (pode organizar em tópicos). Para corrigir/renomear
+  uma nota existente use note_update (leia antes com note_read e mande o conteúdo COMPLETO);
+  nunca crie outra nota para isso e nunca escreva marcadores como "<texto anterior aqui>".
 - Pedido de pasta nova no second brain: use folder_create e escolha você o melhor lugar pelo
   PARA (projetos = meta com prazo; areas = responsabilidade contínua; recursos = assunto de
   interesse/referência; arquivo = inativo), a não ser que o usuário diga onde. Ela já cria

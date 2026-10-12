@@ -16,6 +16,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from uva.brain.vault import PlaceholderError, check_no_placeholders
 from uva.phrases import PhrasesError
 from uva.phrases import validate as validate_phrases
 from uva.selfmod.git import SELF_EDIT, GitRepo
@@ -88,6 +89,10 @@ class FileAccess:
             raise FileAccessError("notas do second brain não são sobrescritas; use file_append")
         if target.path.suffix == ".json":
             _validate_json(target, content)
+        try:
+            check_no_placeholders(content)
+        except PlaceholderError as exc:
+            raise FileAccessError(str(exc)) from exc
         target.path.parent.mkdir(parents=True, exist_ok=True)
         target.path.write_text(content, encoding="utf-8")
         return Change(target, await self._commit(target, "write", reason))

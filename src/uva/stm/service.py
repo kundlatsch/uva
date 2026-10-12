@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from uva.clock import format_local, utcnow
 from uva.config import Settings
 from uva.llm.base import LLMMessage
-from uva.stm.session import NOTICE_CHARS, TURN_CHARS, Ref, RefKind, RefStatus, Session, SessionBackend, Turn
+from uva.stm.session import NOTICE_CHARS, TURN_CHARS, VOICE_CHARS, Ref, RefKind, RefStatus, Session, SessionBackend, Turn
 
 ICONS = {"na fila": "⏳", "rodando": "🔄", "ok": "✅", "falhou": "❌"}
 
@@ -51,8 +51,10 @@ class ShortTermMemory:
         await self._update(lambda s: s.turns.append(turn), user_id)
 
     async def add_exchange(self, user_text: str, bot_text: str, user_id: int | None = None) -> None:
+        limit = VOICE_CHARS if user_text.startswith("[voz]") else TURN_CHARS
+
         def change(session: Session) -> None:
-            session.turns.append(Turn(role="user", text=_clip(user_text)))
+            session.turns.append(Turn(role="user", text=_clip(user_text, limit)))
             session.turns.append(Turn(role="bot", text=_clip(bot_text)))
 
         await self._update(change, user_id)
