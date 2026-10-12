@@ -49,6 +49,16 @@ class Note:
 
 
 @dataclass(frozen=True, slots=True)
+class Entry:
+    """A file or folder, for read-only inspection (/brain)."""
+
+    path: str  # relative, forward slashes
+    is_dir: bool
+    size: int = 0  # bytes (files) or number of .md notes inside (folders)
+    modified: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class RecentNote:
     path: str
     title: str
@@ -222,6 +232,51 @@ class Vault:
 
     # --- helpers ---------------------------------------------------------
 
+    # --- read-only inspection (/brain) -------------------------------------------
+
+    def _visible(self, path: Path) -> bool:
+        """Inside the vault and not hidden (.obsidian, .trash...)."""
+        rel = path.resolve().relative_to(self.root.resolve())
+        return not any(part.startswith(".") for part in rel.parts)
+
+    def find_folder(self, ref: str) -> Path | None:
+        """A folder by relative path ("02-areas/Saúde") or PARA name ("areas")."""
+        ref = ref.strip().strip("/")
+        if not ref:
+            return self.root
+        candidates = [self.root / FOLDERS[ref]] if ref in FOLDERS else []
+        candidates.append(self.root / ref)
+        root = self.root.resolve()
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved.is_relative_to(root) and resolved.is_dir() and self._visible(resolved):
+                return resolved
+        return None
+
+    def list_folder(self, folder: Path) -> list[Entry]:
+        """Visible subfolders (with note counts) and .md files, folders first."""
+        entries = []
+        for child in sorted(folder.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+            if child.name.startswith("."):
+                continue
+            stat = child.stat()
+            modified = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
+            if child.is_dir():
+                notes = sum(1 for p in child.rglob("*.md") if self._visible(p))
+                entries.append(Entry(self._relative(child), True, notes, modified))
+            elif child.suffix == ".md":
+                entries.append(Entry(self._relative(child), False, stat.st_size, modified))
+        return entries
+
+    def inspect(self, ref: str) -> tuple[Entry, str]:
+        """A note's metadata and raw text (front matter included)."""
+        path = self._resolve(ref)
+        if path.suffix != ".md" or not self._visible(path):
+            raise NoteNotFoundError(ref)
+        stat = path.stat()
+        entry = Entry(self._relative(path), False, stat.st_size, datetime.fromtimestamp(stat.st_mtime, tz=UTC))
+        return entry, path.read_text(encoding="utf-8", errors="replace")
+
     def _resolve(self, ref: str) -> Path:
         """Find a note by relative path or by title. Never leaves the vault."""
         ref = ref.strip().removeprefix("[[").removesuffix("]]")
@@ -234,7 +289,7 @@ class Vault:
 
         wanted = normalize(Path(ref).stem)
         for path in sorted(self.root.rglob("*.md")):
-            if normalize(path.stem) == wanted:
+            if normalize(path.stem) == wanted and self._visible(path):
                 return path
         raise NoteNotFoundError(ref)
 
