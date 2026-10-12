@@ -43,10 +43,23 @@ async def test_empty_note(router):
     assert "(arquivo vazio)" in (await router.handle_text("/brain 02-areas/Saúde/Saúde.md")).text
 
 
-async def test_long_note_is_sent_as_the_file(router, services):
-    services.vault.create_note("Longa", "x" * 5000, folder="inbox")
-    reply = await router.handle_text("/ver Longa")
-    assert reply.filename == "Longa.md" and b"x" * 100 in reply.document
+async def test_long_note_is_paginated(router, services):
+    body = "\n".join(f"linha {i}" for i in range(1, 121))
+    services.vault.create_note("Longa", body, folder="inbox")
+    first = await router.handle_text("/ver Longa")
+    assert first.document is None
+    assert first.text.startswith("📝 00-inbox/Longa.md") and "linha 1\n" in first.text
+    assert first.text.endswith("— página 1/4 —")
+    assert [b.text for b in first.buttons] == ["Próxima ▶"]
+
+    second = await router.handle_callback(first.buttons[0].data)
+    assert second.edit and second.text.startswith("📝 00-inbox/Longa.md")  # header on every page
+    assert "— página 2/4 —" in second.text
+    assert [b.text for b in second.buttons] == ["◀ Anterior", "Próxima ▶"]
+
+    back = await router.handle_callback(second.buttons[0].data)
+    assert "— página 1/4 —" in back.text
+    assert "expirou" in (await router.handle_callback("pg:naoexiste:1")).text
 
 
 @pytest.mark.parametrize("ref", [".obsidian/segredo", "../../etc/passwd", "05-anexos/foto.jpg", "nada disso"])

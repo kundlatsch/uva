@@ -34,6 +34,9 @@ UNKNOWN_COMMAND = "/{name} não existe. Envie /help para ver a lista."
 CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
 
 CONFIRM_TTL = timedelta(minutes=10)
+PAGES_TTL = timedelta(hours=1)
+PAGES_KEPT = 20
+PAGES_EXPIRED = "Essa paginação expirou. Rode o comando de novo."
 HEARD_CHARS = 800
 DESCRIBE_PROMPT = (
     "Descreva esta imagem em português do Brasil, em 1 a 3 frases objetivas. Se houver "
@@ -58,6 +61,8 @@ class Router:
         self.services = services
         # Tier-2 questions waiting for a Sim/Não button, by token.
         self._pending: dict[str, PendingCommand] = {}
+        # Paginated replies by token: (pages, created at).
+        self._pages: dict[str, tuple[list[str], datetime]] = {}
         self.agent = Agent(services, run_command=self._run_command_for_llm)
 
     @property
@@ -77,7 +82,7 @@ class Router:
                 await emit(EventType.MESSAGE_RECEIVED, text=text, photo=photo is not None)
                 reply = await self._safely(self._route(text.strip(), user_id, photo))
                 await self._remember(text + (" [foto]" if photo else ""), reply)
-                return reply
+                return self._first_page(reply)
         finally:
             current_photo.reset(token)
 
@@ -177,9 +182,40 @@ class Router:
         except Exception as exc:
             await emit(EventType.ERROR, where="stm", error=repr(exc))
 
+    def _first_page(self, reply: Reply) -> Reply:
+        """Keep the pages of a long reply and show the first one with ◀ ▶."""
+        if len(reply.pages) <= 1:
+            return reply
+        now = utcnow()
+        self._pages = {
+            t: v for t, v in self._pages.items() if now - v[1] < PAGES_TTL
+        }
+        while len(self._pages) >= PAGES_KEPT:
+            self._pages.pop(next(iter(self._pages)))
+        token = secrets.token_hex(4)
+        self._pages[token] = (reply.pages, now)
+        return self._page(token, 0)
+
+    def _page(self, token: str, index: int) -> Reply:
+        stored = self._pages.get(token)
+        if stored is None:
+            return Reply(PAGES_EXPIRED, edit=True)
+        pages = stored[0]
+        index = max(0, min(index, len(pages) - 1))
+        buttons = []
+        if index > 0:
+            buttons.append(Button("◀ Anterior", f"pg:{token}:{index - 1}"))
+        if index < len(pages) - 1:
+            buttons.append(Button("Próxima ▶", f"pg:{token}:{index + 1}"))
+        text = f"{pages[index]}\n\n— página {index + 1}/{len(pages)} —"
+        return Reply(text=text, buttons=buttons, edit=True)
+
     async def handle_callback(self, data: str, user_id: int | None = None) -> Reply:
-        """Answer to an inline button ("confirm:<token>" / "deny:<token>")."""
+        """Answer to an inline button ("confirm:<token>", "deny:<token>", "pg:<token>:<n>")."""
         verb, _, token = data.partition(":")
+        if verb == "pg":
+            token, _, index = token.partition(":")
+            return self._page(token, int(index) if index.isdigit() else 0)
         pending = self._pending.pop(token, None)
         with trace(pending.trace_id if pending else None):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[botão] {verb}", kind="callback")

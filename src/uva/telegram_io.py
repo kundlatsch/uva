@@ -9,7 +9,7 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from uva.replies import Reply
 
 
-def _keyboard(reply: Reply) -> InlineKeyboardMarkup | None:
+def keyboard(reply: Reply) -> InlineKeyboardMarkup | None:
     if not reply.buttons:
         return None
     row = [InlineKeyboardButton(b.text, callback_data=b.data) for b in reply.buttons]
@@ -23,7 +23,7 @@ async def send_reply(bot: Bot, chat_id: int, reply: Reply) -> None:
 
 
 async def _send_one(bot: Bot, chat_id: int, reply: Reply) -> None:
-    markup = _keyboard(reply)
+    markup = keyboard(reply)
     if reply.document is not None:
         await bot.send_document(
             chat_id=chat_id,

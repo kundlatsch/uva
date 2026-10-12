@@ -12,8 +12,7 @@ from uva.replies import Reply
 from uva.stm.refs import remember_ref
 
 SEARCH_LIMIT = 10
-INLINE_LIMIT = 3500  # longer notes are sent as the .md file itself
-TREE_FILES_PER_FOLDER = 8
+TREE_FILES_PER_FOLDER = 30  # the tree is paginated, so show plenty
 
 
 def _size(entry: Entry) -> str:
@@ -70,11 +69,11 @@ def register(registry: CommandRegistry) -> None:
             return "O second brain não está configurado."
         ref = " ".join(ctx.args).strip()
         if not ref:
-            return Reply(text=await asyncio.to_thread(render_tree, vault), filename="brain.md").fit_for_telegram()
+            return Reply.paginated(await asyncio.to_thread(render_tree, vault))
 
         folder = vault.find_folder(ref)
         if folder is not None:
-            return await asyncio.to_thread(render_listing, vault, folder, ctx.services.tz)
+            return Reply.paginated(await asyncio.to_thread(render_listing, vault, folder, ctx.services.tz))
 
         try:
             entry, raw = await asyncio.to_thread(vault.inspect, ref)
@@ -84,10 +83,7 @@ def register(registry: CommandRegistry) -> None:
         header = f"📝 {entry.path} · {_size(entry)} · modificada {when}"
         if not raw.strip():
             return f"{header}\n(arquivo vazio)"
-        if len(raw) > INLINE_LIMIT:
-            name = entry.path.rsplit("/", 1)[-1]
-            return Reply(text=header, document=raw.encode("utf-8"), filename=name)
-        return f"{header}\n\n{raw.strip()}"
+        return Reply.paginated(raw.strip(), header=header)
 
 
     @registry.command(

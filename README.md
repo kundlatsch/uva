@@ -174,7 +174,7 @@ A UVA mantém um cofre de notas compatível com o **Obsidian**, na pasta `brain/
 
 - Notas têm cabeçalho YAML (`title`, `created`, `tags`, `source: uva-bot`) e ligações `[[...]]`; o nome do arquivo é o título.
 - `/nota <texto>` salva no inbox; `/buscar <termo>` procura em títulos e conteúdo (sem diferenciar acentos).
-- `/brain` mostra a árvore de pastas e notas; `/brain <pasta>` (ex.: `recursos` ou `02-areas/Saúde`) lista uma pasta com tamanho e data; `/brain <título ou caminho>` mostra o conteúdo bruto da nota, com o cabeçalho YAML (notas grandes chegam como o próprio `.md`). Só leitura, só `.md`, e nada oculto (`.obsidian`, `.trash`...). Também: `/ver`, `/abrir`.
+- `/brain` mostra a árvore de pastas e notas; `/brain <pasta>` (ex.: `recursos` ou `02-areas/Saúde`) lista uma pasta com tamanho e data; `/brain <título ou caminho>` mostra o conteúdo bruto da nota, com o cabeçalho YAML; conteúdo longo vem paginado, com botões ◀ Anterior / Próxima ▶ que trocam a página na mesma mensagem. Só leitura, só `.md`, e nada oculto (`.obsidian`, `.trash`...). Também: `/ver`, `/abrir`.
 - Toda pesquisa vira uma nota em `03-recursos/` ("Pesquisa - ...") com as fontes, e cada nota criada é registrada no diário do dia.
 - A LLM também pode usar as ações `note_create`, `note_append`, `note_search` e `note_read`.
 - Pasta nova: peça "cria uma pasta de X" e a UVA escolhe o lugar pelo PARA (projetos, áreas, recursos, arquivo), a menos que você diga onde, e cria a pasta com um arquivo `.md` vazio de mesmo nome, tipo um `__init__.py`, para o Obsidian mostrar (ação `folder_create`). Se você der conteúdo, a nota vai dentro dela (`note_create` com `subfolder`). Até 3 níveis; nomes ocultos (`.algo`) e `..` são recusados; pastas existentes não são mexidas.

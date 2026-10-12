@@ -24,7 +24,7 @@ from uva.services import Services
 from uva.audio import TELEGRAM_DOWNLOAD_LIMIT
 from uva.media import to_data_url
 from uva.replies import Reply
-from uva.telegram_io import send_reply
+from uva.telegram_io import keyboard, send_reply
 
 log = get_logger(__name__)
 
@@ -103,10 +103,14 @@ def build_application(settings: Settings, services: Services) -> Application:
         if query is None or query.data is None or query.message is None:
             return
         await query.answer()
-        # Remove the buttons so the question can't be answered twice.
-        await query.edit_message_reply_markup(reply_markup=None)
         user_id = update.effective_user.id if update.effective_user else None
         reply = await router.handle_callback(query.data, user_id=user_id)
+        if reply.edit:
+            # Page navigation: replace the message in place.
+            await query.edit_message_text(reply.text, reply_markup=keyboard(reply))
+            return
+        # Remove the buttons so the question can't be answered twice.
+        await query.edit_message_reply_markup(reply_markup=None)
         await send_reply(context.bot, query.message.chat.id, reply)
 
     # One text handler (commands included) keeps all routing logic in Router.

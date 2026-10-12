@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 
 # Telegram rejects messages longer than this.
 TELEGRAM_TEXT_LIMIT = 4096
+# One page of a paginated reply (room left for the "página X/Y" footer).
+PAGE_CHARS = 3000
+PAGE_LINES = 40
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +29,16 @@ class Reply:
     # When set, each part is sent as its own message (``text`` is all of them
     # joined, for logs and memory). Used for the LLM reply + one per action.
     parts: list[str] = field(default_factory=list)
+    # Long content split into pages: shown one at a time with ◀ ▶ buttons.
+    pages: list[str] = field(default_factory=list)
+    # Replace the message the button was pressed on instead of sending a new one.
+    edit: bool = False
+
+    @classmethod
+    def paginated(cls, text: str, header: str = "") -> Reply:
+        """A reply that becomes pages when it doesn't fit in one message."""
+        pages = paginate(text, header)
+        return cls(text=pages[0] if len(pages) == 1 else text, pages=pages if len(pages) > 1 else [])
 
     @classmethod
     def from_parts(cls, parts: list[str]) -> Reply:
@@ -54,3 +67,26 @@ class Reply:
             filename=self.filename,
             summary=self.summary,
         )
+
+
+def paginate(
+    text: str, header: str = "", max_chars: int = PAGE_CHARS, max_lines: int = PAGE_LINES
+) -> list[str]:
+    """Split on line boundaries; each page repeats ``header`` (if any) at the top."""
+    budget = max_chars - (len(header) + 2 if header else 0)
+    lines: list[str] = []
+    for line in text.splitlines():
+        # A single line longer than a page is hard-wrapped.
+        lines += [line[i : i + budget] for i in range(0, len(line), budget)] or [""]
+
+    pages: list[list[str]] = [[]]
+    size = 0
+    for line in lines:
+        if pages[-1] and (size + len(line) + 1 > budget or len(pages[-1]) >= max_lines):
+            pages.append([])
+            size = 0
+        pages[-1].append(line)
+        size += len(line) + 1
+    chunks = ["\n".join(page).strip("\n") for page in pages]
+    chunks = [c for c in chunks if c.strip()] or [""]
+    return [f"{header}\n\n{chunk}" if header else chunk for chunk in chunks]
