@@ -42,9 +42,11 @@ if settings.proactive_interval_minutes > 0:
     # A wall-clock crontab, not a timedelta from beat's start: beat is recreated on
     # every deploy/boot, and a 60-min timedelta restarted its countdown each time
     # (goals never ran). The loop itself enforces PROACTIVE_INTERVAL_MINUTES.
+    poll = max(1, settings.proactive_poll_minutes)
+    # Offset from the goal tick, so a goal run (which marks the bot busy) starts first.
     app.conf.beat_schedule["initiative-tick"] = {
         "task": "uva.initiative_tick",
-        "schedule": crontab(minute=f"*/{max(1, settings.proactive_poll_minutes)}"),
+        "schedule": crontab(minute=f"{poll // 2}-59/{poll}" if poll > 1 else "*"),
     }
     app.conf.beat_schedule["proactive-tick"] = {
         "task": "uva.proactive_tick",

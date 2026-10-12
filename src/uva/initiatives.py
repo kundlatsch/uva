@@ -77,7 +77,8 @@ para o Gustavo, seu único usuário, no Telegram. Opções:
 - "message": um lembrete, uma pergunta de acompanhamento sobre algo que ele contou ou
   começou (um livro, um projeto, um objetivo) ou uma sugestão útil. Curta.
 - "nothing": se não houver nada que valha a interrupção. Prefira isso a encher o saco.
-Não repita temas das iniciativas recentes. Não invente fatos sobre ele. Responda SOMENTE com
+Não repita temas das iniciativas recentes. Os objetivos ativos já estão sendo trabalhados
+sozinhos: não pergunte nem pesquise o que eles cobrem. Não invente fatos sobre ele. Responda SOMENTE com
 JSON: {"kind": "...", "topic": "...", "message": "...", "reason": "..."}"""
 
 
@@ -103,7 +104,9 @@ async def gate(services: Services, now: datetime) -> str | None:
     if recent and now - recent[0].at < timedelta(minutes=s.proactive_min_gap_minutes):
         return "gap"
     if services.busy is not None and await services.busy.reasons():
-        return "busy"
+        return "busy"  # includes a goal run in progress ("goal:<id>")
+    if services.goals is not None and await services.goals.due(now):
+        return "goal_due"  # goals go first; an initiative would just talk over them
     return None
 
 
@@ -235,7 +238,8 @@ async def describe_status(services: Services, now: datetime | None = None) -> st
     blocked = await gate(services, now)
     reasons = {
         "off": "desligadas", "quiet": "horário de silêncio", "daily_cap": "limite do dia atingido",
-        "gap": "esperando o intervalo mínimo", "busy": "você está conversando", "disabled": "sem LLM",
+        "gap": "esperando o intervalo mínimo", "busy": "você está conversando ou um objetivo está rodando",
+        "goal_due": "um objetivo vai rodar antes", "disabled": "sem LLM",
     }
     lines.append("Próxima iniciativa: " + ("pode sair no próximo ciclo" if blocked is None else reasons.get(blocked, blocked)))
     if services.goals is not None:

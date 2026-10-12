@@ -123,7 +123,7 @@ async def test_nothing_sends_nothing(init_services):
     assert init_services.initiatives.records == []
 
 
-@pytest.mark.parametrize("case", ["off", "quiet", "daily_cap", "gap", "busy"])
+@pytest.mark.parametrize("case", ["off", "quiet", "daily_cap", "gap", "busy", "goal_due"])
 async def test_gates(init_services, case):
     services = init_services
     provider, _ = with_llm(services)
@@ -138,7 +138,9 @@ async def test_gates(init_services, case):
     elif case == "gap":
         services.initiatives.records.append(InitiativeRecord(kind="message", at=NOON - timedelta(minutes=10)))
     elif case == "busy":
-        await services.busy.mark("chat", 60)
+        await services.busy.mark("goal:abc", 60)
+    elif case == "goal_due":
+        await services.goals.add(Goal(title="vencido", next_run_at=NOON - timedelta(minutes=1)))
     assert await initiative_tick(services, now) == (case, None)
     assert provider.calls == []
 
@@ -163,3 +165,10 @@ async def test_proativo_command(init_services):
 
     with_llm(services, decision(kind="message", message="Bom dia, parceiro!"))
     assert (await router.handle_text("/proativo agora")).text == "💬 Bom dia, parceiro!"
+
+
+def test_initiative_tick_is_offset_from_the_goal_tick():
+    from uva.tasks.app import app
+
+    schedule = app.conf.beat_schedule
+    assert schedule["initiative-tick"]["schedule"] != schedule["proactive-tick"]["schedule"]
