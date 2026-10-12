@@ -366,6 +366,17 @@ O serviço `dashboard` publica um painel em **http://localhost:8080**, só neste
 - **Logs**: eventos filtráveis por período, tipo, trace e texto.
 - **Ambiente**: as configurações em uso, somente leitura, com chaves, tokens e senhas mascarados.
 
+## Resposta imediata
+
+Toda entrada recebe algo em menos de 1 segundo (`uva/progress.py`):
+- "digitando…" sai na hora, para texto, foto, áudio, figurinha e botões, e é renovado enquanto o trabalho dura;
+- se a resposta não ficar pronta em 0,7 s, aparece uma frase pronta do tipo da tarefa (`pensando`, `executando`, `procurando`, `pesquisando`, `olhando`, `salvando`, `transcrevendo`...). Ela é sorteada de `data/fallback_phrases.json`, sem repetir as últimas, e essa **mesma mensagem é editada** com o resultado. Se o trabalho muda de fase (por exemplo, a LLM decide ler uma nota), a frase acompanha;
+- quando a LLM decide rodar algo lento (`/uva`, pesquisa sem fila, `decide`...), a resposta dela sai antes, e o resultado vem depois, no lugar de um "⚙️ Rodando…";
+- botões respondem na hora com um aviso curto ("⚙️ Rodando…", "Ok");
+- o chat do painel faz o mesmo, em streaming: "digitando…", depois as frases, depois a resposta.
+
+Para medir o tempo até a primeira resposta em cada caminho: `docker compose exec bot python /repo/scripts/latency.py`.
+
 ## Idioma e formatação
 
 Toda a operação interna é em inglês: prompts de sistema, código, commits, READMEs e notas técnicas. Nada é traduzido. Só o que você lê vem em português, com os termos técnicos em inglês. A personalidade (`data/soul.md`) continua valendo nas respostas.

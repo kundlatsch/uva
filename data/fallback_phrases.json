@@ -189,6 +189,78 @@
       "🎙️ Transcrevendo. Se for fofoca, eu quero saber.",
       "🎙️ Um segundinho, tô passando pra texto.",
       "🎙️ Recebido. Convertendo tua voz em palavras."
+    ],
+    "pensando": [
+      "🤔 Pera, deixa eu pensar nisso.",
+      "🤔 Calma, tô processando.",
+      "🧠 Ligando os neurônios, um segundo.",
+      "🤔 Hmm, boa pergunta. Já te digo.",
+      "🧠 Deixa eu juntar as peças aqui.",
+      "🤔 Segura aí que eu tô raciocinando.",
+      "🧠 Pensando… isso, pensando de verdade.",
+      "🤔 Me dá um instante pra não falar besteira.",
+      "🤔 Um segundo, tô montando a resposta.",
+      "🧠 Engrenagens girando…"
+    ],
+    "executando": [
+      "⚙️ Rodando, já volto com a saída.",
+      "⚙️ Executando… dedos cruzados.",
+      "💻 Mandei rodar. Aguenta aí.",
+      "⚙️ Tá rodando lá na /uva, um segundo.",
+      "💻 Apertei o enter. Vamos ver o que sai.",
+      "⚙️ Processando o comando, sem pânico.",
+      "💻 Rodando aqui, já te mostro.",
+      "⚙️ Deixa a máquina trabalhar um pouco.",
+      "⚙️ Já tá rodando, paciência de monge.",
+      "💻 Comando enviado, esperando a saída."
+    ],
+    "programando": [
+      "🛠️ Bora codar. Te aviso quando terminar.",
+      "🛠️ Arregaçando as mangas pra escrever isso.",
+      "👩‍💻 Abrindo o editor mental… já começo.",
+      "🛠️ Deixa comigo, vou programar isso.",
+      "👩‍💻 Hora de escrever código. Volto já.",
+      "🛠️ Mãos no teclado. Te dou notícia.",
+      "👩‍💻 Vou construir isso, segura a ansiedade.",
+      "🛠️ Começando a obra. Sem capacete, mas vai.",
+      "🛠️ Código saindo do forno em breve.",
+      "👩‍💻 Programando, não me distrai."
+    ],
+    "procurando": [
+      "🔍 Deixa eu olhar nas minhas notas.",
+      "🔍 Procurando aqui no que eu sei.",
+      "📚 Fuçando a memória, um segundo.",
+      "🔍 Revirando o second brain…",
+      "📚 Deixa eu conferir o que tá anotado.",
+      "🔍 Buscando isso nos meus arquivos.",
+      "📚 Abrindo as gavetas da memória.",
+      "🔍 Já acho, tá em algum lugar aqui.",
+      "🔍 Deixa eu ver o que eu tenho sobre isso.",
+      "📚 Consultando meus arquivos, já volto."
+    ],
+    "olhando": [
+      "👀 Deixa eu ver essa imagem.",
+      "👀 Olhando aqui, um segundo.",
+      "🖼️ Analisando a foto…",
+      "👀 Peraí que eu tô olhando com atenção.",
+      "🖼️ Deixa eu dar uma boa olhada nisso.",
+      "👀 Examinando a imagem, já te falo.",
+      "🖼️ Vendo o que tem aí.",
+      "👀 Abrindo os olhos digitais.",
+      "👀 Tô de olho, um instante.",
+      "🖼️ Lendo a imagem com calma."
+    ],
+    "salvando": [
+      "💾 Salvando, um segundo.",
+      "💾 Guardando isso direitinho.",
+      "📝 Anotando…",
+      "💾 Botando isso no lugar certo.",
+      "📝 Registrando aqui.",
+      "💾 Arquivando, já confirmo.",
+      "📝 Escrevendo isso pra não esquecer.",
+      "💾 Guardando, calma.",
+      "💾 Já já tá salvo.",
+      "📝 Botando no papel (digital)."
     ]
   }
 }

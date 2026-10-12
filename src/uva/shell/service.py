@@ -11,6 +11,7 @@ import httpx
 from uva.clock import utcnow
 from uva.config import Settings
 from uva.logging.events import EventType, emit
+from uva.progress import activity
 from uva.replies import Button, Reply
 from uva.shell.guard import python_risks, shell_risks
 
@@ -100,6 +101,7 @@ class ShellService:
         return await self.execute(pending.kind, pending.code, confirmed=pending.reasons)
 
     async def execute(self, kind: str, code: str, confirmed: list[str] | None = None) -> Reply:
+        await activity("executando")
         try:
             result = await self._call("POST", "/run", {"kind": kind, "code": code, "label": code[:200]})
         except ShellUnavailable as exc:

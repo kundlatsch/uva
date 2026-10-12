@@ -18,6 +18,7 @@ from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
 from uva.llm.prompts import assistant_system_prompt
 from uva.memory.service import render_memory
+from uva.progress import activity, placeholder
 from uva.recall import recall
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
@@ -28,6 +29,11 @@ from uva.stm.refs import remember_ref, task_label
 LLM_DISABLED = "(a LLM não está configurada: falta LLM_API_KEY no .env)"
 QUOTA_MARKERS = ("429", "402", "quota", "insufficient", "credit", "billing", "rate limit")
 HISTORY_CHARS = 2000
+# Actions that take a while (sandbox, external APIs): phrase category shown meanwhile.
+SLOW_ACTIONS = {
+    "shell_run": "executando", "python_run": "executando", "decide": "pensando",
+    "search": "pesquisando", "image_save": "salvando", "note_update": "salvando",
+}
 # Extra LLM calls allowed per message to read what lookup actions found.
 MAX_LOOKUP_ROUNDS = 2
 LOOKUP_CHARS = 8000
@@ -102,6 +108,7 @@ class Agent:
                 break
             # Only reading: hand what was found back to the LLM so it answers now,
             # instead of replying "quer que eu abra a nota?".
+            await activity("procurando")
             looked = [await self._run(action, params, ctx) for action, params in calls]
             found_text = "\n\n".join(
                 f"[{action.name} {params.model_dump_json()}]\n{result.text}"
@@ -117,9 +124,16 @@ class Agent:
                 ),
             ]
 
+        # Slow actions: the LLM's own reply goes out first, then the work runs.
+        said = plan.reply
+        slow = [a for a, _ in calls if a.name in SLOW_ACTIONS and not (a.long_running and services.tasks)]
+        if slow:
+            await activity(SLOW_ACTIONS[slow[0].name])
+            if plan.reply.strip() and await placeholder(plan.reply, keep=True):
+                said = ""
         results = [await self._run(action, params, ctx) for action, params in calls]
 
-        parts = reply_parts(plan.reply, results) or [services.say("confirmacao")]
+        parts = reply_parts(said, results) or [services.say("confirmacao")]
         reply = Reply.from_parts(parts)
         reply.buttons = [b for r in results for b in r.buttons]
         self._remember(text, reply.text)

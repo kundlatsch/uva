@@ -60,6 +60,7 @@ button.ghost { font: inherit; border: 1px solid var(--line); background: var(--p
 .msg.user { align-self: flex-end; background: var(--user); }
 .msg.bot { align-self: flex-start; background: var(--bot); }
 .msg.notice { align-self: flex-start; background: var(--notice); }
+.msg.typing { color: var(--muted); font-style: italic; }
 .msg small { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
 .composer { display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .composer textarea { flex: 1; resize: vertical; min-height: 42px; max-height: 200px; }
@@ -120,6 +121,7 @@ details summary { cursor: pointer; font-weight: 600; }
     <div class="card thread">
       <h3>Conversa (a mesma do Telegram, com os avisos)</h3>
       <div class="msgs" id="msgs"></div>
+      <div class="msgs" id="live" hidden style="flex:0 0 auto"></div>
       <div class="last card" id="last" hidden></div>
       <div class="composer">
         <textarea id="input" placeholder="Fala com a UVA… (Enter envia, Shift+Enter quebra linha)"></textarea>
@@ -240,18 +242,51 @@ function showLast(reply) {
   const body = reply.pages && reply.pages.length ? reply.pages.join("\n\n— — —\n\n") : reply.text;
   el.hidden = false;
   el.innerHTML = `<h3>Última resposta (completa)</h3><pre>${esc(body)}</pre>` + (reply.buttons.length ? `<div class="btns">${reply.buttons.filter((b) => !b.data.startsWith("pg:")).map((b) => `<button class="ghost" data-cb="${esc(b.data)}">${esc(b.text)}</button>`).join("")}</div>` : "");
-  el.querySelectorAll("[data-cb]").forEach((b) => b.onclick = () => run(post("/api/callback", {data: b.dataset.cb}), `[botão] ${b.textContent}`));
+  el.querySelectorAll("[data-cb]").forEach((b) => b.onclick = () => streamPost("/api/callback", {data: b.dataset.cb}, `[botão] ${b.textContent}`));
 }
-async function run(promise, label) {
+// Streams NDJSON: instant "digitando…", placeholders as they come, then the final reply.
+async function streamPost(path, body, label) {
   $("#send").disabled = true;
+  const live = $("#live");
+  live.hidden = false;
+  live.innerHTML = '<div class="msg bot typing">digitando…</div>';
+  if (label && !label.startsWith("[botão]")) $("#msgs").insertAdjacentHTML("beforeend", `<div class="msg user">${esc(label)}<small>agora</small></div>`);
+  const bubbles = {};
   try {
-    const r = await promise;
-    runs.unshift({label, ...r, at: new Date().toLocaleTimeString("pt-BR")});
-    renderRuns();
-    showLast(r.reply);
-    await loadConversation();
+    const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    if (!r.ok) throw new Error((await r.text()) || r.status);
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "post") {
+          live.querySelector(".typing")?.remove();
+          live.insertAdjacentHTML("beforeend", `<div class="msg bot" id="live-${ev.id}">${esc(ev.text)}</div>`);
+        } else if (ev.type === "edit") {
+          const el = document.getElementById(`live-${ev.id}`); if (el) el.textContent = ev.text;
+        } else if (ev.type === "final") {
+          runs.unshift({label, ...ev, at: new Date().toLocaleTimeString("pt-BR")});
+          renderRuns();
+          showLast(ev.reply);
+        } else if (ev.type === "error") {
+          throw new Error(ev.error);
+        }
+      }
+    }
   } catch (e) { alert("Erro: " + e.message); }
-  finally { $("#send").disabled = false; }
+  finally {
+    $("#send").disabled = false;
+    live.hidden = true; live.innerHTML = "";
+    lastTurns = ""; await loadConversation();
+  }
 }
 function renderRuns() {
   $("#runs").innerHTML = runs.map((r, i) => `<option value="${i}">${esc(r.at)} · ${esc(r.label.slice(0, 50))}</option>`).join("");
@@ -285,7 +320,7 @@ function send() {
   const text = $("#input").value.trim();
   if (!text) return;
   $("#input").value = "";
-  run(post("/api/chat", {text}), text);
+  streamPost("/api/chat", {text}, text);
 }
 $("#send").onclick = send;
 $("#input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });

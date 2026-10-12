@@ -7,7 +7,9 @@ the shared short-term memory, so both channels see the same conversation.
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import json
 import re
 import secrets
 import time
@@ -18,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, SecretStr
 
 from uva.bootstrap import build_services, setup_storage
@@ -27,6 +29,7 @@ from uva.config import Settings, get_settings
 from uva.llm.client import debug_calls
 from uva.logging import events
 from uva.logging.events import Event, EventQuery, EventType
+from uva.progress import LiveSink, with_feedback
 from uva.replies import Reply
 from uva.router import Router
 from uva.storage import mongo
@@ -90,6 +93,30 @@ def event_json(event: Event, tz) -> dict[str, Any]:
         "trace_id": event.trace_id,
         "data": event.data,
     }
+
+
+class DashboardSink(LiveSink):
+    """Placeholders for the dashboard chat, streamed to the page."""
+
+    def __init__(self, say, queue: asyncio.Queue, activity: str) -> None:
+        super().__init__(say, activity)
+        self.queue = queue
+        self.n = 0
+
+    async def _post(self, text: str):
+        self.n += 1
+        await self.queue.put({"type": "post", "id": self.n, "text": text})
+        return self.n
+
+    async def _edit(self, handle, text: str, buttons=None) -> None:
+        await self.queue.put({"type": "edit", "id": handle, "text": text, "final": True})
+
+    async def _post_reply(self, reply) -> None:
+        pass  # the "final" line carries the whole reply
+
+
+def _reply_kwargs(data: dict[str, Any]) -> dict[str, Any]:
+    return {"text": data["text"]}
 
 
 class ChatIn(BaseModel):
@@ -297,18 +324,48 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
             },
         }
 
+    async def _stream(make_work, activity: str) -> StreamingResponse:
+        """NDJSON: placeholders ("post"/"edit" lines) as they happen, then the
+        "final" line with the reply and its debug data."""
+        s = current()
+        queue: asyncio.Queue = asyncio.Queue()
+        sink = DashboardSink(s.say, queue, activity)
+
+        async def run() -> None:
+            try:
+                result = await _debugged(with_feedback(sink, make_work()))
+                await sink.deliver(Reply(**_reply_kwargs(result["reply"])).messages()[:1])
+                await queue.put({"type": "final", **result})
+            except Exception as exc:
+                await queue.put({"type": "error", "error": repr(exc)[:500]})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(run())
+
+        async def lines():
+            while (item := await queue.get()) is not None:
+                yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
+            await task
+
+        return StreamingResponse(lines(), media_type="application/x-ndjson")
+
     @app.post("/api/chat")
-    async def chat(body: ChatIn) -> dict[str, Any]:
+    async def chat(body: ChatIn) -> StreamingResponse:
         text = body.text.strip()
         if not text:
             raise HTTPException(400, "mensagem vazia")
         router: Router = state["router"]
-        return await _debugged(router.handle_text(text, user_id=settings.allowed_telegram_user_id))
+        user = settings.allowed_telegram_user_id
+        return await _stream(
+            lambda: router.handle_text(text, user_id=user), "executando" if text.startswith("/") else "pensando"
+        )
 
     @app.post("/api/callback")
-    async def callback(body: CallbackIn) -> dict[str, Any]:
+    async def callback(body: CallbackIn) -> StreamingResponse:
         router: Router = state["router"]
-        return await _debugged(router.handle_callback(body.data, user_id=settings.allowed_telegram_user_id))
+        user = settings.allowed_telegram_user_id
+        return await _stream(lambda: router.handle_callback(body.data, user_id=user), "executando")
 
     return app
 

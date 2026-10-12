@@ -21,6 +21,12 @@ def test_secrets_are_masked():
     assert rows["TIMEZONE"]["value"] == "America/Sao_Paulo"
 
 
+def final(response) -> dict:
+    lines = [json.loads(line) for line in response.text.splitlines() if line.strip()]
+    assert lines[-1]["type"] == "final", lines
+    return lines[-1]
+
+
 @pytest.fixture
 def client(services):
     with TestClient(create_app(services=services)) as c:
@@ -36,7 +42,7 @@ def test_page_and_env(client):
 def test_chat_goes_through_the_router_with_debug(client, services):
     plan = {"actions": [], "reply": "Oi, Taguma!"}
     with_llm(services, json.dumps(plan))
-    data = client.post("/api/chat", json={"text": "me conta algo legal sobre você"}).json()
+    data = final(client.post("/api/chat", json={"text": "me conta algo legal sobre você"}))
     assert data["reply"]["text"] == "Oi, Taguma!"
     debug = data["debug"]
     assert [c["purpose"] for c in debug["llm_calls"]] == ["plan"]
@@ -45,8 +51,8 @@ def test_chat_goes_through_the_router_with_debug(client, services):
 
 
 def test_commands_and_buttons_work(client):
-    assert "pong" in client.post("/api/chat", json={"text": "/ping"}).json()["reply"]["text"].lower()
-    expired = client.post("/api/callback", json={"data": "confirm:nope"}).json()
+    assert "pong" in final(client.post("/api/chat", json={"text": "/ping"}))["reply"]["text"].lower()
+    expired = final(client.post("/api/callback", json={"data": "confirm:nope"}))
     assert expired["reply"]["text"]
 
 
@@ -56,3 +62,23 @@ def test_password(services):
         assert c.get("/api/env").status_code == 401
         assert c.get("/api/env", auth=("x", "errada")).status_code == 401
         assert c.get("/api/env", auth=("gustavo", "s3nha")).status_code == 200
+
+
+def test_slow_chat_streams_a_placeholder_first(client, services, monkeypatch):
+    from uva import progress
+
+    monkeypatch.setattr(progress, "PLACEHOLDER_AFTER", 0.01)
+    with_llm(services, json.dumps({"actions": [], "reply": "Demorei, mas cheguei."}))
+    original = services.llm.complete
+
+    async def slow(*args, **kwargs):
+        import asyncio
+
+        await asyncio.sleep(0.1)
+        return await original(*args, **kwargs)
+
+    services.llm.complete = slow
+    lines = [json.loads(x) for x in client.post("/api/chat", json={"text": "fala algo"}).text.splitlines() if x.strip()]
+    assert lines[0]["type"] == "post" and lines[0]["text"]  # a ready-made phrase first
+    assert any(x["type"] == "edit" and x["text"] == "Demorei, mas cheguei." for x in lines)
+    assert lines[-1]["type"] == "final"

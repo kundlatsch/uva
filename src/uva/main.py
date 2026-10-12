@@ -24,9 +24,12 @@ from uva.services import Services
 from uva.audio import TELEGRAM_DOWNLOAD_LIMIT
 from uva.media import to_data_url
 from uva.replies import Reply
-from uva.telegram_io import send_text, keyboard, send_reply
+from uva.telegram_io import keyboard, respond, send_reply, send_text
 
 log = get_logger(__name__)
+
+# Short toast shown the moment a button is pressed.
+BUTTON_ACK = {"confirm": "👍 Bora", "deny": "Ok", "shok": "⚙️ Rodando…", "shno": "Ok, não rodo"}
 
 
 def build_application(settings: Settings, services: Services) -> Application:
@@ -51,18 +54,24 @@ def build_application(settings: Settings, services: Services) -> Application:
         if message is None or message.text is None:
             return
         user_id = update.effective_user.id if update.effective_user else None
-        reply = await router.handle_text(message.text, user_id=user_id)
-        await send_reply(context.bot, message.chat_id, reply)
+        text = message.text
+        await respond(
+            context.bot, message.chat_id, services.say, router.handle_text(text, user_id=user_id),
+            activity="executando" if text.startswith("/") else "pensando",
+        )
 
     async def on_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
         if message is None or not message.photo:
             return
-        file = await message.photo[-1].get_file()  # largest size
-        photo = to_data_url(bytes(await file.download_as_bytearray()))
         user_id = update.effective_user.id if update.effective_user else None
-        reply = await router.handle_photo(photo, message.caption or "", user_id=user_id)
-        await send_reply(context.bot, message.chat_id, reply)
+
+        async def work():
+            file = await message.photo[-1].get_file()  # largest size
+            photo = to_data_url(bytes(await file.download_as_bytearray()))
+            return await router.handle_photo(photo, message.caption or "", user_id=user_id)
+
+        await respond(context.bot, message.chat_id, services.say, work(), activity="olhando")
 
     async def on_image_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Images sent "as file" (no Telegram compression)."""
@@ -74,11 +83,14 @@ def build_application(settings: Settings, services: Services) -> Application:
             text = f"{services.say('erro_generico')}\n(o arquivo passa de 20 MB, o limite do Telegram para bots)"
             await send_reply(context.bot, message.chat_id, Reply(text))
             return
-        file = await document.get_file()
-        photo = to_data_url(bytes(await file.download_as_bytearray()), document.mime_type or "image/jpeg")
         user_id = update.effective_user.id if update.effective_user else None
-        reply = await router.handle_photo(photo, message.caption or "", user_id=user_id)
-        await send_reply(context.bot, message.chat_id, reply)
+
+        async def work():
+            file = await document.get_file()
+            photo = to_data_url(bytes(await file.download_as_bytearray()), document.mime_type or "image/jpeg")
+            return await router.handle_photo(photo, message.caption or "", user_id=user_id)
+
+        await respond(context.bot, message.chat_id, services.say, work(), activity="olhando")
 
     async def on_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
@@ -89,14 +101,16 @@ def build_application(settings: Settings, services: Services) -> Application:
             text = f"{services.say('erro_generico')}\n(o áudio passa de 20 MB, o limite do Telegram para bots)"
             await send_reply(context.bot, message.chat_id, Reply(text))
             return
-        if services.transcriber is not None:
-            # Transcription takes a few seconds: say we're on it.
-            await send_reply(context.bot, message.chat_id, Reply(services.say("transcrevendo")))
-        file = await media.get_file()
-        data = bytes(await file.download_as_bytearray())
         user_id = update.effective_user.id if update.effective_user else None
-        for reply in await router.handle_audio(data, seconds=media.duration, user_id=user_id):
-            await send_reply(context.bot, message.chat_id, reply)
+
+        async def work():
+            file = await media.get_file()
+            data = bytes(await file.download_as_bytearray())
+            return await router.handle_audio(data, seconds=media.duration, user_id=user_id)
+
+        # Download + transcription take a few seconds: say we're on it right away.
+        now = services.say("transcrevendo") if services.transcriber is not None else None
+        await respond(context.bot, message.chat_id, services.say, work(), activity="pensando", now=now)
 
     async def on_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
@@ -104,26 +118,32 @@ def build_application(settings: Settings, services: Services) -> Application:
             return
         sticker = message.sticker
         user_id = update.effective_user.id if update.effective_user else None
-        reply = await router.handle_sticker(
+        work = router.handle_sticker(
             sticker.file_unique_id, file_id=sticker.file_id, emoji=sticker.emoji or "",
             set_name=sticker.set_name or "", user_id=user_id,
         )
-        await send_reply(context.bot, message.chat_id, reply)
+        await respond(context.bot, message.chat_id, services.say, work)
 
     async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
         if query is None or query.data is None or query.message is None:
             return
-        await query.answer()
+        # Answer the button at once (Telegram shows a spinner until then).
+        verb = query.data.split(":", 1)[0]
+        await query.answer(BUTTON_ACK.get(verb))
         user_id = update.effective_user.id if update.effective_user else None
-        reply = await router.handle_callback(query.data, user_id=user_id)
-        if reply.edit:
+        if verb == "pg":
+            reply = await router.handle_callback(query.data, user_id=user_id)
             # Page navigation: replace the message in place.
             await send_text(query.edit_message_text, text=reply.text, reply_markup=keyboard(reply))
             return
         # Remove the buttons so the question can't be answered twice.
         await query.edit_message_reply_markup(reply_markup=None)
-        await send_reply(context.bot, query.message.chat.id, reply)
+        await respond(
+            context.bot, query.message.chat.id, services.say,
+            router.handle_callback(query.data, user_id=user_id),
+            activity="executando" if verb in ("shok", "confirm") else "pensando",
+        )
 
     # One text handler (commands included) keeps all routing logic in Router.
     application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, on_text))
