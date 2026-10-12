@@ -5,8 +5,14 @@ from __future__ import annotations
 import io
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
+from telegram.error import BadRequest
 
 from uva.replies import Reply
+from uva.tgformat import to_html, to_plain
+
+# Telegram's limit applies to the text after the HTML is parsed; the tags we add
+# are short, so a raw text within the limit is safe.
 
 
 def keyboard(reply: Reply) -> InlineKeyboardMarkup | None:
@@ -33,4 +39,14 @@ async def _send_one(bot: Bot, chat_id: int, reply: Reply) -> None:
             reply_markup=markup,
         )
     else:
-        await bot.send_message(chat_id=chat_id, text=reply.text, reply_markup=markup)
+        await send_text(bot.send_message, text=reply.text, reply_markup=markup, chat_id=chat_id)
+
+
+async def send_text(send, *, text: str, **kwargs):
+    """Send/edit with Markdown rendered as Telegram HTML; plain text if rejected."""
+    try:
+        return await send(text=to_html(text), parse_mode=ParseMode.HTML, **kwargs)
+    except BadRequest as exc:
+        if "parse" not in str(exc).lower() and "entit" not in str(exc).lower():
+            raise
+        return await send(text=to_plain(text), **kwargs)

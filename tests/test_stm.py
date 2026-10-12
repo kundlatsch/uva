@@ -151,7 +151,7 @@ async def test_context_block_goes_into_the_prompt(services, stm):
     provider, _ = with_llm(services, json.dumps({"actions": [], "reply": "ok"}))
     await Router(services).handle_text("me lembra o que você fez hoje")
     system = provider.calls[0]["system"]
-    assert "Contexto recente" in system
+    assert "Recent context" in system
     assert "t1 [pesquisa] pesquisa: Fórmula 1 (id abc123" in system and "← em foco" in system
     assert "🎯 Objetivo X rodou" in system
     # The notice is also part of the conversation history sent as messages.

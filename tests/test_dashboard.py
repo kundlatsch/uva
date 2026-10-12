@@ -40,7 +40,7 @@ def test_chat_goes_through_the_router_with_debug(client, services):
     assert data["reply"]["text"] == "Oi, Taguma!"
     debug = data["debug"]
     assert [c["purpose"] for c in debug["llm_calls"]] == ["plan"]
-    assert "Responda SEMPRE e SOMENTE com um objeto JSON" in debug["llm_calls"][0]["system"]
+    assert "ALWAYS answer with ONLY a JSON object" in debug["llm_calls"][0]["system"]
     assert any(e["type"] == "route" and e["data"].get("tier") == "llm" for e in debug["events"])
 
 

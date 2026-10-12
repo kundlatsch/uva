@@ -71,7 +71,7 @@ async def test_question_is_answered_with_recalled_material_in_one_call(mem_servi
     assert reply.text == "Você largou na metade; achou repetitivo, nota 2/5."
     assert len(provider.calls) == 1
     system = provider.calls[0]["system"]
-    assert "Encontrado nos seus sistemas" in system and "crônicas repetitivas" in system
+    assert "Found in your systems" in system and "crônicas repetitivas" in system
 
 
 async def test_lookup_action_is_read_and_answered_in_the_same_turn(mem_services):

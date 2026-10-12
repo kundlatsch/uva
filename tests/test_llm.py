@@ -324,7 +324,7 @@ async def test_send_reply_sends_parts_in_order():
         def __init__(self):
             self.sent = []
 
-        async def send_message(self, chat_id, text, reply_markup=None):
+        async def send_message(self, chat_id, text, reply_markup=None, parse_mode=None):
             self.sent.append((text, reply_markup is not None))
 
     bot = FakeBot()
@@ -332,3 +332,35 @@ async def test_send_reply_sends_parts_in_order():
     reply.buttons = [Button("Sim", "x")]
     await send_reply(bot, 1, reply)
     assert bot.sent == [("primeira", False), ("segunda", True)]
+
+
+def test_markdown_becomes_telegram_html():
+    from uva.tgformat import to_html
+
+    md = "## Resumo\n**Pronto!** Rode `python app.py <arquivo>`:\n- item *um*\n- 2 < 3 & ok\n```bash\npip install x\n```\n[docs](https://x.dev/a_b)"
+    out = to_html(md)
+    assert out.startswith("<b>Resumo</b>\n<b>Pronto!</b> Rode <code>python app.py &lt;arquivo&gt;</code>:")
+    assert "• item <i>um</i>" in out and "• 2 &lt; 3 &amp; ok" in out
+    assert "<pre>pip install x</pre>" in out and '<a href="https://x.dev/a_b">docs</a>' in out
+    # Things that only look like Markdown stay as they are.
+    assert to_html("ls *.py e *.md; snake_case_name") == "ls *.py e *.md; snake_case_name"
+
+
+async def test_rejected_html_falls_back_to_plain_text():
+    from telegram.error import BadRequest
+
+    from uva.replies import Reply
+    from uva.telegram_io import send_reply
+
+    class PickyBot:
+        def __init__(self):
+            self.sent = []
+
+        async def send_message(self, chat_id, text, reply_markup=None, parse_mode=None):
+            if parse_mode:
+                raise BadRequest("Can't parse entities: unsupported start tag")
+            self.sent.append(text)
+
+    bot = PickyBot()
+    await send_reply(bot, 1, Reply("**oi** `x`"))
+    assert bot.sent == ["oi x"]

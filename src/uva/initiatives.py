@@ -70,16 +70,17 @@ class Decision(BaseModel):
     reason: str = Field(default="", description="Por que isso, em uma frase (vai para o log)")
 
 
-SYSTEM = """Você decide se vale a pena mandar AGORA uma mensagem por iniciativa própria
-para o Gustavo, seu único usuário, no Telegram. Opções:
-- "research": pesquisar algo do interesse dele (com base na memória, nas conversas, nas
-  notas e nos objetivos) e mandar um resumo. Escolha temas concretos e variados.
-- "message": um lembrete, uma pergunta de acompanhamento sobre algo que ele contou ou
-  começou (um livro, um projeto, um objetivo) ou uma sugestão útil. Curta.
-- "nothing": se não houver nada que valha a interrupção. Prefira isso a encher o saco.
-Não repita temas das iniciativas recentes. Os objetivos ativos já estão sendo trabalhados
-sozinhos: não pergunte nem pesquise o que eles cobrem. Não invente fatos sobre ele. Responda SOMENTE com
-JSON: {"kind": "...", "topic": "...", "message": "...", "reason": "..."}"""
+SYSTEM = """You decide whether it is worth sending, RIGHT NOW, a message on your own initiative
+to Gustavo, your only user, on Telegram. Options:
+- "research": look up something he is interested in (based on memory, conversations, notes
+  and goals) and send a summary. Pick concrete, varied topics.
+- "message": a reminder, a follow-up question about something he told you or started (a
+  book, a project, a goal) or a useful suggestion. Short.
+- "nothing": if nothing is worth the interruption. Prefer this to being annoying.
+Don't repeat topics of recent initiatives. Active goals are already being worked on by
+themselves: don't ask about or research what they cover. Don't make up facts about him.
+"topic" in English; "message" (what he reads) in Brazilian Portuguese, technical terms in
+English. Answer with ONLY JSON: {"kind": "...", "topic": "...", "message": "...", "reason": "..."}"""
 
 
 async def is_enabled(services: Services) -> bool:

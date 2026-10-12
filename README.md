@@ -274,6 +274,8 @@ A UVA cria projetos de software **novos e separados** dela:
 - `/cancelar <id>`: para um projeto que está na fila ou em construção.
 - `/log 1d projetos`: histórico.
 
+**Só projetos novos.** Pedidos para clonar, baixar ou rodar repositórios de terceiros são recusados, porque esse código rodaria ao lado do token do Claude Code. Isso vai ser papel do `/rodar`, num container sem token. O git do Claude Code também não tem `clone`, `fetch`, `pull`, `submodule` nem `remote`. Ele trabalha em inglês (código, README, commits, sem traduzir nada) e manda um resumo curto em português.
+
 Um projeto por vez. Limites: `PROJECT_TIMEOUT_MINUTES` (30), `PROJECT_MAX_TURNS` (80) e `PROJECT_MAX_BUDGET_USD` (3) por projeto; `PROJECT_DAILY_BUDGET_USD` (10) por dia.
 
 **Credencial.** Ponha **uma** no `.env`: `CLAUDE_CODE_OAUTH_TOKEN` (rode `claude setup-token` no seu PC; usa a sua assinatura do Claude) ou `PROJECTS_ANTHROPIC_API_KEY` (cobrada à parte). Depois, rode `docker compose up -d`.
@@ -363,6 +365,12 @@ O serviço `dashboard` publica um painel em **http://localhost:8080**, só neste
   - cada chamada à LLM, com o prompt de sistema (memória, recall, contexto), as mensagens enviadas, a resposta bruta, os tokens, o custo e o tempo.
 - **Logs**: eventos filtráveis por período, tipo, trace e texto.
 - **Ambiente**: as configurações em uso, somente leitura, com chaves, tokens e senhas mascarados.
+
+## Idioma e formatação
+
+Toda a operação interna é em inglês: prompts de sistema, código, commits, READMEs e notas técnicas. Nada é traduzido. Só o que você lê vem em português, com os termos técnicos em inglês. A personalidade (`data/soul.md`) continua valendo nas respostas.
+
+As respostas chegam no Telegram em HTML (`uva/tgformat.py`). O Markdown comum que vem da LLM e do Claude Code (**negrito**, `código`, blocos, títulos, listas, links) é convertido, e o resto é escapado. Se o Telegram recusar a formatação, a mensagem vai como texto puro.
 
 ## Log e diagnóstico
 

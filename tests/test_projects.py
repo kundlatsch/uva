@@ -193,6 +193,22 @@ def test_claude_runs_with_a_closed_permission_list(services):
     cmd = runner.claude_command(services, "x")
     assert "bypassPermissions" not in cmd and cmd[cmd.index("--permission-mode") + 1] == "dontAsk"
     allowed = cmd[cmd.index("--allowedTools") + 1 : cmd.index("--disallowedTools")]
-    assert "Bash(git *)" in allowed and "Edit(./**)" in allowed
+    assert "Bash(git add *)" in allowed and "Edit(./**)" in allowed
     assert all(not a.startswith("Bash") or a.split("(")[1].split()[0].rstrip(")") in
                {"git", "python", "python3", "pip", "pip3", "node", "npm", "npx", "pytest"} for a in allowed)
+
+
+@pytest.mark.parametrize("text", [
+    "Clonar o projeto https://github.com/soxoj/maigret/tree/main e fazer o setup completo",
+    "git clone de um repo e roda os testes",
+    "baixar o repositório do fulano e rodar",
+])
+async def test_third_party_repos_are_refused(services, proj, text):
+    reply = (await Router(services).handle_text(f"/projeto {text}")).text
+    assert reply.startswith("🚫 Isso é rodar código de terceiros") and "/rodar" in reply and proj == []
+
+
+def test_git_cannot_fetch_code():
+    allowed = runner.ALLOWED_TOOLS
+    assert "Bash(git commit *)" in allowed
+    assert not any(t.startswith(("Bash(git clone", "Bash(git fetch", "Bash(git pull", "Bash(git submodule", "Bash(git remote", "Bash(git *")) for t in allowed)

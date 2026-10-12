@@ -33,6 +33,21 @@ class ProjectError(Exception):
     """A request that can't be accepted (shown to the user as is)."""
 
 
+# Someone else's code: /projeto builds NEW projects only. Running third-party
+# repositories needs a runner without the Claude Code credential (/rodar).
+THIRD_PARTY = re.compile(
+    r"https?://(?:www\.)?(?:github\.com|gitlab\.com|bitbucket\.org|codeberg\.org|sr\.ht)/"
+    r"|\bgit\s+clone\b|\bclon(?:ar|e|a|ando)\b|\b(?:baixar|baixa|rodar|executar)\s+(?:o\s+|esse\s+|este\s+)?(?:repo|repositorio|repositório)\b",
+    re.IGNORECASE,
+)
+THIRD_PARTY_REFUSAL = (
+    "🚫 Isso é rodar código de terceiros, e o /projeto não faz isso: ele roda o Claude Code com "
+    "o seu token, e um repositório alheio rodaria ao lado dele. Para clonar e rodar repositórios "
+    "vai existir o /rodar, num container isolado sem token (ainda espera o seu ok). "
+    "O /projeto é para projetos novos escritos do zero."
+)
+
+
 class ProjectService:
     def __init__(self, store: ProjectStore, settings: Settings, enqueue: Enqueue | None) -> None:
         self.store = store
@@ -67,6 +82,8 @@ class ProjectService:
         if (problem := self.configured()) is not None:
             raise ProjectError(problem)
         description = description.strip()
+        if THIRD_PARTY.search(description):
+            raise ProjectError(THIRD_PARTY_REFUSAL)
         if len(description) < 10:
             raise ProjectError("Descreva o projeto, ex.: /projeto um site estático de receitas com busca")
         recent = await self.store.recent(50)

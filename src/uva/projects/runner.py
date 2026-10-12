@@ -36,20 +36,25 @@ PROMPT = """You are creating a brand-new software project, on your own, in the c
 (an empty git repository whose commit author is already configured). Nobody will answer
 questions: make reasonable decisions and keep going until it works.
 
-Request (from the owner, in Portuguese):
+Request (from the owner; it may be in Portuguese):
 {description}
 
 Guidelines:
+- Work in English: code, comments, README.md, commit messages. Never translate anything.
 - Keep the scope to what was asked; prefer simple, well-known tools.
-- Write a README.md in Portuguese: what it is, how to install, run and test it.
+- Write a README.md: what it is, how to install, run and test it.
 - Add automated tests where it makes sense and run them; fix what fails.
 - Commit your work with git as you go, with clear messages (the author is configured).
 - Everything stays inside this directory. Never print or commit secrets.
-- Your shell is limited to git, python/python3, pip, node, npm, npx and pytest; other
-  commands (ls, cat, mkdir, curl...) are refused: use your file tools instead (Read, Edit,
-  Glob, Grep; writing a file creates its folders).
-- When done, answer with a short summary in Portuguese (até ~12 linhas): what you built,
-  how to run it and the test results."""
+- Write your own code. Never clone, download or run other people's repositories or
+  scripts; installing normal dependencies with pip/npm is fine.
+- Your shell is limited to some git subcommands (init, add, commit, status, diff, log, show,
+  mv, rm, restore, branch, checkout), python/python3, pip, node, npm, npx and pytest; other
+  commands are refused: use your file tools instead (Read, Edit, Glob, Grep; writing a file
+  creates its folders).
+- Final answer: at most 8 short lines in Brazilian Portuguese, technical terms in English:
+  what you built, how to run it, test results. Plain text or simple Markdown (bold, `code`,
+  "- " bullets); no headings, no tables."""
 
 
 @dataclass
@@ -116,7 +121,9 @@ def _as(account) -> dict:
 # In "dontAsk" mode anything else is refused, never asked.
 ALLOWED_TOOLS = (
     "Read(./**)", "Edit(./**)", "Glob", "Grep", "TodoWrite",
-    "Bash(git *)",
+    # git, but nothing that fetches code from elsewhere (clone, fetch, pull, submodule, remote).
+    *(f"Bash(git {sub} *)" for sub in ("init", "add", "commit", "status", "diff", "log", "show", "mv", "rm", "restore", "branch", "checkout")),
+    "Bash(git status)", "Bash(git log)", "Bash(git diff)",
     "Bash(python *)", "Bash(python3 *)", "Bash(pip *)", "Bash(pip3 *)",
     "Bash(node *)", "Bash(npm *)", "Bash(npx *)",
     "Bash(pytest *)", "Bash(pytest)",

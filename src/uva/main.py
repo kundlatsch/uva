@@ -24,7 +24,7 @@ from uva.services import Services
 from uva.audio import TELEGRAM_DOWNLOAD_LIMIT
 from uva.media import to_data_url
 from uva.replies import Reply
-from uva.telegram_io import keyboard, send_reply
+from uva.telegram_io import send_text, keyboard, send_reply
 
 log = get_logger(__name__)
 
@@ -119,7 +119,7 @@ def build_application(settings: Settings, services: Services) -> Application:
         reply = await router.handle_callback(query.data, user_id=user_id)
         if reply.edit:
             # Page navigation: replace the message in place.
-            await query.edit_message_text(reply.text, reply_markup=keyboard(reply))
+            await send_text(query.edit_message_text, text=reply.text, reply_markup=keyboard(reply))
             return
         # Remove the buttons so the question can't be answered twice.
         await query.edit_message_reply_markup(reply_markup=None)
