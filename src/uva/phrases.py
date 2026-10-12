@@ -39,6 +39,7 @@ BUILTIN: dict[str, str] = {
     "sem_resultado": "Não encontrei nada.",
     "erro_generico": "Algo deu errado do meu lado. O erro foi registrado.",
     "transcrevendo": "🎙️ Transcrevendo o áudio…",
+    "comando_desconhecido": "/{comando} não existe. Envie /help para ver a lista.",
     "pensando": "🤔 Pensando…",
     "executando": "⚙️ Rodando…",
     "programando": "🛠️ Programando…",

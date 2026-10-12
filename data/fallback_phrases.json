@@ -42,8 +42,7 @@
       "Mensagem misteriosa recebida. Decifra pra mim?",
       "Não sei o que você quer com isso. Me dá uma pista.",
       "Travei aqui. Reformula que eu tento de novo.",
-      "Entendi foi nada. Mas com carinho.",
-      "Isso aí não é comando que eu conheça. /help tem a lista."
+      "Entendi foi nada. Mas com carinho."
     ],
     "ocupado": [
       "Calma, já tô fazendo uma coisa. Uma de cada vez, porra.",
@@ -261,6 +260,18 @@
       "💾 Guardando, calma.",
       "💾 Já já tá salvo.",
       "📝 Botando no papel (digital)."
+    ],
+    "comando_desconhecido": [
+      "/{comando}? Esse comando eu não conheço. /help tem a lista.",
+      "Não tenho nenhum /{comando}, parceiro. Dá uma olhada no /help.",
+      "/{comando} não existe (ainda). Os que existem estão no /help.",
+      "Hã, /{comando}? Inventou agora? Manda /help pra ver os de verdade.",
+      "Esse /{comando} não é meu. O cardápio completo tá no /help.",
+      "/{comando}: comando desconhecido. /help mostra o que eu sei fazer.",
+      "Procurei /{comando} aqui e nada. Tenta o /help.",
+      "/{comando} não rola, não conheço. Lista no /help.",
+      "Nunca nem vi esse /{comando}. Vai de /help.",
+      "Comando /{comando} não encontrado. Se quiser que exista, pede com /feature."
     ]
   }
 }

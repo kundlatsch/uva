@@ -31,7 +31,6 @@ from uva.audio import TranscriptionError
 from uva.llm.budget import Scope
 from uva.stm.status import refresh, status_reply
 
-UNKNOWN_COMMAND = "/{name} não existe. Envie /help para ver a lista."
 CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
 
 CONFIRM_TTL = timedelta(minutes=10)
@@ -377,7 +376,7 @@ class Router:
         command = self.registry.get(name)
         if command is None:
             await emit(EventType.ROUTE, tier="unknown_command", command=name)
-            text = f"{self.services.say('nao_entendi')}\n{UNKNOWN_COMMAND.format(name=name)}"
+            text = self.services.say("comando_desconhecido", comando=name)
             return Reply(text)
 
         await emit(EventType.ROUTE, tier="command", command=command.name, invoked_as=name)

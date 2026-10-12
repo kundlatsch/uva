@@ -37,8 +37,10 @@ async def test_help_lists_every_command(router):
         assert cmd.description in text
 
 
-async def test_unknown_command(router):
-    assert "/nope não existe" in await text_of(router, "/nope")
+async def test_unknown_command_gets_one_message(router):
+    text = await text_of(router, "/nope")
+    assert "/nope" in text and "\n" not in text  # one phrase, not phrase + fixed text
+    assert text in [p.replace("{comando}", "nope") for p in router.services.phrases.categories["comando_desconhecido"]]
 
 
 async def test_free_text_falls_back(router):
