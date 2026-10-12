@@ -75,6 +75,10 @@ def register(registry: ActionRegistry) -> None:
         if error:
             return error
         services = ctx.services
+        if ref.tipo == "projeto" and services.projects is not None:
+            if await services.projects.cancel(ref.id) is None:
+                return ActionResult(text=f"{ref.rotulo} já tinha terminado.")
+            return ActionResult(text=f"🛑 Parando {ref.rotulo}. Te aviso quando parar.")
         if ref.tipo not in ("tarefa", "pesquisa") or services.tasks is None:
             return ActionResult(text=f"Não dá para cancelar {ref.tipo}.")
         if not await services.tasks.cancel(ref.id):

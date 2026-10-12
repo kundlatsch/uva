@@ -16,6 +16,7 @@ from uva.logging.events import EventType, emit, trace
 from uva.phrases import Phrases
 from uva.replies import Reply
 from uva.selfmod.reload import request_reload
+from uva.projects.runner import build_project
 from uva.selfmod.selfcode import build_feature
 from uva.stm.promote import promote_idle_sessions
 from uva.tasks import runtime
@@ -112,6 +113,23 @@ def selfcode(feature_id: str) -> str:
         return runtime.run(job)
     except Exception as exc:
         _notify_failure(f"O auto-código da feature {feature_id}", exc)
+        raise
+
+
+@app.task(
+    name="uva.project_build",
+    time_limit=(settings.project_timeout_minutes + 5) * 60,
+    soft_time_limit=(settings.project_timeout_minutes + 4) * 60,
+)
+def project_build(project_id: str) -> str:
+    async def job() -> str:
+        record = await build_project(await runtime.get_services(), project_id, runtime.notify)
+        return record.status.value if record else "missing"
+
+    try:
+        return runtime.run(job)
+    except Exception as exc:
+        _notify_failure(f"O projeto {project_id}", exc)
         raise
 
 

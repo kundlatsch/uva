@@ -26,12 +26,15 @@ def register(registry: CommandRegistry) -> None:
 
     @registry.command("cancelar", "Cancela uma tarefa", aliases=("cancel",), usage="<id>")
     async def cancel(ctx: CommandContext) -> str:
+        if len(ctx.args) != 1:
+            return "Uso: /cancelar <id> (veja os ids em /tarefas ou /projetos)"
+        task_id = ctx.args[0]
+        projects = ctx.services.projects
+        if projects is not None and (project := await projects.cancel(task_id)) is not None:
+            return f"🛑 Parando o projeto {project.slug} ({task_id}). Te aviso quando parar."
         queue = ctx.services.tasks
         if queue is None:
             return "Tarefas em segundo plano não estão configuradas (Redis)."
-        if len(ctx.args) != 1:
-            return "Uso: /cancelar <id> (veja os ids em /tarefas)"
-        task_id = ctx.args[0]
         if await queue.cancel(task_id):
             return f"{ctx.services.say('cancelado', id=task_id)}\n(tarefa {task_id} cancelada)"
         return f"Não achei a tarefa {task_id} em andamento (/tarefas)."

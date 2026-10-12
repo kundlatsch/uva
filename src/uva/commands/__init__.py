@@ -17,6 +17,7 @@ from uva.commands import (
     memory,
     phrases,
     proactive,
+    projects,
     revert,
     soul,
     status,
@@ -43,6 +44,7 @@ _MODULES = (
     phrases,
     revert,
     features,
+    projects,
     tasks,
     catalog,
 )

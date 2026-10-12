@@ -24,6 +24,8 @@ app.conf.update(
     task_soft_time_limit=max(30, settings.task_time_limit_seconds - 30),
     broker_connection_retry_on_startup=True,
     worker_hijack_root_logger=False,
+    # /projeto runs Claude Code in its own worker (container "projects").
+    task_routes={"uva.project_build": {"queue": "projects"}},
 )
 
 # Periodic jobs.

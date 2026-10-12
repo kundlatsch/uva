@@ -154,6 +154,23 @@ class Settings(BaseSettings):
     selfcode_test_timeout_seconds: int = 300
     selfcode_time_limit_seconds: int = 1800
 
+    # Projects (/projeto): NEW projects, outside this repository, built by Claude Code
+    # in the "projects" worker. The folder is mounted there at projects_path; the host
+    # path is only shown in messages.
+    projects_enabled: bool = True
+    projects_path: str = "/data/projects"
+    projects_host_path: str = "../uva-projects"
+    # Claude Code credential (one of them): `claude setup-token` or an API key.
+    claude_code_oauth_token: SecretStr | None = None
+    projects_anthropic_api_key: SecretStr | None = None
+    project_claude_bin: str = "claude"
+    project_claude_model: str = ""
+    project_run_as_user: str = "builder"
+    project_timeout_minutes: int = 30
+    project_max_turns: int = 80
+    project_max_budget_usd: float = 3.0
+    project_daily_budget_usd: float = 10.0
+
     # Author of the commits the bot makes in its own repository.
     git_author_name: str = "kundlatsch"
     git_author_email: str = "gustavo.kundlatsch@gmail.com"

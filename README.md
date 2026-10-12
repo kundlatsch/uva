@@ -265,6 +265,23 @@ Peça com `/feature <descrição>` (ex.: `/feature /dado rola um dado de 6 lados
 - Plugins também podem ser escritos à mão: crie o arquivo em `src/uva/plugins/`, os testes em `tests/plugins/` e reinicie o bot (ou use `/reverter`/`/feature` para disparar um reload). Eles aparecem como `[plugin]` em `/comandos`.
 - Requer o repositório na branch `main`; mudanças suas ainda não commitadas não entram no clone.
 
+## Projetos novos com o Claude Code (/projeto)
+
+A UVA cria projetos de software **novos e separados** dela:
+
+- `/projeto <descrição>` (ou "cria um projeto novo de ..." em linguagem natural): cria a pasta `PROJECTS_HOST_PATH/<nome>` (padrão `../uva-projects`, ao lado deste repositório), faz `git init` com o autor `GIT_AUTHOR_NAME <GIT_AUTHOR_EMAIL>` e roda o Claude Code sem interação (`claude -p`). Ele escreve o código, o README e os testes, roda os testes e faz commits. No fim, a UVA manda no Telegram o resumo, o caminho, o custo, os turnos e os commits, ou o motivo da falha.
+- `/projetos`: lista com o status (na fila, construindo, pronto, falhou, cancelado).
+- `/cancelar <id>`: para um projeto que está na fila ou em construção.
+- `/log 1d projetos`: histórico.
+
+Um projeto por vez. Limites: `PROJECT_TIMEOUT_MINUTES` (30), `PROJECT_MAX_TURNS` (80) e `PROJECT_MAX_BUDGET_USD` (3) por projeto; `PROJECT_DAILY_BUDGET_USD` (10) por dia.
+
+**Credencial.** Ponha **uma** no `.env`: `CLAUDE_CODE_OAUTH_TOKEN` (rode `claude setup-token` no seu PC; usa a sua assinatura do Claude) ou `PROJECTS_ANTHROPIC_API_KEY` (cobrada à parte). Depois, rode `docker compose up -d`.
+
+**Permissões (lista fechada).** O Claude Code roda no modo `dontAsk` com `--allowedTools`. Ele pode ler e editar arquivos só dentro da pasta do projeto (`./**`), mas não a pasta `.claude` dele. No shell, só pode rodar `git`, `python`/`python3`, `pip`, `node`, `npm`, `npx` e `pytest`. Qualquer outra coisa é recusada, sem pergunta. Nunca roda com permissão total.
+
+**Isolamento.** Tudo roda no container `projects`, que monta **só** a pasta de projetos: nada do repositório da UVA nem do second brain. O Claude Code roda como o usuário sem privilégios `builder`, com um ambiente limpo (só a credencial dele e o autor do git), então não lê os tokens do bot. Atenção: python e node, que estão na lista, executam código, e o container alcança a rede interna (Mongo e Redis, sem senha). Peça projetos, não tarefas sobre a infraestrutura.
+
 ## Áudio
 
 Mande um áudio (mensagem de voz, arquivo de áudio ou vídeo redondo) e a UVA transcreve com a OpenAI (`TRANSCRIBE_MODEL`, padrão `gpt-4o-mini-transcribe`, com `whisper-1` de reserva), responde "🎙️ entendi: ..." e trata o texto **exatamente como se você tivesse digitado**: comandos, similaridade e LLM.
@@ -311,7 +328,7 @@ Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, açã
 
 - `/log` — última hora, uma linha por mensagem mostrando o caminho que ela fez
 - `/log 30m`, `/log 6h`, `/log 2d`, `/log hoje`, `/log ontem` — outros períodos
-- `/log 1d llm` — filtra por tipo: `llm`, `goals`, `erros`, `tarefas`, `memoria`, `acoes`
+- `/log 1d llm` — filtra por tipo: `llm`, `goals`, `iniciativas`, `projetos`, `erros`, `tarefas`, `memoria`, `acoes`
 - `/log trace <id>` — todos os eventos de uma mensagem, com os dados completos
 - `/status` — serviços no ar, uptime, fila e gastos
 

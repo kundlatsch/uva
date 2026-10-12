@@ -21,6 +21,7 @@ from uva.memory.service import MemoryService
 from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
+from uva.projects.service import ProjectService
 from uva.selfmod.features import FeatureService
 from uva.selfmod.files import FileAccess
 from uva.selfmod.git import GitRepo
@@ -79,6 +80,8 @@ def build_services(settings: Settings) -> Services:
     services.files = FileAccess(repo_dir, services.vault.root, services.repo)
     feature_store = mongo.MongoFeatureStore(db)
     services.features = FeatureService(feature_store, _enqueue_selfcode)
+    project_store = mongo.MongoProjectStore(db)
+    services.projects = ProjectService(project_store, settings, _enqueue_project)
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
@@ -92,6 +95,7 @@ def build_services(settings: Settings) -> Services:
             goal_store.setup,
             initiative_store.setup,
             feature_store.setup,
+            project_store.setup,
             # "At startup": compute the working memory once.
             services.memory.recompute_working_set,
             lambda: _setup_vault(services.vault),
@@ -106,6 +110,15 @@ async def _enqueue_selfcode(feature_id: str) -> None:
 
     await asyncio.to_thread(
         app.send_task, "uva.selfcode", kwargs={"feature_id": feature_id}, task_id=f"selfcode-{feature_id}"
+    )
+
+
+async def _enqueue_project(project_id: str) -> None:
+    from uva.tasks.app import app
+
+    await asyncio.to_thread(
+        app.send_task, "uva.project_build", kwargs={"project_id": project_id},
+        task_id=f"project-{project_id}", queue="projects",
     )
 
 

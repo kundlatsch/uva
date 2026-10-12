@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from uva.llm.client import LLMClient
     from uva.llm.decisions import DecisionsClient
     from uva.memory.service import MemoryService
+    from uva.projects.service import ProjectService
     from uva.selfmod.features import FeatureService
     from uva.selfmod.files import FileAccess
     from uva.selfmod.git import GitRepo
@@ -59,6 +60,7 @@ class Services:
     repo: GitRepo | None = None
     files: FileAccess | None = None
     features: FeatureService | None = None
+    projects: ProjectService | None = None
     stm: ShortTermMemory | None = None
     decisions: DecisionsClient | None = None
     transcriber: Transcriber | None = None

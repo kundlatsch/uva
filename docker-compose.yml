@@ -2,7 +2,9 @@ name: uva
 
 # Shared by bot, worker and beat: same image, same configuration.
 x-app: &app
-  build: .
+  build:
+    context: .
+    target: app
   image: uva-bot:latest
   env_file: .env
   environment:
@@ -37,6 +39,26 @@ services:
     <<: *app
     # Schedule state lives in /tmp: the schedule itself is defined in code.
     command: celery -A uva.tasks.app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
+
+  # /projeto: Claude Code creating NEW projects. Only the projects folder is
+  # mounted (never this repository or the second brain); see Dockerfile.
+  projects:
+    build:
+      context: .
+      target: projects
+    image: uva-projects:latest
+    env_file: .env
+    environment:
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/uva}
+      REDIS_URL: redis://redis:6379/0
+      PROJECTS_PATH: /data/projects
+    volumes:
+      # Default: a "uva-projects" folder next to this repository.
+      - ${PROJECTS_HOST_PATH:-../uva-projects}:/data/projects
+    depends_on:
+      - mongo
+      - redis
+    restart: unless-stopped
 
   mongo:
     image: mongo:7

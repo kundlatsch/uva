@@ -41,6 +41,7 @@ class EventType(StrEnum):
     BUDGET = "budget"
     SELF_EDIT = "self_edit"  # the bot changed one of its own files
     SELFCODE = "selfcode"  # the bot wrote/merged/reverted its own code
+    PROJECT = "project"  # a new project built by Claude Code (/projeto)
     REPLY = "reply"
     ERROR = "error"
 

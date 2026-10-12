@@ -13,6 +13,7 @@ from uva.llm.budget import Scope, UsageRecord
 from uva.goals.store import Goal, GoalKind, GoalStatus, pick_due
 from uva.logging.events import Event, EventQuery
 from uva.memory.store import MemoryItem
+from uva.projects.store import ProjectRecord, ProjectStatus
 from uva.selfmod.features import FeatureRecord, FeatureStatus
 from uva.tasks.queue import TaskRecord, TaskStatus
 
@@ -312,3 +313,34 @@ class MongoInitiativeStore:
 
     async def set_enabled(self, enabled: bool) -> None:
         await self.flags.replace_one({"_id": self.FLAG_ID}, {"enabled": enabled}, upsert=True)
+
+
+class MongoProjectStore:
+    """Collection ``projects``: every /projeto and how it went."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["projects"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index("id", unique=True)
+
+    async def add(self, record: ProjectRecord) -> None:
+        doc = record.model_dump()
+        doc["status"] = record.status.value
+        await self.collection.insert_one(doc)
+
+    async def get(self, project_id: str) -> ProjectRecord | None:
+        doc = await self.collection.find_one({"id": project_id}, {"_id": False})
+        return ProjectRecord.model_validate(doc) if doc else None
+
+    async def update(self, project_id: str, **fields: Any) -> None:
+        clean = {k: (v.value if isinstance(v, ProjectStatus) else v) for k, v in fields.items()}
+        await self.collection.update_one({"id": project_id}, {"$set": clean})
+
+    async def recent(self, limit: int) -> list[ProjectRecord]:
+        cursor = self.collection.find({}, {"_id": False}).sort("created_at", DESCENDING).limit(limit)
+        return [ProjectRecord.model_validate(d) async for d in cursor]
+
+    async def cost_since(self, since: datetime) -> float:
+        cursor = self.collection.find({"created_at": {"$gte": since}}, {"cost_usd": True})
+        return sum(float(d.get("cost_usd") or 0) async for d in cursor)
