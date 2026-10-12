@@ -38,6 +38,7 @@ class ActionContext:
 class ActionResult:
     text: str = ""  # appended to the reply sent to the user
     data: dict[str, Any] = field(default_factory=dict)  # logged / fed back to the LLM
+    buttons: list[Any] = field(default_factory=list)  # e.g. a confirmation (replies.Button)
 
 
 ActionHandler = Callable[[Any, ActionContext], Awaitable[ActionResult]]

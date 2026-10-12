@@ -22,6 +22,7 @@ from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
 from uva.projects.service import ProjectService
+from uva.shell.service import ShellService
 from uva.selfmod.features import FeatureService
 from uva.selfmod.files import FileAccess
 from uva.selfmod.git import GitRepo
@@ -82,6 +83,7 @@ def build_services(settings: Settings) -> Services:
     services.features = FeatureService(feature_store, _enqueue_selfcode)
     project_store = mongo.MongoProjectStore(db)
     services.projects = ProjectService(project_store, settings, _enqueue_project)
+    services.shell = ShellService(settings)
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)

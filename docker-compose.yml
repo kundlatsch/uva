@@ -30,9 +30,11 @@ x-app: &app
 services:
   bot:
     <<: *app
+    networks: [default, shellnet]
 
   worker:
     <<: *app
+    networks: [default, shellnet]
     command: celery -A uva.tasks.app worker --loglevel=INFO --concurrency=2
 
   beat:
@@ -60,6 +62,46 @@ services:
       - redis
     restart: unless-stopped
 
+  # /sh and /py: the bot's own folder /uva. Real isolation, not a prompt rule:
+  # no .env, no repository/brain/projects, read-only root filesystem, no
+  # capabilities for the commands (they run as the unprivileged "uva" user),
+  # CPU/memory/process limits, and a network of its own ("shellnet" is internal:
+  # only the bot and the worker reach it; "shell-internet" is for pip/curl and
+  # can be cut with SHELL_NO_INTERNET=true).
+  shell:
+    build:
+      context: .
+      target: shell
+    image: uva-shell:latest
+    environment:
+      SHELL_TIMEOUT_SECONDS: ${SHELL_TIMEOUT_SECONDS:-60}
+    volumes:
+      - uva-home:/uva
+      - uva-snapshots:/snapshots
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      # Only the executor (root) uses these: to start commands as "uva", snapshot
+      # and restore /uva, and stop runaway commands.
+      - SETUID
+      - SETGID
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${SHELL_MEMORY:-1g}
+    cpus: ${SHELL_CPUS:-1}
+    pids_limit: 256
+    networks:
+      - shellnet
+      - shell-internet
+    restart: unless-stopped
+
   mongo:
     image: mongo:7
     volumes:
@@ -74,7 +116,16 @@ services:
       - redis-data:/data
     restart: unless-stopped
 
+networks:
+  default: {}
+  shellnet:
+    internal: true
+  shell-internet:
+    internal: ${SHELL_NO_INTERNET:-false}
+
 volumes:
+  uva-home:
+  uva-snapshots:
   mongo-data:
   redis-data:
   sqlite-data:

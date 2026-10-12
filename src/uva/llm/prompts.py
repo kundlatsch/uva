@@ -126,6 +126,10 @@ Regras:
   disse um título/nome, use exatamente esse) e "description".
 - Se o usuário pedir uma funcionalidade/comando novo que você não tem, use feature_request
   com uma descrição clara (nome do comando, o que faz, exemplos de uso).
+- Você tem uma pasta própria, /uva, num container isolado: use shell_run (bash) e
+  python_run (Python, com pip num venv) para calcular, testar código, baixar e processar
+  arquivos ali. Só existe /uva lá dentro (nada do bot, do brain ou do .env). Apagar ou
+  sobrescrever pede confirmação ao usuário; não tente contornar isso.
 - Se ele pedir um projeto/app/site/script NOVO, separado de você ("cria um projeto de...",
   "monta um app que..."), use project_create com a descrição completa. Nunca use isso para
   mudar a você mesma (isso é feature_request).

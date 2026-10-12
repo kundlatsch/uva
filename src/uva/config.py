@@ -173,6 +173,11 @@ class Settings(BaseSettings):
     project_max_budget_usd: float = 3.0
     project_daily_budget_usd: float = 10.0
 
+    # /sh and /py: the bot's own folder /uva, in the isolated "shell" container.
+    shell_enabled: bool = True
+    shell_url: str = "http://shell:8700"
+    shell_timeout_seconds: int = 60
+
     # Author of the commits the bot makes in its own repository.
     git_author_name: str = "kundlatsch"
     git_author_email: str = "gustavo.kundlatsch@gmail.com"

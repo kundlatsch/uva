@@ -19,6 +19,8 @@ class CommandContext:
     args: list[str]
     services: Services
     user_id: int | None = None
+    # Everything after the command name, as typed (newlines kept), e.g. for /py.
+    raw_args: str = ""
 
     @property
     def registry(self) -> CommandRegistry:

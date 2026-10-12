@@ -218,6 +218,11 @@ class Router:
         if verb == "pg":
             token, _, index = token.partition(":")
             return self._page(token, int(index) if index.isdigit() else 0)
+        if verb in ("shok", "shno") and self.services.shell is not None:
+            await emit(EventType.MESSAGE_RECEIVED, text=f"[botão] {verb}", kind="callback")
+            reply = await self._safely(self.services.shell.resolve(verb, token))
+            await self._remember(f"[botão] {verb}", reply)
+            return self._first_page(reply)
         pending = self._pending.pop(token, None)
         with trace(pending.trace_id if pending else None):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[botão] {verb}", kind="callback")
@@ -298,7 +303,8 @@ class Router:
             return Reply(text)
 
         await emit(EventType.ROUTE, tier="command", command=command.name, invoked_as=name)
-        return await self.run_command(command.name, args, user_id)
+        raw = text.strip()[len(head):].strip()
+        return await self.run_command(command.name, args, user_id, raw_args=raw)
 
     async def _try_similarity(self, text: str, user_id: int | None) -> Reply | None:
         settings = self.services.settings
@@ -355,12 +361,15 @@ class Router:
     async def _run_command_for_llm(self, name: str, args: list[str]) -> Reply:
         return await self.run_command(name, args, self.services.settings.allowed_telegram_user_id)
 
-    async def run_command(self, name: str, args: list[str], user_id: int | None) -> Reply:
+    async def run_command(
+        self, name: str, args: list[str], user_id: int | None, raw_args: str | None = None
+    ) -> Reply:
         command = self.registry.get(name)
         if command is None:
             raise KeyError(name)
         await emit(EventType.COMMAND, name=command.name, args=args)
-        ctx = CommandContext(args=args, services=self.services, user_id=user_id)
+        raw = " ".join(args) if raw_args is None else raw_args
+        ctx = CommandContext(args=args, services=self.services, user_id=user_id, raw_args=raw)
         reply = Reply.coerce(await command.handler(ctx))
         if reply.summary is None:
             first_line = reply.text.strip().splitlines()[0] if reply.text.strip() else ""

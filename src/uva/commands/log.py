@@ -26,6 +26,7 @@ FILTERS: dict[str, set[EventType]] = {
     "objetivos": {EventType.GOAL_RUN},
     "iniciativas": {EventType.INITIATIVE},
     "projetos": {EventType.PROJECT},
+    "shell": {EventType.SHELL},
     "erros": {EventType.ERROR},
     "errors": {EventType.ERROR},
     "tarefas": {EventType.TASK_ENQUEUED, EventType.TASK_FINISHED},

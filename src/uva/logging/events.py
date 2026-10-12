@@ -42,6 +42,7 @@ class EventType(StrEnum):
     SELF_EDIT = "self_edit"  # the bot changed one of its own files
     SELFCODE = "selfcode"  # the bot wrote/merged/reverted its own code
     PROJECT = "project"  # a new project built by Claude Code (/projeto)
+    SHELL = "shell"  # a command/Python run in /uva (/sh, /py)
     REPLY = "reply"
     ERROR = "error"
 

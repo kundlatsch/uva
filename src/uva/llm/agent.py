@@ -121,6 +121,7 @@ class Agent:
 
         parts = reply_parts(plan.reply, results) or [services.say("confirmacao")]
         reply = Reply.from_parts(parts)
+        reply.buttons = [b for r in results for b in r.buttons]
         self._remember(text, reply.text)
         return reply
 

@@ -40,6 +40,19 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 CMD ["celery", "-A", "uva.tasks.app", "worker", "-Q", "projects", "--concurrency=1", "--hostname=projects@%h", "--loglevel=INFO"]
 
 
+# /sh and /py: the bot's own folder /uva. Only /uva and /snapshots are mounted
+# (no .env, repository, second brain or projects); see docker-compose.yml for the
+# read-only filesystem, dropped capabilities and resource limits. The executor
+# starts as root just to run every command as the unprivileged "uva" user.
+FROM base AS shell
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates unzip jq procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --home-dir /uva --no-create-home --uid 10020 --shell /bin/bash uva \
+    && mkdir -p /uva /snapshots
+CMD ["python", "-m", "uva.shell.executor"]
+
+
 FROM base AS app
 # Run as an unprivileged user. /data holds the volumes (SQLite, second brain);
 # owning it in the image makes new named volumes writable by that user.

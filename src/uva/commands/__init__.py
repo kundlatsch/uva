@@ -19,6 +19,7 @@ from uva.commands import (
     proactive,
     projects,
     revert,
+    shell,
     soul,
     status,
     tasks,
@@ -45,6 +46,7 @@ _MODULES = (
     revert,
     features,
     projects,
+    shell,
     tasks,
     catalog,
 )

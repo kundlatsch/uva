@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from uva.llm.decisions import DecisionsClient
     from uva.memory.service import MemoryService
     from uva.projects.service import ProjectService
+    from uva.shell.service import ShellService
     from uva.selfmod.features import FeatureService
     from uva.selfmod.files import FileAccess
     from uva.selfmod.git import GitRepo
@@ -61,6 +62,7 @@ class Services:
     files: FileAccess | None = None
     features: FeatureService | None = None
     projects: ProjectService | None = None
+    shell: ShellService | None = None
     stm: ShortTermMemory | None = None
     decisions: DecisionsClient | None = None
     transcriber: Transcriber | None = None

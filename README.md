@@ -282,6 +282,24 @@ Um projeto por vez. Limites: `PROJECT_TIMEOUT_MINUTES` (30), `PROJECT_MAX_TURNS`
 
 **Isolamento.** Tudo roda no container `projects`, que monta **só** a pasta de projetos: nada do repositório da UVA nem do second brain. O Claude Code roda como o usuário sem privilégios `builder`, com um ambiente limpo (só a credencial dele e o autor do git), então não lê os tokens do bot. Atenção: python e node, que estão na lista, executam código, e o container alcança a rede interna (Mongo e Redis, sem senha). Peça projetos, não tarefas sobre a infraestrutura.
 
+## A pasta da UVA: /uva (/sh e /py)
+
+A UVA tem uma pasta só dela, `/uva`, onde roda comandos Linux e Python livremente. Ela usa isso sozinha, com as ações `shell_run` e `python_run` ("calcula isso", "baixa e conta as linhas desse CSV"), e você também pode usar direto:
+
+- `/sh <comando>`: roda no bash dentro de `/uva` e devolve a saída, paginada se for longa.
+- `/py <código>`: roda Python 3 (pode ter várias linhas). Os pacotes vão para um venv em `/uva/.venv`: `/sh pip install requests`.
+- `/sh desfazer`: volta `/uva` para como estava antes do último comando que mudou arquivos. Repita para voltar mais.
+- `/sh historico`: lista os snapshots. `/log 1d shell` mostra o histórico.
+
+**Apagar pede permissão.** Comandos que apagam ou sobrescrevem arquivos (`rm`, `rmdir`, `mv`, `truncate`, `find -delete`, `git clean`, `sed -i`, `>` ou `cp` em cima de um arquivo que já existe; em Python, `os.remove`, `shutil.rmtree`, `open(..., "w")`...) só rodam depois de você tocar em **Sim, rodar** no Telegram. Isso vale também quando é a LLM que pede. Como nenhuma detecção é perfeita, todo comando que muda algo deixa antes um snapshot de `/uva` (git, guardado fora do alcance do comando), e `/sh desfazer` restaura. Ficam de fora dos snapshots `.venv`, `.cache` e `node_modules`.
+
+**Isolamento de verdade, não só regra no prompt.** O container `shell` funciona assim:
+- monta só os volumes `/uva` e `/snapshots`, sem `.env`, repositório, brain, projetos ou `docker.sock`;
+- o sistema de arquivos é somente leitura (só `/uva` e `/tmp` aceitam escrita);
+- todo comando roda como o usuário `uva`, sem sudo e sem nenhuma capability (`no-new-privileges`). Ele não lê o ambiente do processo principal nem os snapshots;
+- limites: `SHELL_MEMORY` (1g), `SHELL_CPUS` (1), 256 processos e `SHELL_TIMEOUT_SECONDS` (60 s) por comando;
+- rede: fica numa rede interna (`shellnet`) que só o bot e o worker alcançam, então não chega no Mongo nem no Redis. Tem internet para pip e curl, que dá para cortar com `SHELL_NO_INTERNET=true`.
+
 ## Áudio
 
 Mande um áudio (mensagem de voz, arquivo de áudio ou vídeo redondo) e a UVA transcreve com a OpenAI (`TRANSCRIBE_MODEL`, padrão `gpt-4o-mini-transcribe`, com `whisper-1` de reserva), responde "🎙️ entendi: ..." e trata o texto **exatamente como se você tivesse digitado**: comandos, similaridade e LLM.
@@ -328,7 +346,7 @@ Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, açã
 
 - `/log` — última hora, uma linha por mensagem mostrando o caminho que ela fez
 - `/log 30m`, `/log 6h`, `/log 2d`, `/log hoje`, `/log ontem` — outros períodos
-- `/log 1d llm` — filtra por tipo: `llm`, `goals`, `iniciativas`, `projetos`, `erros`, `tarefas`, `memoria`, `acoes`
+- `/log 1d llm` — filtra por tipo: `llm`, `goals`, `iniciativas`, `projetos`, `shell`, `erros`, `tarefas`, `memoria`, `acoes`
 - `/log trace <id>` — todos os eventos de uma mensagem, com os dados completos
 - `/status` — serviços no ar, uptime, fila e gastos
 
