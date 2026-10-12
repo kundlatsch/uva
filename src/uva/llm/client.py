@@ -36,6 +36,21 @@ class TokenMeter:
 _meter: ContextVar[TokenMeter | None] = ContextVar("uva_token_meter", default=None)
 
 
+# Set by the dashboard's chat: every LLM call of the message is recorded here
+# (prompt, context, raw answer, tokens, cost, time) for its debug panel.
+_debug: ContextVar[list[dict] | None] = ContextVar("uva_llm_debug", default=None)
+
+
+@contextmanager
+def debug_calls() -> Iterator[list[dict]]:
+    calls: list[dict] = []
+    token = _debug.set(calls)
+    try:
+        yield calls
+    finally:
+        _debug.reset(token)
+
+
 @contextmanager
 def metered() -> Iterator[TokenMeter]:
     meter = TokenMeter()
@@ -105,6 +120,22 @@ class LLMClient:
             await emit(EventType.ERROR, where="llm", purpose=purpose, model=model, error=str(exc))
             raise
         await self._account(response, purpose, scope, started, request=messages[-1].content)
+        if (calls := _debug.get()) is not None:
+            calls.append({
+                "purpose": purpose,
+                "scope": scope.value,
+                "model": response.model,
+                "system": system or "",
+                "messages": [
+                    {"role": m.role, "content": m.content, "images": len(m.images)} for m in messages
+                ],
+                "schema": json_schema is not None,
+                "response": response.text,
+                "input_tokens": response.input_tokens,
+                "output_tokens": response.output_tokens,
+                "cost_usd": round(self.prices.cost(response.model, response.input_tokens, response.output_tokens), 6),
+                "duration_ms": round((time.perf_counter() - started) * 1000),
+            })
         return response
 
     async def web_search(self, query: str, *, system: str, scope: Scope) -> LLMResponse:

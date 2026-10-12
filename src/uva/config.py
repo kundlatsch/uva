@@ -178,6 +178,9 @@ class Settings(BaseSettings):
     shell_url: str = "http://shell:8700"
     shell_timeout_seconds: int = 60
 
+    # Local dashboard (http://localhost:8080); optional password (HTTP Basic, any user).
+    dashboard_password: SecretStr | None = None
+
     # Author of the commits the bot makes in its own repository.
     git_author_name: str = "kundlatsch"
     git_author_email: str = "gustavo.kundlatsch@gmail.com"

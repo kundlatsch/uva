@@ -350,6 +350,20 @@ Para perguntas com resposta numérica e calibrada, a UVA usa a API Decisions da 
 - Sorteio sem repetir as últimas 3 de cada categoria; o arquivo é validado e relido quando muda. Se estiver ausente ou quebrado, entram frases neutras embutidas.
 - `/frases` lista as categorias; `/frases <categoria>` mostra exemplos. A própria UVA pode editar o arquivo (`file_write`), e JSON inválido é recusado antes de gravar.
 
+## Painel local (dashboard)
+
+O serviço `dashboard` publica um painel em **http://localhost:8080**, só neste computador (`127.0.0.1`; a porta muda com `DASHBOARD_PORT`). Se quiser senha, defina `DASHBOARD_PASSWORD` (HTTP Basic, com qualquer usuário). Ele tem:
+
+- **Visão geral**: serviços no ar, fila, eventos e erros das últimas 24h, contagens (memórias, objetivos, notas, figurinhas, projetos).
+- **Custos e limites**: o gasto com LLM de hoje, do mês, do proativo, do auto-código e dos projetos, cada um contra o seu limite. Também tem um gráfico por dia (separado em interativo, proativo e auto-código), totais por propósito e por modelo, o botão de `/liberar` e os gastos pessoais do SQLite.
+- **Chat**: um canal completo com a UVA, pelo mesmo pipeline do Telegram (comandos, similaridade, LLM, ações e a mesma memória curta). A conversa do Telegram e os avisos dos objetivos e iniciativas aparecem ali também. Botões de confirmação funcionam. Ao lado, o **debug** de cada mensagem mostra:
+  - por onde ela passou (qual fallback resolveu);
+  - o recall;
+  - o JSON de ações e o resultado de cada ação;
+  - cada chamada à LLM, com o prompt de sistema (memória, recall, contexto), as mensagens enviadas, a resposta bruta, os tokens, o custo e o tempo.
+- **Logs**: eventos filtráveis por período, tipo, trace e texto.
+- **Ambiente**: as configurações em uso, somente leitura, com chaves, tokens e senhas mascarados.
+
 ## Log e diagnóstico
 
 Cada mensagem recebe um *trace id*, e cada passo (rota escolhida, comando, ação, chamada à LLM, tarefa, erro) vira um evento na coleção `events` do Mongo (apagado após `EVENTS_TTL_DAYS`, padrão 90) e no console em JSON.

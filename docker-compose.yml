@@ -32,6 +32,14 @@ services:
     <<: *app
     networks: [default, shellnet]
 
+  # Local dashboard: published only on this computer (127.0.0.1).
+  dashboard:
+    <<: *app
+    command: python -m uva.dashboard.app
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-8080}:8080"
+    networks: [default, shellnet]
+
   worker:
     <<: *app
     networks: [default, shellnet]

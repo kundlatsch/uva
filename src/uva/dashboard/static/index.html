@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UVA · painel</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e4e2dc;
+  --accent: #6b3fa0; --accent-soft: #efe8f7; --ok: #1f7a4d; --bad: #b3261e; --warn: #9a6200;
+  --user: #e9e2f4; --bot: #ffffff; --notice: #fff6e0; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141316; --panel: #1d1c20; --ink: #ececef; --muted: #9a99a1; --line: #2e2c33;
+    --accent: #b48ce6; --accent-soft: #2a2235; --ok: #5fc48e; --bad: #f08a80; --warn: #e2b04a;
+    --user: #2c2438; --bot: #222126; --notice: #332b17;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 16px; margin: 0; letter-spacing: .02em; }
+header h1 span { color: var(--accent); }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav button { border: 0; background: none; color: var(--muted); padding: 6px 12px; border-radius: 8px; cursor: pointer; font: inherit; }
+nav button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+section { display: none; } section.on { display: block; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.big { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; }
+.bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 6px; }
+.bar > div { height: 100%; background: var(--accent); }
+.bar > div.hot { background: var(--bad); }
+pre, code { font-family: var(--mono); font-size: 12px; }
+pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
+.row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+.row > .card { flex: 1 1 320px; }
+input, select, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+button.act { font: inherit; border: 1px solid var(--accent); color: #fff; background: var(--accent); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+button.ghost { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.chart { display: flex; align-items: flex-end; gap: 3px; height: 140px; padding-top: 8px; }
+.chart .col { flex: 1; display: flex; flex-direction: column-reverse; min-width: 6px; }
+.chart .seg { width: 100%; }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+/* chat */
+.chat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; height: calc(100vh - 110px); }
+.thread { display: flex; flex-direction: column; min-height: 0; }
+.msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 10px; }
+.msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); white-space: pre-wrap; word-break: break-word; }
+.msg.user { align-self: flex-end; background: var(--user); }
+.msg.bot { align-self: flex-start; background: var(--bot); }
+.msg.notice { align-self: flex-start; background: var(--notice); }
+.msg small { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+.composer { display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.composer textarea { flex: 1; resize: vertical; min-height: 42px; max-height: 200px; }
+.last { margin: 8px 0; }
+.last .btns { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.debug { overflow-y: auto; min-height: 0; }
+details { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 6px 0; background: var(--panel); }
+details summary { cursor: pointer; font-weight: 600; }
+.tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
+.ev { font-family: var(--mono); font-size: 12px; border-bottom: 1px dashed var(--line); padding: 4px 0; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+@media (max-width: 900px) { .chat { grid-template-columns: 1fr; height: auto; } .msgs { max-height: 60vh; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🍇 <span>UVA</span> · painel</h1>
+  <nav id="tabs">
+    <button data-tab="overview" class="on">Visão geral</button>
+    <button data-tab="costs">Custos e limites</button>
+    <button data-tab="chat">Chat</button>
+    <button data-tab="logs">Logs</button>
+    <button data-tab="env">Ambiente</button>
+  </nav>
+  <span class="muted" id="now" style="margin-left:auto"></span>
+</header>
+<main>
+<section id="overview" class="on">
+  <div class="grid" id="health"></div>
+  <div class="row" style="margin-top:14px">
+    <div class="card"><h3>Eventos nas últimas 24h</h3><table id="ev24"></table></div>
+    <div class="card"><h3>Contagens</h3><table id="counts"></table></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Erros recentes</h3><div id="errors" class="muted">—</div></div>
+</section>
+
+<section id="costs">
+  <div class="grid" id="spend"></div>
+  <div class="card" style="margin-top:14px">
+    <h3>Gasto com LLM por dia (US$, 30 dias)</h3>
+    <div class="chart" id="chart"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <div class="card"><h3>Por propósito (este mês)</h3><table id="purpose"></table></div>
+    <div class="card"><h3>Por modelo (este mês)</h3><table id="model"></table></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <div class="card"><h3>Liberar orçamento extra hoje (/liberar)</h3>
+      <div class="filters"><input id="extra" type="number" min="0.5" max="50" step="0.5" value="1" style="width:110px"> <button class="act" id="grant">Liberar US$</button> <span id="granted" class="muted"></span></div>
+    </div>
+    <div class="card"><h3>Gastos pessoais (SQLite, este mês)</h3><div id="expenses" class="muted">—</div></div>
+  </div>
+</section>
+
+<section id="chat">
+  <div class="chat">
+    <div class="card thread">
+      <h3>Conversa (a mesma do Telegram, com os avisos)</h3>
+      <div class="msgs" id="msgs"></div>
+      <div class="last card" id="last" hidden></div>
+      <div class="composer">
+        <textarea id="input" placeholder="Fala com a UVA… (Enter envia, Shift+Enter quebra linha)"></textarea>
+        <button class="act" id="send">Enviar</button>
+      </div>
+    </div>
+    <div class="card debug">
+      <h3>Debug</h3>
+      <div class="filters"><select id="runs"></select><span class="muted" id="runinfo"></span></div>
+      <div id="dbg" class="muted">Mande uma mensagem pelo painel para ver como ela foi resolvida.</div>
+    </div>
+  </div>
+</section>
+
+<section id="logs">
+  <div class="filters">
+    <select id="lhours"><option value="1">1h</option><option value="6">6h</option><option value="24" selected>24h</option><option value="168">7 dias</option></select>
+    <select id="ltype"><option value="">todos os tipos</option></select>
+    <input id="ltrace" placeholder="trace id" style="width:130px">
+    <input id="lgrep" placeholder="filtrar texto" style="width:180px">
+    <button class="ghost" id="lgo">Atualizar</button>
+    <span class="muted" id="lcount"></span>
+  </div>
+  <div class="card" id="loglist"></div>
+</section>
+
+<section id="env">
+  <div class="card">
+    <h3>Variáveis de ambiente (somente leitura; segredos mascarados)</h3>
+    <input id="envq" placeholder="filtrar" style="margin-bottom:10px;width:240px">
+    <table id="envt"></table>
+  </div>
+</section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const usd = (v) => "US$ " + Number(v || 0).toFixed(Number(v) < 1 ? 4 : 2);
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error((await r.text()) || r.status);
+  return r.json();
+}
+const post = (path, body) => api(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+
+document.querySelectorAll("#tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  document.querySelectorAll("section").forEach((s) => s.classList.toggle("on", s.id === b.dataset.tab));
+  load(b.dataset.tab);
+  try { localStorage.setItem("uva-tab", b.dataset.tab); } catch (e) {}
+});
+
+async function loadOverview() {
+  const d = await api("/api/overview");
+  $("#now").textContent = d.now;
+  const cards = Object.entries(d.health).map(([k, v]) => `<div class="card"><h3>${esc(k)}</h3><div class="big ${v ? "ok" : "bad"}">${v ? "no ar" : "fora"}</div></div>`);
+  cards.push(`<div class="card"><h3>Fila de tarefas</h3><div class="big">${d.queue ?? "?"}</div></div>`);
+  cards.push(`<div class="card"><h3>Painel no ar há</h3><div class="big">${Math.round(d.dashboard_uptime_s / 60)} min</div></div>`);
+  $("#health").innerHTML = cards.join("");
+  $("#ev24").innerHTML = Object.entries(d.events_24h).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v}</td></tr>`).join("") || "<tr><td class=muted>nada</td></tr>";
+  $("#counts").innerHTML = Object.entries(d.counts).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v ?? "?"}</td></tr>`).join("");
+  $("#errors").innerHTML = d.errors.length ? d.errors.map((e) => `<div class="ev"><b>${esc(e.local)}</b> <span class="tag">${esc(e.data.where || "")}</span> ${esc(e.data.error || "")} <a href="#" data-trace="${e.trace_id}">trace ${e.trace_id}</a></div>`).join("") : "Nenhum erro nas últimas 24h. 🎉";
+  document.querySelectorAll("[data-trace]").forEach((a) => a.onclick = (ev) => { ev.preventDefault(); openTrace(a.dataset.trace); });
+}
+
+const SCOPES = {interactive: "var(--accent)", proactive: "#d08a1e", selfcode: "#2f8f9d"};
+async function loadCosts() {
+  const d = await api("/api/costs?days=30");
+  const s = d.spend, L = d.limits;
+  const daily = (s.daily_limit ?? L.LLM_DAILY_BUDGET_USD);
+  const meter = (label, used, limit) => {
+    const pct = limit ? Math.min(100, used / limit * 100) : 0;
+    return `<div class="card"><h3>${label}</h3><div class="big">${usd(used)}</div><div class="muted">de ${usd(limit)}</div><div class="bar"><div class="${pct >= 90 ? "hot" : ""}" style="width:${pct}%"></div></div></div>`;
+  };
+  $("#spend").innerHTML = [
+    meter("LLM hoje" + (s.extra_today ? ` (+${usd(s.extra_today)} liberados)` : ""), s.today, daily),
+    meter("LLM no mês", s.month, L.LLM_MONTHLY_BUDGET_USD),
+    meter("Proativo hoje", s.proactive_today, L.PROACTIVE_DAILY_BUDGET_USD),
+    meter("Auto-código hoje", s.selfcode_today, L.SELFCODE_DAILY_BUDGET_USD),
+    meter("Projetos hoje (Claude Code)", d.projects_today, L.PROJECT_DAILY_BUDGET_USD),
+  ].join("");
+  const days = {};
+  d.daily.forEach((r) => { (days[r.day] ||= {})[r.scope] = (days[r.day]?.[r.scope] || 0) + r.cost; });
+  const keys = Object.keys(days).sort();
+  const max = Math.max(0.0001, ...keys.map((k) => Object.values(days[k]).reduce((a, b) => a + b, 0)));
+  $("#chart").innerHTML = keys.map((k) => {
+    const total = Object.values(days[k]).reduce((a, b) => a + b, 0);
+    const segs = Object.entries(days[k]).map(([sc, v]) => `<div class="seg" style="height:${v / max * 130}px;background:${SCOPES[sc] || "gray"}"></div>`).join("");
+    return `<div class="col" title="${k}: ${usd(total)}">${segs}</div>`;
+  }).join("") || '<span class="muted">sem gastos no período</span>';
+  $("#legend").innerHTML = Object.entries(SCOPES).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join("") + (keys.length ? `<span>máx/dia ${usd(max)}</span>` : "");
+  const tbl = (rows) => `<tr><th></th><th class="num">chamadas</th><th class="num">tokens</th><th class="num">US$</th></tr>` + rows.map((r) => `<tr><td>${esc(r.name)}</td><td class="num">${r.calls}</td><td class="num">${(r.input + r.output).toLocaleString("pt-BR")}</td><td class="num">${r.cost.toFixed(4)}</td></tr>`).join("");
+  $("#purpose").innerHTML = tbl(d.by_purpose);
+  $("#model").innerHTML = tbl(d.by_model);
+  const e = d.expenses || {};
+  $("#expenses").innerHTML = e.month_total ? `<div class="big">${esc(e.month_total)}</div><table>${(e.by_category || []).map((c) => `<tr><td>${esc(c.category)}</td><td class="num">${esc(c.total)}</td></tr>`).join("")}</table><h3 style="margin-top:10px">Últimos</h3><table>${(e.recent || []).map((x) => `<tr><td>${esc(x.at)}</td><td>${esc(x.category)} ${esc(x.description)}</td><td class="num">${esc(x.amount)}</td></tr>`).join("")}</table>` : "—";
+}
+$("#grant").onclick = async () => {
+  try { const r = await post("/api/liberar", {amount: Number($("#extra").value)}); $("#granted").textContent = `liberado hoje: ${usd(r.extra_today)}`; loadCosts(); }
+  catch (e) { $("#granted").textContent = "erro: " + e.message; }
+};
+
+// --- chat ---------------------------------------------------------------
+const runs = [];
+let lastTurns = "";
+async function loadConversation() {
+  const d = await api("/api/conversation");
+  const key = JSON.stringify(d.turns.map((t) => [t.at, t.text.length]));
+  if (key === lastTurns) return;
+  lastTurns = key;
+  const box = $("#msgs");
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  box.innerHTML = d.turns.map((t) => `<div class="msg ${t.role}">${esc(t.text)}<small>${t.role === "notice" ? "aviso · " : ""}${esc(t.local)}</small></div>`).join("") || '<span class="muted">Nenhuma conversa recente (a memória curta expira).</span>';
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+function showLast(reply) {
+  const el = $("#last");
+  const body = reply.pages && reply.pages.length ? reply.pages.join("\n\n— — —\n\n") : reply.text;
+  el.hidden = false;
+  el.innerHTML = `<h3>Última resposta (completa)</h3><pre>${esc(body)}</pre>` + (reply.buttons.length ? `<div class="btns">${reply.buttons.filter((b) => !b.data.startsWith("pg:")).map((b) => `<button class="ghost" data-cb="${esc(b.data)}">${esc(b.text)}</button>`).join("")}</div>` : "");
+  el.querySelectorAll("[data-cb]").forEach((b) => b.onclick = () => run(post("/api/callback", {data: b.dataset.cb}), `[botão] ${b.textContent}`));
+}
+async function run(promise, label) {
+  $("#send").disabled = true;
+  try {
+    const r = await promise;
+    runs.unshift({label, ...r, at: new Date().toLocaleTimeString("pt-BR")});
+    renderRuns();
+    showLast(r.reply);
+    await loadConversation();
+  } catch (e) { alert("Erro: " + e.message); }
+  finally { $("#send").disabled = false; }
+}
+function renderRuns() {
+  $("#runs").innerHTML = runs.map((r, i) => `<option value="${i}">${esc(r.at)} · ${esc(r.label.slice(0, 50))}</option>`).join("");
+  showRun(0);
+}
+$("#runs").onchange = (e) => showRun(Number(e.target.value));
+function showRun(i) {
+  const r = runs[i]; if (!r) return;
+  const d = r.debug;
+  $("#runinfo").textContent = `${d.ms} ms · ${d.tokens.toLocaleString("pt-BR")} tokens · ${usd(d.cost_usd)}`;
+  const routes = d.events.filter((e) => e.type === "route");
+  const tiers = routes.map((e) => `<span class="tag">${esc(e.data.tier)}${e.data.command ? " /" + esc(e.data.command) : ""}${e.data.score ? " " + e.data.score : ""}</span>`).join(" ");
+  const actions = d.events.filter((e) => e.type === "action");
+  const plan = routes.find((e) => e.data.plan);
+  const recall = routes.find((e) => e.data.tier === "recall");
+  let html = `<p><b>Caminho:</b> ${tiers || '<span class="muted">—</span>'}</p>`;
+  if (recall) html += `<p><b>Recall:</b> ${esc((recall.data.notes || []).join(", ") || recall.data.sections + " seções")}</p>`;
+  if (plan) html += `<details open><summary>JSON de ações (plano da LLM)</summary><pre>${esc(JSON.stringify(plan.data.plan, null, 2))}</pre></details>`;
+  if (actions.length) html += `<details open><summary>Ações executadas (${actions.length})</summary>${actions.map((a) => `<div class="ev"><b class="${a.data.ok ? "ok" : "bad"}">${esc(a.data.name)}</b> ${a.data.duration_ms ?? ""} ms<pre>${esc(JSON.stringify(a.data.params))}</pre><pre class="muted">${esc(typeof a.data.result === "string" ? a.data.result : JSON.stringify(a.data.result)).slice(0, 2000)}</pre></div>`).join("")}</details>`;
+  d.llm_calls.forEach((c, n) => {
+    html += `<details${n === d.llm_calls.length - 1 ? "" : ""}><summary>Chamada LLM ${n + 1}: ${esc(c.purpose)} · ${esc(c.model)} · ${c.input_tokens}+${c.output_tokens} tokens · ${usd(c.cost_usd)} · ${c.duration_ms} ms</summary>`
+      + `<details><summary>Prompt de sistema (memória, recall, contexto recente)</summary><pre>${esc(c.system)}</pre></details>`
+      + `<details><summary>Mensagens enviadas (${c.messages.length}, com o histórico da memória curta)</summary>${c.messages.map((m) => `<div class="ev"><b>${m.role}</b>${m.images ? ` · ${m.images} imagem(ns)` : ""}<pre>${esc(m.content)}</pre></div>`).join("")}</details>`
+      + `<details open><summary>Resposta bruta</summary><pre>${esc(c.response)}</pre></details></details>`;
+  });
+  html += `<details><summary>Todos os eventos (${d.events.length})</summary>${d.events.map((e) => `<div class="ev"><b>${esc(e.type)}</b> ${esc(JSON.stringify(e.data)).slice(0, 1500)}</div>`).join("")}</details>`;
+  $("#dbg").innerHTML = html;
+  $("#dbg").classList.remove("muted");
+}
+function send() {
+  const text = $("#input").value.trim();
+  if (!text) return;
+  $("#input").value = "";
+  run(post("/api/chat", {text}), text);
+}
+$("#send").onclick = send;
+$("#input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+
+// --- logs ---------------------------------------------------------------
+const TYPES = ["message_received", "route", "command", "action", "llm_call", "task_enqueued", "task_finished", "goal_run", "initiative", "memory", "budget", "self_edit", "selfcode", "project", "shell", "reply", "error"];
+$("#ltype").innerHTML += TYPES.map((t) => `<option>${t}</option>`).join("");
+async function loadLogs() {
+  const q = new URLSearchParams({hours: $("#lhours").value, types: $("#ltype").value, trace: $("#ltrace").value.trim(), limit: 800});
+  const rows = await api("/api/logs?" + q);
+  const grep = $("#lgrep").value.trim().toLowerCase();
+  const shown = rows.filter((e) => !grep || JSON.stringify(e).toLowerCase().includes(grep));
+  $("#lcount").textContent = `${shown.length} eventos`;
+  $("#loglist").innerHTML = shown.map((e) => `<div class="ev"><b>${esc(e.local)}</b> <span class="tag">${esc(e.type)}</span> <a href="#" data-t="${e.trace_id}">${e.trace_id}</a> ${esc(JSON.stringify(e.data)).slice(0, 800)}</div>`).join("") || '<span class="muted">nada</span>';
+  document.querySelectorAll("[data-t]").forEach((a) => a.onclick = (ev) => { ev.preventDefault(); openTrace(a.dataset.t); });
+}
+function openTrace(t) { $("#ltrace").value = t; document.querySelector('[data-tab="logs"]').click(); }
+$("#lgo").onclick = loadLogs;
+["#lhours", "#ltype"].forEach((s) => $(s).onchange = loadLogs);
+$("#lgrep").oninput = loadLogs;
+
+// --- env ----------------------------------------------------------------
+let envRows = [];
+async function loadEnv() { envRows = await api("/api/env"); renderEnv(); }
+function renderEnv() {
+  const q = $("#envq").value.trim().toLowerCase();
+  $("#envt").innerHTML = "<tr><th>variável</th><th>valor</th></tr>" + envRows.filter((r) => !q || r.name.toLowerCase().includes(q)).map((r) => `<tr><td><code>${esc(r.name)}</code></td><td>${r.secret ? "🔒 " : ""}<code>${esc(r.value)}</code></td></tr>`).join("");
+}
+$("#envq").oninput = renderEnv;
+
+const loaders = {overview: loadOverview, costs: loadCosts, chat: loadConversation, logs: loadLogs, env: loadEnv};
+function load(tab) { loaders[tab]?.().catch((e) => console.error(e)); }
+let start = "overview";
+try { start = localStorage.getItem("uva-tab") || start; } catch (e) {}
+document.querySelector(`[data-tab="${start}"]`)?.click();
+setInterval(() => { const on = document.querySelector("section.on")?.id; if (on === "chat") loadConversation().catch(() => {}); if (on === "overview") loadOverview().catch(() => {}); }, 4000);
+</script>
+</body>
+</html>
