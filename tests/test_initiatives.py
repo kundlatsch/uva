@@ -22,6 +22,7 @@ class InMemoryInitiativeStore:
     def __init__(self) -> None:
         self.records: list[InitiativeRecord] = []
         self.enabled: bool | None = None
+        self.last_check = None
 
     async def add(self, record):
         self.records.append(record)
@@ -37,6 +38,12 @@ class InMemoryInitiativeStore:
 
     async def set_enabled(self, enabled):
         self.enabled = enabled
+
+    async def get_last_check(self):
+        return self.last_check
+
+    async def set_last_check(self, at):
+        self.last_check = at
 
 
 def decision(**kw) -> str:
@@ -172,3 +179,21 @@ def test_initiative_tick_is_offset_from_the_goal_tick():
 
     schedule = app.conf.beat_schedule
     assert schedule["initiative-tick"]["schedule"] != schedule["proactive-tick"]["schedule"]
+
+
+async def test_the_model_is_asked_at_most_every_n_minutes(init_services):
+    services = init_services
+    provider, _ = with_llm(services, decision(kind="nothing"), decision(kind="message", message="Oi!"))
+    assert await initiative_tick(services, NOON) == ("nothing", None)
+    assert await initiative_tick(services, NOON + timedelta(minutes=5)) == ("waiting", None)
+    assert len(provider.calls) == 1
+    later = NOON + timedelta(minutes=services.settings.proactive_decide_every_minutes)
+    assert await initiative_tick(services, later) == ("sent", "💬 Oi!")
+
+
+async def test_long_silence_forbids_nothing(init_services):
+    services = init_services
+    provider, _ = with_llm(services, decision(kind="message", message="E aí?"))
+    services.initiatives.records.append(InitiativeRecord(kind="message", at=NOON - timedelta(hours=5)))
+    await initiative_tick(services, NOON)
+    assert 'Do NOT choose "nothing"' in provider.calls[0]["messages"][0].content

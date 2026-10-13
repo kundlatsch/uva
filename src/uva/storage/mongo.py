@@ -314,6 +314,13 @@ class MongoInitiativeStore:
     async def set_enabled(self, enabled: bool) -> None:
         await self.flags.replace_one({"_id": self.FLAG_ID}, {"enabled": enabled}, upsert=True)
 
+    async def get_last_check(self) -> datetime | None:
+        doc = await self.flags.find_one({"_id": "initiative_last_check"})
+        return doc["at"] if doc else None
+
+    async def set_last_check(self, at: datetime) -> None:
+        await self.flags.replace_one({"_id": "initiative_last_check"}, {"at": at}, upsert=True)
+
 
 class MongoProjectStore:
     """Collection ``projects``: every /projeto and how it went."""

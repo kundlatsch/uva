@@ -76,7 +76,8 @@ to Gustavo, your only user, on Telegram. Options:
   and goals) and send a summary. Pick concrete, varied topics.
 - "message": a reminder, a follow-up question about something he told you or started (a
   book, a project, a goal) or a useful suggestion. Short.
-- "nothing": if nothing is worth the interruption. Prefer this to being annoying.
+- "nothing": only when there is really nothing. He WANTS to hear from you several times a
+  day; alternate research about his interests and short messages.
 Don't repeat topics of recent initiatives. Active goals are already being worked on by
 themselves: don't ask about or research what they cover. Don't make up facts about him.
 "topic" in English; "message" (what he reads) in Brazilian Portuguese, technical terms in
@@ -104,11 +105,25 @@ async def gate(services: Services, now: datetime) -> str | None:
     recent = await store.recent(1)
     if recent and now - recent[0].at < timedelta(minutes=s.proactive_min_gap_minutes):
         return "gap"
+    last_check = await _last_check(store)
+    if last_check is not None and now - last_check < timedelta(minutes=s.proactive_decide_every_minutes):
+        return "waiting"  # asked the model recently; asking every tick wastes budget
     if services.busy is not None and await services.busy.reasons():
         return "busy"  # includes a goal run in progress ("goal:<id>")
     if services.goals is not None and await services.goals.due(now):
         return "goal_due"  # goals go first; an initiative would just talk over them
     return None
+
+
+async def _last_check(store) -> datetime | None:
+    getter = getattr(store, "get_last_check", None)
+    return await getter() if getter is not None else None
+
+
+async def _set_last_check(store, now: datetime) -> None:
+    setter = getattr(store, "set_last_check", None)
+    if setter is not None:
+        await setter(now)
 
 
 async def initiative_tick(
@@ -131,6 +146,7 @@ async def initiative_tick(
             if not status.allowed:
                 await emit(EventType.INITIATIVE, status="skipped", reason=status.reason)
                 return "budget", None
+        await _set_last_check(services.initiatives, now)
         try:
             decision = await _decide(services, now)
         except (LLMError, ValidationError, ValueError) as exc:
@@ -214,6 +230,11 @@ async def _context(services: Services, now: datetime) -> str:
         parts.append("Objetivos ativos:\n" + ("\n".join(f"- {g.title}" for g in goals) or "(nenhum)"))
     if services.initiatives is not None:
         recent = await services.initiatives.recent(10)
+        last = recent[0].at if recent else None
+        hours = (now - last).total_seconds() / 3600 if last else None
+        if hours is None or hours >= services.settings.proactive_force_after_hours:
+            since = "nunca" if hours is None else f"{hours:.0f}h"
+            parts.append(f"Last initiative: {since} ago. Do NOT choose \"nothing\" now: pick research or message.")
         lines = [f"- {format_local(r.at, tz, '%d/%m %H:%M')} {r.kind}: {r.topic or r.message[:80]}" for r in recent]
         parts.append("Suas iniciativas recentes (não repita):\n" + ("\n".join(lines) or "(nenhuma)"))
     return "\n\n".join(parts)
@@ -241,6 +262,7 @@ async def describe_status(services: Services, now: datetime | None = None) -> st
         "off": "desligadas", "quiet": "horário de silêncio", "daily_cap": "limite do dia atingido",
         "gap": "esperando o intervalo mínimo", "busy": "você está conversando ou um objetivo está rodando",
         "goal_due": "um objetivo vai rodar antes", "disabled": "sem LLM",
+        "waiting": f"pensei há pouco; penso de novo a cada {s.proactive_decide_every_minutes} min",
     }
     lines.append("Próxima iniciativa: " + ("pode sair no próximo ciclo" if blocked is None else reasons.get(blocked, blocked)))
     if services.goals is not None:
