@@ -184,6 +184,14 @@ A UVA mantém um cofre de notas compatível com o **Obsidian**, na pasta `brain/
 
 Para abrir no Obsidian: *Open folder as vault* → escolha a pasta `brain`.
 
+## Nomes no second brain
+
+O brain é conteúdo seu, então os nomes ficam em português, mesmo com a operação interna em inglês:
+- toda ação que escreve no brain (`note_create`, `note_update` quando renomeia, `image_save`, `search`) recebe `title_pt`, um título em português;
+- o arquivo é esse título em snake_case, sem acentos: "Marmitas Frias e Requentadas" vira `marmitas_frias_e_requentadas.md`. O título com acentos fica no front matter e no `# título`, e os links são `[[marmitas_frias_e_requentadas|Marmitas Frias e Requentadas]]`. Anexos seguem o mesmo padrão;
+- se o título vier faltando ou em inglês, uma chamada barata à LLM sugere um título em português a partir do texto da nota;
+- `/brain renomear` traz as notas antigas para o padrão e atualiza todos os links. O brain tem um git próprio, e `/reverter brain` desfaz a última mudança.
+
 ## Memória de curto prazo
 
 A UVA lembra o que aconteceu na conversa de agora, inclusive o que **ela mesma** fez: uma sessão no Redis (`stm:<seu id>`), compartilhada por bot e worker, com os últimos turnos (saídas de comando resumidas e avisos que ela mandou sozinha), referências a tudo que disparou ou criou (pesquisas, tarefas, notas, objetivos, features, gastos) com o status atualizado pelo worker, e qual delas está "em foco". Detalhes em [docs/memoria-curto-prazo.md](docs/memoria-curto-prazo.md).

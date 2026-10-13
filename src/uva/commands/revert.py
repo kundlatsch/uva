@@ -14,11 +14,13 @@ log = get_logger(__name__)
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "reverter",
-        "Desfaz a última mudança que eu fiz no meu próprio repositório",
+        "Desfaz a última mudança que eu fiz no meu repositório (/reverter brain: no second brain)",
         aliases=("desfazer",),
         examples=("desfaz o que voce mudou",),
     )
     async def revert(ctx: CommandContext) -> str:
+        if ctx.args and ctx.args[0].lower() in ("brain", "notas"):
+            return await _revert_brain(ctx.services)
         repo = ctx.services.repo
         if repo is None:
             return "Não tenho acesso ao repositório (git) aqui."
@@ -42,3 +44,21 @@ def register(registry: CommandRegistry) -> None:
                 except Exception as exc:  # reload problems are reported, not fatal
                     log.warning("code_changed_hook_failed", error=str(exc))
         return f"↩️ Revertido {commit.sha[:7]}: {commit.subject} (novo commit {new_sha[:7]})."
+
+
+async def _revert_brain(services) -> str:
+    repo = services.brain_repo
+    if repo is None:
+        return "O second brain não tem histórico (git) aqui."
+    try:
+        commit = await repo.last_bot_commit()
+    except GitError:
+        commit = None
+    if commit is None:
+        return "Não achei nenhuma mudança minha no second brain para desfazer."
+    try:
+        new_sha = await repo.revert(commit)
+    except GitError as exc:
+        return f"Não consegui reverter {commit.sha[:7]} ({commit.subject}): {exc}"
+    await emit(EventType.SELF_EDIT, op="revert_brain", sha=commit.sha, revert_sha=new_sha)
+    return f"↩️ Second brain: desfeito {commit.sha[:7]} ({commit.subject})."

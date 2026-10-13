@@ -343,7 +343,7 @@ def _write_note(services: Services, run: GoalRun, now: datetime) -> str | None:
         intro = run.goal.description or "Objetivo acompanhado pela UVA."
         note = vault.create_note(title, intro, folder="projetos", tags=["objetivo"], now=now)
         note = vault.append(note.path, text, now=now)
-    vault.append_daily(f"Objetivo trabalhado: [[{note.title}]]", now=now)
+    vault.append_daily(f"Objetivo trabalhado: {note.link}", now=now)
     return note.path
 
 

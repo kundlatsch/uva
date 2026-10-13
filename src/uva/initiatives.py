@@ -20,6 +20,7 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, Field, ValidationError
 
 from uva.actions.search import ResearchError, research, save_research
+from uva.brain.naming import portuguese_title
 from uva.clock import format_local, start_of_day, utcnow
 from uva.goals.runner import in_quiet_hours
 from uva.goals.store import GoalStatus
@@ -68,6 +69,7 @@ class Decision(BaseModel):
         default="", description="Texto para o usuário (para research, uma frase de abertura)"
     )
     reason: str = Field(default="", description="Por que isso, em uma frase (vai para o log)")
+    title_pt: str = Field(default="", description="For research: short note title in Brazilian Portuguese")
 
 
 SYSTEM = """You decide whether it is worth sending, RIGHT NOW, a message on your own initiative
@@ -81,7 +83,8 @@ to Gustavo, your only user, on Telegram. Options:
 Don't repeat topics of recent initiatives. Active goals are already being worked on by
 themselves: don't ask about or research what they cover. Don't make up facts about him.
 "topic" in English; "message" (what he reads) in Brazilian Portuguese, technical terms in
-English. Answer with ONLY JSON: {"kind": "...", "topic": "...", "message": "...", "reason": "..."}"""
+English; "title_pt" (for research): a short Brazilian Portuguese title for the note.
+Answer with ONLY JSON: {"kind": "...", "topic": "...", "message": "...", "reason": "...", "title_pt": "..."}"""
 
 
 async def is_enabled(services: Services) -> bool:
@@ -167,7 +170,11 @@ async def initiative_tick(
                 await emit(EventType.ERROR, where="initiative_research", error=str(exc))
                 return "error", None
             if services.vault is not None:
-                record.note = save_research(services.vault, found).path
+                title = await portuguese_title(
+                    services, decision.title_pt, found.summary, scope=Scope.PROACTIVE,
+                    alternatives=(decision.topic,),
+                )
+                record.note = save_research(services.vault, found, title).path
             opening = decision.message.strip() or "Vi isso e lembrei de você:"
             text = f"🧠 {opening}\n\n{found.render()}"
             if record.note:

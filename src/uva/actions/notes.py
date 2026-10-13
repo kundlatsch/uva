@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
+from uva.brain.naming import portuguese_title, require_title_pt
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
 from uva.brain.vault import NoteNotFoundError, Vault
 from uva.stm.refs import remember_ref
@@ -16,7 +17,16 @@ READ_LIMIT = 3000
 
 
 class NoteCreateParams(BaseModel):
-    title: str = Field(description="Título curto e claro (vira o nome do arquivo)")
+    model_config = ConfigDict(json_schema_extra=require_title_pt)
+
+    title_pt: str = Field(
+        default="",
+        description=(
+            "REQUIRED. Title in Brazilian Portuguese (it is the user's content): becomes the file "
+            "name (snake_case, no accents) and the note's title. Never English."
+        ),
+    )
+    title: str = Field(default="", description="(deprecated: use title_pt)")
     body: str = Field(description="Conteúdo em Markdown")
     folder: Folder = Field(
         default="inbox",
@@ -47,7 +57,10 @@ class NoteAppendParams(BaseModel):
 
 class NoteUpdateParams(BaseModel):
     note: str = Field(description="Título ou caminho da nota existente")
-    title: str | None = Field(default=None, description="Novo título (renomeia o arquivo)")
+    title_pt: str | None = Field(
+        default=None, description="New title in Brazilian Portuguese (renames the file); omit to keep it"
+    )
+    title: str | None = Field(default=None, description="(deprecated: use title_pt)")
     body: str | None = Field(
         default=None,
         description="Conteúdo COMPLETO novo (sem cabeçalho YAML). Omita para só renomear",
@@ -81,14 +94,15 @@ def register(registry: ActionRegistry) -> None:
     async def note_create(params: NoteCreateParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
             return NO_VAULT
+        title = await portuguese_title(ctx.services, params.title_pt or params.title, params.body, scope=ctx.scope)
         try:
             note = vault.create_note(
-                params.title, params.body, folder=params.folder, subfolder=params.subfolder,
+                title, params.body, folder=params.folder, subfolder=params.subfolder,
                 tags=params.tags, links=params.links,
             )
         except ValueError as exc:  # bad folder or placeholders instead of content
             return ActionResult(text=f"Não criei a nota: {exc}", data={"ok": False})
-        vault.append_daily(f"Nota criada: [[{note.title}]]")
+        vault.append_daily(f"Nota criada: {note.link}")
         await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
         return ActionResult(text=f"📝 Nota salva: {note.path}", data={"path": note.path})
 
@@ -137,14 +151,15 @@ def register(registry: ActionRegistry) -> None:
         if (vault := _vault(ctx)) is None:
             return NO_VAULT
         try:
-            note, backup = vault.update_note(
-                params.note, title=params.title, body=params.body, tags=params.tags
-            )
+            new_title = params.title_pt or params.title
+            if new_title:
+                new_title = await portuguese_title(ctx.services, new_title, params.body or "", scope=ctx.scope)
+            note, backup = vault.update_note(params.note, title=new_title, body=params.body, tags=params.tags)
         except NoteNotFoundError:
             return ActionResult(text=f"Não achei a nota '{params.note}'.", data={"found": False})
         except ValueError as exc:  # placeholders instead of content
             return ActionResult(text=f"Não alterei a nota: {exc}", data={"ok": False})
-        vault.append_daily(f"Nota atualizada: [[{note.title}]]")
+        vault.append_daily(f"Nota atualizada: {note.link}")
         await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
         return ActionResult(
             text=f"✏️ Nota atualizada: {note.path} (versão anterior em {backup})",

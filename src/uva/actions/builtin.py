@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from uva.actions.registry import (
     ActionContext,
@@ -12,6 +12,7 @@ from uva.actions.registry import (
     ActionResult,
     RetryableActionError,
 )
+from uva.brain.naming import portuguese_title, require_title_pt
 from uva.actions.search import ResearchError, research, save_research
 
 
@@ -25,7 +26,16 @@ class RunCommandParams(BaseModel):
 
 
 class SearchParams(BaseModel):
+    model_config = ConfigDict(json_schema_extra=require_title_pt)
+
     query: str = Field(description="O que pesquisar, em poucas palavras")
+    title_pt: str = Field(
+        default="",
+        description=(
+            "REQUIRED. Short title in Brazilian Portuguese for the research note (user content; "
+            "becomes its file name), e.g. 'Previsão do tempo em Mafra'. Never English."
+        ),
+    )
     source: Literal["web", "wikipedia"] = Field(
         default="web", description="'wikipedia' quando o usuário pedir Wikipédia"
     )
@@ -65,7 +75,10 @@ def register(registry: ActionRegistry) -> None:
         text = found.render()
         note_path = None
         if ctx.services.vault is not None:
-            note_path = save_research(ctx.services.vault, found).path
+            title = await portuguese_title(
+                ctx.services, params.title_pt, found.summary, scope=ctx.scope, alternatives=(found.query,)
+            )
+            note_path = save_research(ctx.services.vault, found, title).path
             text += f"\n\n📝 Salvo em {note_path}"
         return ActionResult(
             text=text,

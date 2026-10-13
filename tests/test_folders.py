@@ -33,7 +33,7 @@ def test_nested_folder_and_note_in_subfolder(vault):
     folder, _ = vault.create_folder("areas", "Saúde/Exercícios")
     assert folder == "02-areas/Saúde/Exercícios"
     note = vault.create_note("Plano", "3x por semana", folder="areas", subfolder="Saúde/Exercícios")
-    assert note.path == "02-areas/Saúde/Exercícios/Plano.md"
+    assert note.path == "02-areas/Saúde/Exercícios/plano.md"
 
 
 @pytest.mark.parametrize("name", [".obsidian", "Saúde/.oculta", "../fora", "a/b/c/d"])
@@ -68,5 +68,5 @@ async def test_folder_with_content_creates_note_inside(services, vault):
     }
     with_llm(services, json.dumps(plan))
     await Router(services).handle_text("cria uma pasta pra viagem ao Japão com o roteiro Tóquio, Kyoto")
-    assert (vault.root / "01-projetos/Viagem Japão/Roteiro.md").exists()
+    assert (vault.root / "01-projetos/Viagem Japão/roteiro.md").exists()
     assert (vault.root / "01-projetos/Viagem Japão/Viagem Japão.md").exists()

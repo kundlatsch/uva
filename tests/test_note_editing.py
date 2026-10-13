@@ -46,11 +46,11 @@ def test_update_renames_keeps_created_and_backs_up(vault):
     created = original.created
     note, backup = vault.update_note(original.path, title="Marmitas frias e requentadas")
 
-    assert note.path == "03-recursos/Livros/Marmitas frias e requentadas.md"
+    assert note.path == "03-recursos/Livros/marmitas_frias_e_requentadas.md"
     assert not (vault.root / original.path).exists()  # renamed, not duplicated
     assert note.created == created and note.tags == ["livros"] and "- opinião A" in note.body
     assert note.body.lstrip().startswith("# Marmitas frias e requentadas")  # heading follows the title
-    assert backup.startswith("04-arquivo/Versões/Marmitas fiz esquentadas ")
+    assert backup.startswith("04-arquivo/Versões/marmitas_fiz_esquentadas_")
     meta, old_body = parse_note((vault.root / backup).read_text(encoding="utf-8"))
     assert meta["title"] == "Marmitas fiz esquentadas" and "- opinião A" in old_body
 
@@ -79,9 +79,9 @@ async def test_rename_request_goes_through_note_update(services, vault):
     }
     with_llm(services, json.dumps(plan))
     reply = await Router(services).handle_text('corrija o título para "Marmitas frias e requentadas"')
-    assert "✏️ Nota atualizada: 03-recursos/Livros que já li/Marmitas frias e requentadas.md" in reply.text
+    assert "✏️ Nota atualizada: 03-recursos/Livros que já li/marmitas_frias_e_requentadas.md" in reply.text
     files = sorted(p.name for p in (vault.root / "03-recursos/Livros que já li").iterdir())
-    assert files == ["Marmitas frias e requentadas.md"]
+    assert files == ["marmitas_frias_e_requentadas.md"]
 
 
 async def test_llm_placeholder_write_is_refused(services, vault):

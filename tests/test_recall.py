@@ -53,7 +53,7 @@ async def test_recall_searches_every_system(mem_services):
     assert "Largou Marmitas frias" in text  # long-term memory outside the working set
     assert "Mora em Florianópolis" not in text  # already in the prompt (working set)
     assert "crônicas repetitivas" in text  # the note's content, not just its name
-    assert found.notes == ["03-recursos/Livros que já li/Marmitas frias e requentadas.md"]
+    assert found.notes == ["03-recursos/Livros que já li/marmitas_frias_e_requentadas.md"]
     assert "Receita de marmita" not in text  # one shared word isn't a match
     assert "Semifinalista do Jabuti" in text  # what a goal found
 

@@ -77,5 +77,5 @@ async def test_catalog_lists_commands_and_actions(router):
     assert "/ping [core]" in text
     assert "apelidos: ajuda" in text
     assert "- search [proativa, tarefa]" in text
-    assert "params: query: string, source: string?" in text
+    assert "params: query: string, title_pt: string, source: string?" in text
     assert "- run_command:" in text

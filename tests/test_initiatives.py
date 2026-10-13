@@ -112,7 +112,7 @@ async def test_research_initiative_sends_summary_and_saves_note(init_services, e
     assert status == "sent"
     assert message.startswith("🧠 Lembra do Terto? Fui conferir:")
     assert "semifinalista do Jabuti" in message and "https://jabuti.example" in message
-    assert "📝 03-recursos/Pesquisa - Ricardo Terto Prêmio Jabuti.md" in message
+    assert "📝 03-recursos/pesquisa_ricardo_terto_premio_jabuti.md" in message
     assert "Ricardo Terto" in provider.calls[0]["messages"][0].content  # memory went into the context
     assert services.initiatives.records[0].kind == "research"
     assert event_store.of_type("initiative")[-1].data["status"] == "sent"

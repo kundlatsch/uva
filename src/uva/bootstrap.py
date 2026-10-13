@@ -81,6 +81,7 @@ def build_services(settings: Settings) -> Services:
     if (repo_dir / ".git").exists():
         services.repo = GitRepo(repo_dir, settings.git_author_name, settings.git_author_email)
     services.files = FileAccess(repo_dir, services.vault.root, services.repo)
+    services.brain_repo = GitRepo(services.vault.root, settings.git_author_name, settings.git_author_email)
     feature_store = mongo.MongoFeatureStore(db)
     services.features = FeatureService(feature_store, _enqueue_selfcode)
     project_store = mongo.MongoProjectStore(db)
@@ -129,9 +130,35 @@ async def _enqueue_project(project_id: str) -> None:
     )
 
 
+BRAIN_GITIGNORE = ".obsidian/workspace*\n.obsidian/cache\n.trash/\n"
+
+
+def _init_brain_git(vault: Vault) -> bool:
+    """Give the vault its own git repository (once), with a first commit."""
+    root = vault.root
+    if (root / ".git").exists() or not root.is_dir():
+        return False
+    import subprocess
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+
+    (root / ".gitignore").write_text(BRAIN_GITIGNORE, encoding="utf-8")
+    git("init", "-q", "-b", "main")
+    git("add", "-A")
+    git("-c", "user.name=uva", "-c", "user.email=uva@localhost", "commit", "-q", "--allow-empty",
+        "-m", "Estado inicial do second brain")
+    return True
+
+
 async def _setup_vault(vault: Vault) -> None:
     if await asyncio.to_thread(vault.ensure_structure):
         log.info("vault_created", path=str(vault.root))
+    try:
+        if await asyncio.to_thread(_init_brain_git, vault):
+            log.info("brain_git_created", path=str(vault.root))
+    except Exception as exc:  # no git in the vault is not fatal
+        log.warning("brain_git_failed", error=str(exc))
 
 
 async def _setup_sqlite(db: Database) -> None:

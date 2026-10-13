@@ -99,14 +99,14 @@ async def test_image_save_action(img_services):
     }
     with_llm(services, json.dumps(plan))
     reply = await Router(services).handle_text("salva essa foto no second brain")
-    assert "🖼️ Imagem salva em 05-anexos/Placa.png" in reply.text
-    assert (services.vault.root / "05-anexos" / "Placa.png").read_bytes() == b"\x89PNG fake"
+    assert "🖼️ Imagem salva em 05-anexos/placa.png" in reply.text
+    assert (services.vault.root / "05-anexos" / "placa.png").read_bytes() == b"\x89PNG fake"
     note = services.vault.read("Placa")
-    assert "![[05-anexos/Placa.png]]" in note.body and "Placa de pare" in note.body
+    assert "![[05-anexos/placa.png]]" in note.body and "Placa de pare" in note.body
     # No title from the LLM: one is derived from the description.
     plan["actions"][0]["params"] = {"description": "Casinha vermelha com árvore e sol"}
     with_llm(services, json.dumps(plan))
     reply = await Router(services).handle_text("salva essa foto")
-    assert "05-anexos/Casinha vermelha com árvore e sol.png" in reply.text
+    assert "05-anexos/casinha_vermelha_com_arvore_e_sol.png" in reply.text
     # Saving again never overwrites.
-    assert services.vault.save_attachment(b"x", "png", "Placa") == "05-anexos/Placa (2).png"
+    assert services.vault.save_attachment(b"x", "png", "Placa") == "05-anexos/placa_2.png"

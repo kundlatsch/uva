@@ -52,7 +52,7 @@ async def test_search_is_enqueued_not_run_inline(services, queue, event_store):
     reply = await Router(services).handle_text("pesquisa sobre F1")
 
     task = queue.sent[0]
-    assert (task.action, task.params) == ("search", {"query": "F1", "source": "web"})
+    assert (task.action, task.params) == ("search", {"query": "F1", "title_pt": "", "source": "web"})
     assert "🔎" in reply.text and f"(tarefa {task.id}; /cancelar {task.id})" in reply.text
     assert web.queries == []  # the worker does it
     assert event_store.of_type(EventType.TASK_ENQUEUED)[0].data["task_id"] == task.id

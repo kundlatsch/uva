@@ -189,7 +189,7 @@ async def test_finished_goal_run_notifies_owner(services, goals):
     assert await proactive_tick(services, NOW, notify=inbox) == "done"
     assert inbox.texts[0].startswith('🎯 Objetivo "Energia solar" rodou')
     assert "Achei três novidades." in inbox.texts[0]
-    assert "📝 01-projetos/Objetivo - Energia solar.md" in inbox.texts[0]
+    assert "📝 01-projetos/objetivo_energia_solar.md" in inbox.texts[0]
 
 
 async def test_skipped_turn_is_not_announced(services, goals):

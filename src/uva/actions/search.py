@@ -28,19 +28,21 @@ class Research:
         return "\n".join(lines)
 
 
-def save_research(vault: Vault, found: Research) -> Note:
-    """Store a research result as a reference note (03-recursos)."""
+def save_research(vault: Vault, found: Research, title: str | None = None) -> Note:
+    """Store a research result as a reference note (03-recursos).
+
+    ``title`` is the Portuguese title (the query may be in English)."""
     lines = [found.summary.strip()]
     if found.sources:
         lines += ["", "## Fontes", ""]
         lines += [f"- [{s.title or s.url}]({s.url})" for s in found.sources if s.url]
     note = vault.create_note(
-        f"Pesquisa - {found.query}",
+        f"Pesquisa - {title or found.query}",
         "\n".join(lines),
         folder="recursos",
         tags=["pesquisa", found.backend],
     )
-    vault.append_daily(f"Pesquisa: [[{note.title}]]")
+    vault.append_daily(f"Pesquisa: {note.link}")
     return note
 
 

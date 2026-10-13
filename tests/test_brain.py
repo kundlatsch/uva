@@ -33,7 +33,7 @@ def test_note_has_front_matter_and_links(vault):
     note = vault.create_note(
         "Ideia: café/chá?", "Corpo", folder="recursos", tags=["bebidas"], links=["Café"], now=NOW
     )
-    assert note.path == "03-recursos/Ideia café chá.md"
+    assert note.path == "03-recursos/ideia_cafe_cha.md"
     text = (vault.root / note.path).read_text(encoding="utf-8")
     meta, body = parse_note(text)
     assert meta == {
@@ -42,7 +42,7 @@ def test_note_has_front_matter_and_links(vault):
         "tags": ["bebidas"],
         "source": "uva-bot",
     }
-    assert "[[Café]]" in body and body.startswith("# Ideia café chá")
+    assert "[[cafe|Café]]" in body and body.startswith("# Ideia café chá")
 
 
 def test_existing_notes_are_never_overwritten(vault):
@@ -81,17 +81,17 @@ def test_paths_outside_the_vault_are_refused(vault):
 def test_research_note(vault):
     found = Research("Fórmula 1", "wikipedia", "wikipedia", "Resumo.", [SearchResult("F1", "https://f1")])
     note = save_research(vault, found)
-    assert note.path == "03-recursos/Pesquisa - Fórmula 1.md"
+    assert note.path == "03-recursos/pesquisa_formula_1.md"
     body = vault.read(note.path).body
     assert "## Fontes" in body and "[F1](https://f1)" in body
-    assert "[[Pesquisa - Fórmula 1]]" in next((vault.root / "diario").iterdir()).read_text(encoding="utf-8")
+    assert "[[pesquisa_formula_1|Pesquisa - Fórmula 1]]" in next((vault.root / "diario").iterdir()).read_text(encoding="utf-8")
 
 
 async def test_nota_and_buscar_commands(services, vault):
     services.vault = vault
     router = Router(services)
     reply = await router.handle_text("/nota comprar ração do gato amanhã cedo antes do trabalho")
-    assert reply.text.startswith("📝 Nota salva: 00-inbox/comprar ração do gato")
+    assert reply.text.startswith("📝 Nota salva: 00-inbox/comprar_racao_do_gato")
     found = (await router.handle_text("/buscar racao")).text
     assert "00-inbox/" in found
 
@@ -105,7 +105,7 @@ async def test_search_result_becomes_a_note(services, vault):
         "Resumo da F1.",
     )
     reply = await Router(services).handle_text("pesquisa F1")
-    assert "📝 Salvo em 03-recursos/Pesquisa - F1.md" in reply.text
+    assert "📝 Salvo em 03-recursos/pesquisa_f1.md" in reply.text
     assert "Resumo da F1." in vault.read("Pesquisa - F1").body
 
 
@@ -116,4 +116,68 @@ async def test_llm_can_create_notes(services, vault):
         '{"actions": [{"type": "note_create", "params": {"title": "Viagem", "body": "Ir a Floripa", "folder": "projetos"}}], "reply": "Anotado."}',
     )
     reply = await Router(services).handle_text("anota que quero viajar pra Floripa")
-    assert "01-projetos/Viagem.md" in reply.text
+    assert "01-projetos/viagem.md" in reply.text
+
+
+def test_file_names_are_portuguese_snake_case():
+    from uva.brain.naming import file_stem, looks_portuguese
+
+    assert file_stem("Marmitas Frias e Esquentadas") == "marmitas_frias_e_esquentadas"
+    assert file_stem("Previsão do tempo: Mafra (amanhã)") == "previsao_do_tempo_mafra_amanha"
+    assert looks_portuguese("Previsão do tempo em Mafra")
+    assert not looks_portuguese("Mafra weather and Tuesday commute conditions")
+    assert not looks_portuguese("Pesquisa - Prêmio Jabuti 2026 latest updates")
+    assert looks_portuguese("Pesquisa - Prêmio Jabuti 2026 últimas notícias")
+
+
+async def test_english_title_gets_a_portuguese_one(services, tmp_path):
+    import json
+
+    from fakes import with_llm
+
+    from uva.router import Router
+
+    services.vault = Vault(tmp_path / "b", ZoneInfo("America/Sao_Paulo"))
+    services.vault.ensure_structure()
+    plan = {"actions": [{"type": "note_create", "params": {"title_pt": "Terrine food what is it", "body": "Terrine é um patê."}}], "reply": ""}
+    with_llm(services, json.dumps(plan), "Terrine: o que é")
+    reply = (await Router(services).handle_text("anota o que é terrine")).text
+    assert "00-inbox/terrine_o_que_e.md" in reply
+    note = services.vault.read("terrine_o_que_e")
+    assert note.title == "Terrine o que é"  # ":" is dropped from titles
+
+
+async def test_rename_existing_notes_and_links_then_revert(services, tmp_path):
+    import subprocess
+
+    from fakes import with_llm
+
+    from uva.bootstrap import _init_brain_git
+    from uva.selfmod.git import GitRepo
+
+    root = tmp_path / "brain"
+    vault = Vault(root, ZoneInfo("America/Sao_Paulo"))
+    vault.ensure_structure()
+    old = root / "03-recursos" / "Pesquisa - Mafra weather and Tuesday commute conditions.md"
+    old.write_text("---\ntitle: Pesquisa - Mafra weather and Tuesday commute conditions\n---\n\n# Pesquisa - Mafra weather and Tuesday commute conditions\n\nChuva.\n", encoding="utf-8")
+    book = root / "03-recursos" / "Marmitas frias e requentadas.md"
+    book.write_text("---\ntitle: Marmitas frias e requentadas\n---\n\n![[05-anexos/Capa Livro.jpg]]\nVer [[Pesquisa - Mafra weather and Tuesday commute conditions]].\n", encoding="utf-8")
+    (root / "05-anexos" / "Capa Livro.jpg").write_bytes(b"x")
+    _init_brain_git(vault)
+    services.vault = vault
+    services.brain_repo = GitRepo(root, "kundlatsch", "k@example.com")
+    with_llm(services, "Clima em Mafra e trânsito de terça")  # the prefix is kept
+
+    text = (await Router(services).handle_text("/brain renomear")).text
+    assert "03-recursos/marmitas_frias_e_requentadas.md" in text
+    assert "03-recursos/pesquisa_clima_em_mafra_e_transito_de_terca.md" in text
+    new_book = (root / "03-recursos" / "marmitas_frias_e_requentadas.md").read_text(encoding="utf-8")
+    assert "[[pesquisa_clima_em_mafra_e_transito_de_terca|Pesquisa - Clima em Mafra e trânsito de terça]]" in new_book
+    assert "![[05-anexos/capa_livro.jpg]]" in new_book and (root / "05-anexos" / "capa_livro.jpg").exists()
+    assert not old.exists()
+
+    reverted = (await Router(services).handle_text("/reverter brain")).text
+    assert reverted.startswith("↩️ Second brain: desfeito")
+    assert old.exists() and book.exists()
+    log = subprocess.run(["git", "-C", str(root), "log", "--format=%s"], capture_output=True, text=True, encoding="utf-8").stdout
+    assert "Renomeia 2 nota(s)" in log

@@ -1,7 +1,9 @@
 """Markdown vault ("second brain"), Obsidian-compatible, organized with PARA.
 
-Notes are plain .md files with YAML front matter and [[wiki links]]. The
-file name is the note title, so [[Title]] links resolve in Obsidian.
+Notes are plain .md files with YAML front matter and [[wiki links]]. File
+names are the Portuguese title in snake_case without accents
+(marmitas_frias_e_requentadas.md); the title itself, with accents, is in the
+front matter and the H1, and links are [[file_name|Title]] (see naming.py).
 The vault only ever creates and appends: nothing is deleted or overwritten.
 """
 
@@ -15,6 +17,7 @@ from pathlib import Path
 
 import yaml
 
+from uva.brain.naming import file_stem, link
 from uva.clock import utcnow
 from uva.text import normalize
 
@@ -67,6 +70,11 @@ class Note:
     body: str
     created: str = ""
     tags: list[str] = field(default_factory=list)
+
+    @property
+    def link(self) -> str:
+        """[[file_name|Title]] for this note."""
+        return link(Path(self.path).stem, self.title)
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,8 +139,7 @@ class Vault:
         title = clean_title(title)
         directory = self.folder_path(folder, subfolder)
         directory.mkdir(parents=True, exist_ok=True)
-        path = _unique_path(directory, title)
-        title = path.stem  # may have gained a " (2)" suffix
+        path = _unique_path(directory, file_stem(title))
 
         created = self._timestamp(now)
         text = render_note(title, body, created=created, tags=list(tags), links=list(links))
@@ -195,14 +202,13 @@ class Vault:
         stamp = (now or utcnow()).astimezone(self.tz).strftime("%Y-%m-%d %H%M%S")
         versions = self.root / FOLDERS["arquivo"] / "Versões"
         versions.mkdir(parents=True, exist_ok=True)
-        backup = _unique_path(versions, clean_title(f"{path.stem} {stamp}"))
+        backup = _unique_path(versions, file_stem(f"{path.stem} {stamp}"))
         backup.write_text(old_text, encoding="utf-8")
 
         new_title = clean_title(title) if title else str(meta.get("title") or path.stem)
         target = path
-        if new_title != path.stem:
-            target = _unique_path(path.parent, new_title)
-            new_title = target.stem
+        if file_stem(new_title) != path.stem:
+            target = _unique_path(path.parent, file_stem(new_title))
         if body is None:
             # Keep the text, but fix the H1 that repeats the old title.
             old_heading = f"# {meta.get('title') or path.stem}"
@@ -273,11 +279,11 @@ class Vault:
         """Store a binary file (image) in 05-anexos without overwriting; returns its path."""
         directory = self.root / FOLDERS["anexos"]
         directory.mkdir(parents=True, exist_ok=True)
-        stem = clean_title(title)[:60]
+        stem = file_stem(title)[:60]
         path = directory / f"{stem}.{extension}"
         counter = 2
         while path.exists():
-            path = directory / f"{stem} ({counter}).{extension}"
+            path = directory / f"{stem}_{counter}.{extension}"
             counter += 1
         path.write_bytes(data)
         return self._relative(path)
@@ -360,8 +366,13 @@ class Vault:
 
         wanted = normalize(Path(ref).stem)
         notes = [p for p in sorted(self.root.rglob("*.md")) if self._visible(p)]
+        stem = file_stem(Path(ref).stem)
         for path in notes:
-            if normalize(path.stem) == wanted:
+            if normalize(path.stem) == wanted or path.stem == stem:
+                return path
+        for path in notes:  # by the title in the front matter ("Marmitas frias e requentadas")
+            meta, _ = parse_note(path.read_text(encoding="utf-8", errors="replace"))
+            if meta.get("title") and normalize(str(meta["title"])) == wanted:
                 return path
         # Partial title ("marmitas"): accept it only when it is unambiguous.
         partial = [p for p in notes if wanted and wanted in normalize(p.stem)]
@@ -397,7 +408,7 @@ def render_note(title: str, body: str, *, created: str, tags: list[str], links: 
     if body.strip():
         parts.append(body.strip())
     if links:
-        parts.append("Relacionado: " + " ".join(f"[[{clean_title(link)}]]" for link in links))
+        parts.append("Relacionado: " + " ".join(link(file_stem(name), clean_title(name)) for name in links))
     return "\n\n".join(parts) + "\n"
 
 
@@ -415,11 +426,11 @@ def parse_note(text: str) -> tuple[dict, str]:
     return {}, text
 
 
-def _unique_path(directory: Path, title: str) -> Path:
-    path = directory / f"{title}.md"
+def _unique_path(directory: Path, stem: str) -> Path:
+    path = directory / f"{stem}.md"
     counter = 2
     while path.exists():
-        path = directory / f"{title} ({counter}).md"
+        path = directory / f"{stem}_{counter}.md"
         counter += 1
     return path
 

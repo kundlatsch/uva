@@ -61,6 +61,8 @@ class Services:
     initiatives: InitiativeStore | None = None
     expenses: ExpenseRepository | None = None
     repo: GitRepo | None = None
+    # The second brain's own git history (renames, so /reverter brain can undo them).
+    brain_repo: GitRepo | None = None
     files: FileAccess | None = None
     features: FeatureService | None = None
     projects: ProjectService | None = None

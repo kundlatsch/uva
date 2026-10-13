@@ -68,6 +68,8 @@ def register(registry: CommandRegistry) -> None:
         if vault is None:
             return "O second brain não está configurado."
         ref = " ".join(ctx.args).strip()
+        if ref in ("renomear", "renomeia"):
+            return Reply.paginated(await rename_brain(ctx.services))
         if not ref:
             return Reply.paginated(await asyncio.to_thread(render_tree, vault))
 
@@ -100,7 +102,7 @@ def register(registry: CommandRegistry) -> None:
         if not text:
             return "Uso: /nota <texto>"
         saved = vault.create_note(title_from_text(text), text, folder="inbox", tags=["inbox"])
-        vault.append_daily(f"Nota rápida: [[{saved.title}]]")
+        vault.append_daily(f"Nota rápida: {saved.link}")
         await remember_ref(ctx.services, "nota", saved.path, f"nota: {saved.title}")
         return f"📝 Nota salva: {saved.path}"
 
@@ -122,3 +124,34 @@ def register(registry: CommandRegistry) -> None:
         if not hits:
             return f"{ctx.services.say('sem_resultado', termo=term)}\n(nenhuma nota com '{term}')"
         return f"Notas com '{term}':\n" + "\n".join(f"- {h.path}\n  {h.snippet}" for h in hits)
+
+
+async def rename_brain(services) -> str:
+    """/brain renomear: existing notes to the Portuguese snake_case pattern."""
+    import asyncio
+
+    from uva.brain.rename import apply_renames, plan_renames
+    from uva.selfmod.git import SELF_EDIT
+
+    vault, repo = services.vault, services.brain_repo
+    if vault is None:
+        return "O second brain não está configurado."
+    renames = await plan_renames(services, vault)
+    if not renames:
+        return "Todos os nomes já estão no padrão (português, snake_case)."
+    attachments = await asyncio.to_thread(apply_renames, vault, renames)
+    lines = [f"✅ {len(renames)} nota(s) renomeada(s):"]
+    lines += [f"- {r.old} → {r.new}" + (f" (título: {r.new_title})" if r.new_title != r.old_title else "") for r in renames]
+    if attachments:
+        lines += [f"{len(attachments)} anexo(s):"] + [f"- {a} → {b}" for a, b in attachments.items()]
+    if repo is not None:
+        try:
+            await asyncio.to_thread(repo.run, "add", "-A")
+            await asyncio.to_thread(
+                repo.run, "commit", "-q", "-m",
+                f"Renomeia {len(renames)} nota(s) para o padrão em português\n\n{SELF_EDIT}: true",
+            )
+            lines.append("Desfaz com /reverter brain.")
+        except Exception as exc:
+            lines.append(f"(não consegui commitar no git do brain: {exc})")
+    return "\n".join(lines)

@@ -22,20 +22,20 @@ def router(services, tmp_path) -> Router:
 async def test_tree_lists_folders_and_notes(router):
     text = (await router.handle_text("/brain")).text
     assert text.startswith("🧠 brain")
-    assert "📁 03-recursos/ (1 nota(s))" in text and "· Receita de pão.md" in text
+    assert "📁 03-recursos/ (1 nota(s))" in text and "· receita_de_pao.md" in text
     assert "02-areas/" in text and "Saúde/Saúde.md" in text
     assert ".obsidian" not in text and "segredo" not in text
 
 
 async def test_folder_listing_by_para_name_or_path(router):
     text = (await router.handle_text("/brain recursos")).text
-    assert text.startswith("📂 03-recursos") and "📝 Receita de pão.md" in text
+    assert text.startswith("📂 03-recursos") and "📝 receita_de_pao.md" in text
     assert "📁 Saúde/ · 1 nota(s)" in (await router.handle_text("/brain 02-areas")).text
 
 
 async def test_note_shows_raw_content_with_front_matter(router):
     text = (await router.handle_text("/brain receita de pão")).text
-    assert text.startswith("📝 03-recursos/Receita de pão.md")
+    assert text.startswith("📝 03-recursos/receita_de_pao.md")
     assert "tags:\n- cozinha" in text and "farinha, água, sal" in text
 
 
@@ -48,12 +48,12 @@ async def test_long_note_is_paginated(router, services):
     services.vault.create_note("Longa", body, folder="inbox")
     first = await router.handle_text("/ver Longa")
     assert first.document is None
-    assert first.text.startswith("📝 00-inbox/Longa.md") and "linha 1\n" in first.text
+    assert first.text.startswith("📝 00-inbox/longa.md") and "linha 1\n" in first.text
     assert first.text.endswith("— página 1/4 —")
     assert [b.text for b in first.buttons] == ["Próxima ▶"]
 
     second = await router.handle_callback(first.buttons[0].data)
-    assert second.edit and second.text.startswith("📝 00-inbox/Longa.md")  # header on every page
+    assert second.edit and second.text.startswith("📝 00-inbox/longa.md")  # header on every page
     assert "— página 2/4 —" in second.text
     assert [b.text for b in second.buttons] == ["◀ Anterior", "Próxima ▶"]
 
