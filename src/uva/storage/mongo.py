@@ -351,3 +351,41 @@ class MongoProjectStore:
     async def cost_since(self, since: datetime) -> float:
         cursor = self.collection.find({"created_at": {"$gte": since}}, {"cost_usd": True})
         return sum([float(d.get("cost_usd") or 0) async for d in cursor])
+
+
+class MongoRoutineStore:
+    """Collection ``routines``: recurring requests and when they run."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["routines"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index("id", unique=True)
+        await self.collection.create_index("next_run_at")
+
+    async def add(self, routine) -> None:
+        await self.collection.insert_one(routine.model_dump(mode="python"))
+
+    async def get(self, routine_id: str):
+        from uva.routines import Routine
+
+        doc = await self.collection.find_one({"id": routine_id}, {"_id": False})
+        return Routine.model_validate(doc) if doc else None
+
+    async def update(self, routine_id: str, **fields: Any) -> None:
+        await self.collection.update_one({"id": routine_id}, {"$set": fields})
+
+    async def delete(self, routine_id: str) -> bool:
+        return (await self.collection.delete_one({"id": routine_id})).deleted_count > 0
+
+    async def all(self):
+        from uva.routines import Routine
+
+        cursor = self.collection.find({}, {"_id": False}).sort("created_at", ASCENDING)
+        return [Routine.model_validate(d) async for d in cursor]
+
+    async def due(self, now: datetime):
+        from uva.routines import Routine
+
+        cursor = self.collection.find({"enabled": True, "next_run_at": {"$lte": now}}, {"_id": False})
+        return [Routine.model_validate(d) async for d in cursor]

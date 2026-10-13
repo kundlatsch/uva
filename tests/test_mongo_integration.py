@@ -158,3 +158,19 @@ async def test_project_store_roundtrip(db):
     got = await store.get(record.id)
     assert got.status is ProjectStatus.DONE and (await store.recent(5))[0].id == record.id
     assert await store.cost_since(utcnow() - timedelta(hours=1)) == 0.5
+
+
+async def test_routine_store_due(db):
+    from uva.routines import Every, Routine
+
+    store = mongo.MongoRoutineStore(db)
+    await store.setup()
+    now = utcnow()
+    past = Routine(request="/ping", every=Every.DAY, next_run_at=now - timedelta(hours=30))
+    future = Routine(request="/ping", every=Every.DAY, next_run_at=now + timedelta(hours=1))
+    await store.add(past)
+    await store.add(future)
+    assert [r.id for r in await store.due(now)] == [past.id]
+    await store.update(past.id, next_run_at=now + timedelta(days=1), runs=1)
+    assert await store.due(now) == []
+    assert await store.delete(future.id)

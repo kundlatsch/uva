@@ -86,6 +86,8 @@ def build_services(settings: Settings) -> Services:
     project_store = mongo.MongoProjectStore(db)
     services.projects = ProjectService(project_store, settings, _enqueue_project)
     services.shell = ShellService(settings)
+    routine_store = mongo.MongoRoutineStore(db)
+    services.routines = routine_store
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
@@ -100,6 +102,7 @@ def build_services(settings: Settings) -> Services:
             initiative_store.setup,
             feature_store.setup,
             project_store.setup,
+            routine_store.setup,
             # "At startup": compute the working memory once.
             services.memory.recompute_working_set,
             lambda: _setup_vault(services.vault),

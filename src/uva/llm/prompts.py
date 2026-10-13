@@ -123,6 +123,8 @@ Rules:
   or rename an existing note use note_update (read it first with note_read and send the FULL
   content); never create another note for that and never write placeholders like "<texto
   anterior aqui>".
+- Something to do on a schedule ("todo dia às 8...", "toda segunda...", "a cada 6 horas...")
+  is a routine: use routine_create. A goal is for work toward an outcome, not a timetable.
 - Goals (goal_create): a task with an end ("cria um comando", "descobre X", "organiza Y") is
   kind "unico"; following something continuously is "recorrente", with a sensible interval
   (news: 6-12h; prices: 2-6h; a study topic: 24h). Every run sends a report.

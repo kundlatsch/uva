@@ -36,6 +36,8 @@ app.conf.beat_schedule = {
         "schedule": crontab(hour=settings.memory_maintenance_hour, minute=0),
     },
 }
+# Routines: checked every minute; missed slots (PC off) run once when back.
+app.conf.beat_schedule["routines-tick"] = {"task": "uva.routines_tick", "schedule": crontab(minute="*")}
 app.conf.beat_schedule["stm-promotion"] = {
     "task": "uva.stm_promotion",
     "schedule": timedelta(minutes=30),

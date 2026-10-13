@@ -133,6 +133,20 @@ def project_build(project_id: str) -> str:
         raise
 
 
+@app.task(name="uva.routines_tick", time_limit=600, soft_time_limit=570)
+def routines_tick() -> list[str]:
+    from uva.routines import run_due
+
+    async def job() -> list[str]:
+        return await run_due(await runtime.get_services(), runtime.notify)
+
+    try:
+        return runtime.run(job)
+    except Exception as exc:
+        _notify_failure("As rotinas", exc)
+        raise
+
+
 @app.task(name="uva.stm_promotion")
 def stm_promotion() -> dict:
     async def job() -> dict:

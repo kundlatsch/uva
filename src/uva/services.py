@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from uva.memory.service import MemoryService
     from uva.projects.service import ProjectService
     from uva.shell.service import ShellService
+    from uva.routines import RoutineStore
     from uva.storage.stickers import StickerRepository
     from uva.selfmod.features import FeatureService
     from uva.selfmod.files import FileAccess
@@ -65,6 +66,7 @@ class Services:
     projects: ProjectService | None = None
     shell: ShellService | None = None
     stickers: StickerRepository | None = None
+    routines: RoutineStore | None = None
     stm: ShortTermMemory | None = None
     decisions: DecisionsClient | None = None
     transcriber: Transcriber | None = None

@@ -222,6 +222,18 @@ Travas: no máximo `PROACTIVE_MAX_MESSAGES_PER_DAY` (4) por dia, com `PROACTIVE_
 - `/proativo agora` — manda uma iniciativa já (respeita só o orçamento)
 - `/objetivos`, `/pausar <id>`, `/retomar <id>`, `/remover <id>`; `/log 1d goals` e `/log 1d iniciativas`
 
+## Rotinas (tarefas recorrentes)
+
+Pedidos que rodam sozinhos num horário, passando pelo roteador normal (mesmo orçamento e travas de uma mensagem digitada). O resultado chega no Telegram.
+
+- `/rotina todo dia 08:00 pesquisa se a skin X saiu na loja do LoL`
+- `/rotina segunda e quinta 9h me lembra de regar as plantas`
+- `/rotina a cada 6 horas confere o preço do dólar`
+- Em linguagem natural também ("todo dia às 8 vê se..."): a LLM usa `routine_create`.
+- `/rotinas` lista; `/rotina <id> pausar|retomar|remover|agora`.
+
+**PC desligado.** O beat confere a cada minuto. Uma rotina cujo horário passou com o PC desligado roda **uma vez** quando ele liga, por mais horários que tenha perdido, e o aviso diz "atrasada: era para 10/10 08:00". A próxima execução é sempre o próximo horário depois de agora. A agenda e a última execução ficam no Mongo (`routines`).
+
 ## SQLite (dados estruturados)
 
 Para dados com formato fixo há um SQLite em `SQLITE_PATH` (volume `sqlite-data`), em modo WAL. As migrações ficam em `src/uva/storage/sqlite.py` (lista `MIGRATIONS`; o número aplicado fica em `PRAGMA user_version`). Para mudar o esquema, acrescente uma migração nova no fim, nunca edite as antigas.
