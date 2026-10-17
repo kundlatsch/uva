@@ -39,6 +39,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "uva.dashboard" = ["static/*"]
+# Translations (see uva/i18n.py).
+"uva" = ["locales/*/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
