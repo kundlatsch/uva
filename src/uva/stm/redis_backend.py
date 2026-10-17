@@ -41,7 +41,7 @@ class RedisSessionBackend:
                     return session
                 except WatchError:
                     continue
-        raise RuntimeError("não consegui salvar a memória de curto prazo (conflito)")
+        raise RuntimeError("could not save the short-term memory (write conflict)")
 
     async def delete(self, user_id: int) -> None:
         await self.redis.delete(f"{PREFIX}{user_id}")

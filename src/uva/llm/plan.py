@@ -18,23 +18,23 @@ from pydantic import BaseModel, Field, ValidationError
 
 
 class ActionCall(BaseModel):
-    type: str = Field(description="Nome de uma das ações disponíveis")
+    type: str = Field(description="Name of one of the available actions")
     params: dict[str, Any] = Field(default_factory=dict)
 
 
 class LLMPlan(BaseModel):
     actions: list[ActionCall] = Field(default_factory=list)
-    reply: str = Field(default="", description="Texto enviado ao usuário")
+    reply: str = Field(default="", description="Text sent to the user")
 
 
 PLAN_SCHEMA: dict[str, Any] = LLMPlan.model_json_schema()
 
 
 class GoalPlan(LLMPlan):
-    done: bool = Field(default=True, description="true quando não há mais nada útil a fazer agora")
+    done: bool = Field(default=True, description="true when there is nothing more useful to do now")
     needs_feature: str | None = Field(
         default=None,
-        description="Se o objetivo exige um comando/funcionalidade nova: o texto para /feature",
+        description="If the goal needs a new command/feature: the text for /feature",
     )
 
 
@@ -54,8 +54,8 @@ def parse_plan(text: str, model: type[LLMPlan] = LLMPlan) -> LLMPlan:
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError as exc:
-        raise PlanError(f"JSON inválido: {exc}") from exc
+        raise PlanError(f"invalid JSON: {exc}") from exc
     try:
         return model.model_validate(data)
     except ValidationError as exc:
-        raise PlanError(f"formato inválido: {exc}") from exc
+        raise PlanError(f"invalid format: {exc}") from exc

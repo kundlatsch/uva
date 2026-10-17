@@ -124,7 +124,7 @@ async def test_build_runs_claude_in_a_new_git_repo_and_announces(services, proj,
     folder = Path(services.settings.projects_path) / record.slug
     assert (folder / "README.md").exists()
     assert git(folder, "log", "--format=%an <%ae>|%s").splitlines() == [
-        "kundlatsch <gustavo.kundlatsch@gmail.com>|Trabalho final do Claude Code",
+        "kundlatsch <gustavo.kundlatsch@gmail.com>|Final work by Claude Code",
         "kundlatsch <gustavo.kundlatsch@gmail.com>|Primeira versão",
     ]
     assert final.commits == 2

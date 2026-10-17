@@ -5,7 +5,7 @@ sticker's Telegram file_unique_id):
 
 * meaning: the first time a sticker shows up alone, the bot asks what it means
   and the next message becomes the meaning. From then on, sending it is
-  understood as "[figurinha 😂: <meaning>]", with the conversation context and
+  understood as "[sticker 😂: <meaning>]", with the conversation context and
   no image interpretation;
 * action: "toda vez que eu mandar essa figurinha, <faça X>" (or "every time I
   send this sticker, <do X>") ties a request to the sticker; every time it is
@@ -68,15 +68,15 @@ class StickerFocus:
 
 def as_message(sticker: Sticker) -> str:
     """How a known sticker is shown to the LLM."""
-    return f"[figurinha {sticker.emoji}: {sticker.meaning}]".replace("  ", " ")
+    return f"[sticker {sticker.emoji}: {sticker.meaning}]".replace("  ", " ")
 
 
 def action_message(sticker: Sticker) -> str:
     """What the router receives when a sticker with an action is sent."""
     if sticker.action.startswith("/"):
         return sticker.action
-    about = f" (que significa: {sticker.meaning})" if sticker.meaning else ""
-    return f"{sticker.action}\n[pedido atrelado à figurinha {sticker.emoji}{about}, que acabei de mandar]"
+    about = f" (meaning: {sticker.meaning})" if sticker.meaning else ""
+    return f"{sticker.action}\n[request tied to the sticker {sticker.emoji}{about} I just sent]"
 
 
 def describe(sticker: Sticker) -> str:

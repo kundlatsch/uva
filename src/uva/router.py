@@ -41,8 +41,8 @@ HEARD_CHARS = 800
 def describe_prompt() -> str:
     # The description is shown to the user: written in the configured language.
     return (
-        f"Descreva esta imagem em {language_name()}, em 1 a 3 frases objetivas. Se houver "
-        "texto legível, transcreva-o entre aspas (no idioma original)."
+        f"Describe this image in {language_name()}, in 1 to 3 objective sentences. If there is "
+        "legible text, transcribe it in quotes (in its original language)."
     )
 
 
@@ -85,7 +85,7 @@ class Router:
             with trace():
                 await emit(EventType.MESSAGE_RECEIVED, text=text, photo=photo is not None)
                 reply = await self._safely(self._route(text.strip(), user_id, photo))
-                await self._remember(text + (" [foto]" if photo else ""), reply)
+                await self._remember(text + (" [photo]" if photo else ""), reply)
                 return self._first_page(reply)
         finally:
             current_photo.reset(token)
@@ -102,9 +102,9 @@ class Router:
         services = self.services
         services.last_photo.set(photo)
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text="[foto]", photo=True)
+            await emit(EventType.MESSAGE_RECEIVED, text="[photo]", photo=True)
             reply = await self._safely(self._describe_photo(photo))
-            await self._remember("[foto sem legenda]", reply)
+            await self._remember("[photo without caption]", reply)
             return reply
 
     async def handle_sticker(
@@ -115,7 +115,7 @@ class Router:
         their action; a new one makes the bot ask what it means."""
         await self._mark_busy()
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[figurinha {emoji}]", kind="sticker", sticker=unique_id)
+            await emit(EventType.MESSAGE_RECEIVED, text=f"[sticker {emoji}]", kind="sticker", sticker=unique_id)
             reply, label = await self._sticker_reply(unique_id, file_id, emoji, set_name, user_id)
             await self._remember(label, reply)
             return self._first_page(reply)
@@ -125,7 +125,7 @@ class Router:
     ) -> tuple[Reply, str]:
         repo = self.services.stickers
         if repo is None:
-            return Reply(t("router.sticker.no_storage", emoji=emoji or "🙂")), f"[figurinha {emoji}]"
+            return Reply(t("router.sticker.no_storage", emoji=emoji or "🙂")), f"[sticker {emoji}]"
         try:
             sticker = await repo.get(unique_id)
             if sticker is None:
@@ -133,19 +133,19 @@ class Router:
             await repo.used(unique_id)
         except Exception as exc:
             await emit(EventType.ERROR, where="stickers", error=repr(exc))
-            return Reply(self.services.say("erro_generico")), f"[figurinha {emoji}]"
+            return Reply(self.services.say("erro_generico")), f"[sticker {emoji}]"
         self._sticker = StickerFocus(unique_id, sticker.emoji or emoji, utcnow(), asking=not sticker.meaning)
         if sticker.action:
             await emit(EventType.ROUTE, tier="sticker_action", sticker=sticker.id, action=sticker.action)
             reply = await self._safely(self._route(action_message(sticker), user_id))
-            return reply, f"{as_message(sticker) if sticker.meaning else f'[figurinha {sticker.emoji}]'} → {sticker.action}"
+            return reply, f"{as_message(sticker) if sticker.meaning else f'[sticker {sticker.emoji}]'} → {sticker.action}"
         if sticker.meaning:
             await emit(EventType.ROUTE, tier="sticker", sticker=sticker.id)
             reply = await self._safely(self.agent.handle(as_message(sticker)))
             return reply, as_message(sticker)
         await emit(EventType.ROUTE, tier="sticker_new", sticker=sticker.id)
         reply = Reply(t("router.sticker.new", emoji=sticker.emoji))
-        return reply, f"[figurinha nova {sticker.emoji}]"
+        return reply, f"[new sticker {sticker.emoji}]"
 
     async def _try_sticker_text(self, text: str) -> Reply | None:
         """The meaning of the sticker just asked about, or "toda vez que eu mandar
@@ -194,7 +194,7 @@ class Router:
             return Reply(t("router.photo.kept_llm_error", phrase=services.say("llm_erro")))
         description = response.text.strip() or t("router.photo.no_description")
         await emit(EventType.ROUTE, tier="vision_describe", chars=len(description))
-        await remember_ref(services, "imagem", utcnow().strftime("%H%M%S"), f"imagem: {_clip(description, 80)}")
+        await remember_ref(services, "imagem", utcnow().strftime("%H%M%S"), f"image: {_clip(description, 80)}")
         return Reply(t("router.photo.described", description=description))
 
     async def _followup_image(self, text: str) -> str | None:
@@ -221,7 +221,7 @@ class Router:
         await self._mark_busy()
         services = self.services
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text="[áudio]", kind="voice", seconds=seconds)
+            await emit(EventType.MESSAGE_RECEIVED, text="[audio]", kind="voice", seconds=seconds)
             if services.transcriber is None:
                 return [Reply(t("router.audio.no_transcriber"))]
             if services.budget is not None:
@@ -241,7 +241,7 @@ class Router:
             reply = await self._safely(self._route(transcript.text.strip(), user_id))
             if services.budget is not None and not (await services.budget.check(Scope.INTERACTIVE)).allowed:
                 reply.text += "\n" + t("router.audio.kept_transcript")
-            await self._remember(f"[voz] {transcript.text}", reply)
+            await self._remember(f"[voice] {transcript.text}", reply)
             return [heard, reply]
 
     async def _remember(self, text: str, reply: Reply) -> None:
@@ -288,13 +288,13 @@ class Router:
             token, _, index = token.partition(":")
             return self._page(token, int(index) if index.isdigit() else 0)
         if verb in ("shok", "shno") and self.services.shell is not None:
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[botão] {verb}", kind="callback")
+            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             reply = await self._safely(self.services.shell.resolve(verb, token))
-            await self._remember(f"[botão] {verb}", reply)
+            await self._remember(f"[button] {verb}", reply)
             return self._first_page(reply)
         pending = self._pending.pop(token, None)
         with trace(pending.trace_id if pending else None):
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[botão] {verb}", kind="callback")
+            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             return await self._safely(self._resolve_confirmation(verb, pending, user_id))
 
     async def _mark_busy(self) -> None:

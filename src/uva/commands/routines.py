@@ -43,7 +43,7 @@ def register(registry: CommandRegistry) -> None:
         "rotina",
         t("commands.routines.rotina.description"),
         aliases=("agendar", "routine", "schedule"),
-        usage="<quando> <pedido> | <id> pausar|retomar|remover|agora",
+        usage=t("commands.routines.rotina.usage_arg"),
     )
     async def routine(ctx: CommandContext) -> Reply | str:
         store = ctx.services.routines

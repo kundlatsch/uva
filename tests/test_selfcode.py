@@ -155,7 +155,7 @@ async def test_green_feature_is_committed_merged_and_announced(services, setup, 
     assert "Uso: /dado 20" in inbox.texts[0] and "170 passed" in inbox.texts[0]
     # Code generation runs without the personality and on the self-code budget.
     assert provider.calls[0]["model"] == "heavy-model"
-    assert "Interface de plugins" in provider.calls[0]["system"]
+    assert "Plugin interface" in provider.calls[0]["system"]
     assert services.busy.markers == {}
     assert {e.data["op"] for e in event_store.of_type(EventType.SELFCODE)} >= {"start", "attempt", "finish"}
 
@@ -179,7 +179,7 @@ async def test_dangerous_code_never_runs(services, setup, repo):
     final = await build_feature(services, record.id, inbox, request_reload=reload_ok, run_tests=run)
     assert final.status is FeatureStatus.FAILED and final.attempts == 3
     assert run.calls == []  # tests (i.e. the code) never ran
-    assert "import proibido: os" in provider.calls[1]["messages"][0].content
+    assert "forbidden import: os" in provider.calls[1]["messages"][0].content
     assert not (repo / "src/uva/plugins/dado.py").exists()
     assert inbox.texts[0].startswith("😵 Não consegui construir")
 
@@ -188,7 +188,7 @@ async def test_existing_command_name_is_refused(services, setup):
     with_llm(services, *(generated(name="pingx", command="ping") for _ in range(3)))
     record = await new_feature(services)
     final = await build_feature(services, record.id, Inbox(), request_reload=reload_ok, run_tests=runner())
-    assert final.status is FeatureStatus.FAILED and "/ping já existe" in final.error
+    assert final.status is FeatureStatus.FAILED and "/ping already exists" in final.error
 
 
 async def test_plugin_that_fails_to_load_in_the_bot_is_reverted(services, setup, repo):

@@ -13,7 +13,7 @@ def register(registry: CommandRegistry) -> None:
         "proativo",
         t("commands.proactive.proativo.description"),
         aliases=("proatividade", "iniciativas", "proactive"),
-        usage="[on|off|agora]",
+        usage=t("commands.proactive.proativo.usage_arg"),
         examples=("o que voce faz sozinha", "status da proatividade"),
     )
     async def proactive(ctx: CommandContext) -> str | Reply:

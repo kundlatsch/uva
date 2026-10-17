@@ -18,18 +18,18 @@ from uva.actions.search import ResearchError, research, save_research
 
 
 class ReplyParams(BaseModel):
-    text: str = Field(description="Mensagem para o usuário")
+    text: str = Field(description="Message for the user")
 
 
 class RunCommandParams(BaseModel):
-    command: str = Field(description="Nome do comando, sem a barra (ex.: log)")
-    args: list[str] = Field(default_factory=list, description="Argumentos (ex.: ['2h', 'erros'])")
+    command: str = Field(description="Command name, without the slash (e.g. log)")
+    args: list[str] = Field(default_factory=list, description="Arguments (e.g. ['2h', 'errors'])")
 
 
 class SearchParams(BaseModel):
     model_config = ConfigDict(json_schema_extra=require_title_pt)
 
-    query: str = Field(description="O que pesquisar, em poucas palavras")
+    query: str = Field(description="What to search for, in a few words")
     title_pt: str = Field(
         default="",
         description=(
@@ -38,16 +38,16 @@ class SearchParams(BaseModel):
         ),
     )
     source: Literal["web", "wikipedia"] = Field(
-        default="web", description="'wikipedia' quando o usuário pedir Wikipédia"
+        default="web", description="'wikipedia' when the user asks for Wikipedia"
     )
 
 
 def register(registry: ActionRegistry) -> None:
-    @registry.action("reply", "Envia uma mensagem ao usuário", ReplyParams, proactive_safe=True)
+    @registry.action("reply", "Sends a message to the user", ReplyParams, proactive_safe=True)
     async def reply(params: ReplyParams, ctx: ActionContext) -> ActionResult:
         return ActionResult(text=params.text)
 
-    @registry.action("run_command", "Executa um comando do bot", RunCommandParams)
+    @registry.action("run_command", "Runs a bot command", RunCommandParams)
     async def run_command(params: RunCommandParams, ctx: ActionContext) -> ActionResult:
         if ctx.run_command is None:
             return ActionResult(text=t("actions.builtin.run_command.unavailable"))
@@ -59,7 +59,7 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "search",
-        "Pesquisa um assunto (web ou Wikipédia) e devolve um resumo com fontes",
+        "Researches a topic (web or Wikipedia) and returns a summary with sources",
         SearchParams,
         proactive_safe=True,
         long_running=True,

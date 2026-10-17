@@ -124,7 +124,7 @@ class ShellService:
         await emit(EventType.SHELL, op="undo", result=result)
         if not result.get("ok"):
             error = result.get("error")
-            if error == EMPTY_UNDO:  # the sandbox speaks Portuguese (stdlib only, no i18n)
+            if error in EMPTY_UNDO:  # the sandbox answers in English (stdlib only, no i18n)
                 error = t("shell.service.undo_empty")
             return Reply(t("shell.service.nothing_to_undo", error=error))
         changed = result.get("changed") or []
@@ -144,8 +144,9 @@ class ShellService:
         return Reply.paginated(t("shell.service.history") + "\n" + "\n".join(lines))
 
 
-# The "nothing to undo" error from the sandbox (shell/executor.py).
-EMPTY_UNDO = "nada para desfazer"
+# The "nothing to undo" error from the sandbox (shell/executor.py NOTHING_TO_UNDO),
+# plus the Portuguese one an executor image built before the change still sends.
+EMPTY_UNDO = ("nothing to undo", "nada para desfazer")
 
 
 def usage() -> str:

@@ -132,7 +132,7 @@ class FileAccess:
         return await self.git.commit_paths(
             [target.repo_relative],
             subject=f"Self-edit: {op} {target.display}",
-            body=reason or "Alteração feita pela UVA.",
+            body=reason or "Change made by UVA.",
             trailer=SELF_EDIT,
         )
 

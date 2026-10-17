@@ -60,7 +60,7 @@ def load_module(path: Path) -> ModuleType:
     sys.modules.pop(name, None)  # always load the current file contents
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise ImportError(f"não consegui carregar {path.name}")
+        raise ImportError(f"could not load {path.name}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     try:
@@ -79,7 +79,7 @@ def load_plugins(registry: CommandRegistry, directory: Path) -> LoadReport:
         try:
             found = commands_in(load_module(path))
             if not found:
-                raise ValueError("nenhum comando com @command")
+                raise ValueError("no command with @command")
             _register_all(registry, found)
         except Exception as exc:
             report.errors[path.stem] = f"{type(exc).__name__}: {exc}"
@@ -94,7 +94,7 @@ def _register_all(registry: CommandRegistry, found: list[PluginCommand]) -> None
     commands = [_to_command(pc) for pc in found]
     taken = [n for c in commands for n in c.all_names if registry.get(n) is not None]
     if taken:
-        raise ValueError(f"nome já usado por outro comando: {', '.join(taken)}")
+        raise ValueError(f"name already used by another command: {', '.join(taken)}")
     for cmd in commands:
         registry.register(cmd)
 

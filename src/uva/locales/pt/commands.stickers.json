@@ -19,6 +19,7 @@
     "meaning_set": "✅ {label} agora significa: {meaning}",
     "action_set": "✅ Toda vez que você mandar {emoji}, eu faço: {action}",
     "action_cleared": "✅ {label} não faz mais nada sozinha (o significado continua).",
-    "removed": "🗑️ Esqueci a figurinha {label} (significado e ação)."
+    "removed": "🗑️ Esqueci a figurinha {label} (significado e ação).",
+    "usage_arg": "<n> significado|acao|sem-acao|remover [texto]"
   }
 }

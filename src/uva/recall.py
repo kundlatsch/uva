@@ -112,7 +112,7 @@ async def _memory(services: Services, words: list[str], found: Recall) -> None:
     scored.sort(key=lambda p: -p[0])
     lines = [f"- [{i.category.value}] {i.key}: {i.value}" for _, i in scored[:MAX_MEMORY]]
     if lines:
-        found.sections.append("Memória longa (além da de trabalho):\n" + "\n".join(lines))
+        found.sections.append("Long-term memory (beyond the working set):\n" + "\n".join(lines))
 
 
 def _score_notes(vault: Vault, words: list[str]) -> list[tuple[int, str]]:
@@ -142,12 +142,12 @@ async def _notes(services: Services, words: list[str], found: Recall) -> None:
             note = vault.read(path)
             body = note.body.strip()
             if len(body) > NOTE_CHARS:
-                body = body[:NOTE_CHARS] + "… (continua; use note_read para o resto)"
+                body = body[:NOTE_CHARS] + "… (continues; use note_read for the rest)"
             blocks.append(f"### {path}\n{body}")
         else:
-            blocks.append(f"### {path} (use note_read para ler)")
+            blocks.append(f"### {path} (use note_read to read it)")
         found.notes.append(path)
-    found.sections.append("Notas do second brain:\n" + "\n\n".join(blocks))
+    found.sections.append("Second brain notes:\n" + "\n\n".join(blocks))
 
 
 async def _goals(services: Services, words: list[str], found: Recall) -> None:
@@ -161,12 +161,12 @@ async def _goals(services: Services, words: list[str], found: Recall) -> None:
             continue
         line = f"- {goal.title} ({goal.status.value})"
         for result in goal.results[-2:]:
-            line += f"\n  resultado: {result.summary[:600]}" + (f" [nota: {result.note}]" if result.note else "")
+            line += f"\n  result: {result.summary[:600]}" + (f" [note: {result.note}]" if result.note else "")
         lines.append(line)
         if len(lines) >= MAX_GOALS:
             break
     if lines:
-        found.sections.append("Objetivos relacionados:\n" + "\n".join(lines))
+        found.sections.append("Related goals:\n" + "\n".join(lines))
 
 
 async def _expenses(services: Services, words: list[str], found: Recall) -> None:
@@ -179,6 +179,6 @@ async def _expenses(services: Services, words: list[str], found: Recall) -> None
     lines = [f"- {format_brl(e.amount_cents)} {e.category} {e.description}".rstrip() for e in recent]
     total_lines = [f"- {category}: {format_brl(cents)}" for category, cents in totals]
     found.sections.append(
-        "Gastos (últimos):\n" + ("\n".join(lines) or "(nenhum)")
-        + "\nTotais por categoria:\n" + ("\n".join(total_lines) or "(nenhum)")
+        "Expenses (latest):\n" + ("\n".join(lines) or "(none)")
+        + "\nTotals by category:\n" + ("\n".join(total_lines) or "(none)")
     )

@@ -192,7 +192,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
         working_memory=await _working_memory(services),
     )
     ctx = ActionContext(services, Scope.PROACTIVE)  # no run_command, no retries
-    messages = [LLMMessage("user", "Execute a primeira rodada.")]
+    messages = [LLMMessage("user", "Run the first round.")]
     run = GoalRun(goal)
 
     with metered() as meter:
@@ -246,7 +246,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
             )
             messages += [
                 LLMMessage("assistant", response.text),
-                LLMMessage("user", f"Resultados das ações:\n{feedback}\n\nExecute a próxima rodada."),
+                LLMMessage("user", f"Action results:\n{feedback}\n\nRun the next round."),
             ]
         run.tokens = meter.total
     return run

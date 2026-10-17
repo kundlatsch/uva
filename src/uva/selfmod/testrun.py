@@ -49,7 +49,7 @@ def run_pytest(workdir: Path, timeout: int = 300) -> SuiteResult:
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        return SuiteResult(False, f"timeout ({timeout}s)", f"Os testes passaram de {timeout}s.")
+        return SuiteResult(False, f"timeout ({timeout}s)", f"The tests took longer than {timeout}s.")
     output = (result.stdout + result.stderr).strip()
     return SuiteResult(result.returncode == 0, _summary(output), output[-OUTPUT_TAIL:])
 
@@ -58,4 +58,4 @@ def _summary(output: str) -> str:
     for line in reversed(output.splitlines()):
         if re.search(r"\d+ (passed|failed|error)", line):
             return line.strip("= ").strip()
-    return output.splitlines()[-1] if output else "sem saída"
+    return output.splitlines()[-1] if output else "no output"

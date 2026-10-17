@@ -7,7 +7,7 @@ import httpx
 from uva.search.base import SearchError, SearchResponse, SearchResult
 
 # Wikimedia asks API clients to identify themselves.
-USER_AGENT = "UVA-Bot/0.1 (assistente pessoal; uso individual)"
+USER_AGENT = "UVA-Bot/0.1 (personal assistant; individual use)"
 MAX_EXTRACT_CHARS = 1500
 
 

@@ -9,11 +9,11 @@ from uva.i18n import t
 
 
 class ShellRunParams(BaseModel):
-    command: str = Field(min_length=1, description="Comando bash, roda em /uva")
+    command: str = Field(min_length=1, description="Bash command, runs in /uva")
 
 
 class PythonRunParams(BaseModel):
-    code: str = Field(min_length=1, description="Código Python 3, roda em /uva (pacotes: pip no venv)")
+    code: str = Field(min_length=1, description="Python 3 code, runs in /uva (packages: pip in the venv)")
 
 
 def register(registry: ActionRegistry) -> None:
@@ -27,8 +27,8 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "shell_run",
-        "Roda um comando Linux na sua pasta própria /uva (isolada; apagar/sobrescrever pede "
-        "confirmação ao usuário)",
+        "Runs a Linux command in your own folder /uva (isolated; deleting/overwriting asks "
+        "the user for confirmation)",
         ShellRunParams,
     )
     async def shell_run(params: ShellRunParams, ctx: ActionContext) -> ActionResult:
@@ -36,7 +36,7 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "python_run",
-        "Roda código Python na sua pasta /uva (venv próprio; instale pacotes com shell_run pip)",
+        "Runs Python code in your folder /uva (its own venv; install packages with shell_run pip)",
         PythonRunParams,
     )
     async def python_run(params: PythonRunParams, ctx: ActionContext) -> ActionResult:

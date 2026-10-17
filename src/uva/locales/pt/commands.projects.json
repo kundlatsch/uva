@@ -6,7 +6,8 @@
   ],
   "projeto": {
     "description": "Cria um projeto NOVO (fora do bot) com o Claude Code e avisa quando terminar",
-    "usage": "Uso: /projeto <descrição>, ex.: /projeto um site estático de receitas com busca"
+    "usage": "Uso: /projeto <descrição>, ex.: /projeto um site estático de receitas com busca",
+    "usage_arg": "<descrição>"
   },
   "projetos": {
     "description": "Projetos que o Claude Code criou (ou está criando)",

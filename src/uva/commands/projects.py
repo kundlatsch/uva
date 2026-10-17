@@ -21,7 +21,7 @@ async def request_project(services, description: str) -> str:
     except ProjectError as exc:
         return str(exc)
     await emit(EventType.PROJECT, op="requested", project_id=record.id, slug=record.slug, description=description)
-    await remember_ref(services, "projeto", record.id, f"projeto: {record.slug}", "na fila")
+    await remember_ref(services, "projeto", record.id, f"project: {record.slug}", "na fila")
     s = services.settings
     return t(
         "commands.projects.requested",
@@ -38,7 +38,7 @@ def register(registry: CommandRegistry) -> None:
         "projeto",
         t("commands.projects.projeto.description"),
         aliases=("novoprojeto", "project", "newproject"),
-        usage="<descrição>",
+        usage=t("commands.projects.projeto.usage_arg"),
     )
     async def project(ctx: CommandContext) -> str:
         description = " ".join(ctx.args).strip()

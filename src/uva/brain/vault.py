@@ -58,8 +58,8 @@ _PLACEHOLDER = re.compile(
 def check_no_placeholders(text: str) -> None:
     if match := _PLACEHOLDER.search(text):
         raise PlaceholderError(
-            f"o texto tem um marcador em vez de conteúdo ({match.group(0)!r}); "
-            "leia a nota e mande o conteúdo completo"
+            f"the text has a placeholder instead of content ({match.group(0)!r}); "
+            "read the note and send the complete content"
         )
 
 
@@ -153,17 +153,17 @@ class Vault:
         levels are refused; names are cleaned like note titles.
         """
         if folder not in FOLDERS:
-            raise ValueError(f"pasta desconhecida: {folder}")
+            raise ValueError(f"unknown folder: {folder}")
         raw_parts = [p.strip() for p in re.split(r"[\\/]", subfolder) if p.strip()]
         if any(p.startswith(".") for p in raw_parts):
-            raise ValueError("pastas ocultas ou '..' não são permitidas")
+            raise ValueError("hidden folders or '..' are not allowed")
         if len(raw_parts) > MAX_SUBFOLDER_DEPTH:
-            raise ValueError(f"no máximo {MAX_SUBFOLDER_DEPTH} níveis de subpasta")
+            raise ValueError(f"at most {MAX_SUBFOLDER_DEPTH} levels of subfolders")
         path = self.root / FOLDERS[folder]
         for part in raw_parts:
             path = path / clean_title(part)
         if not path.resolve().is_relative_to(self.root.resolve()):
-            raise ValueError("caminho fora do second brain")
+            raise ValueError("path outside the second brain")
         return path
 
     def create_folder(self, folder: str, name: str, now: datetime | None = None) -> tuple[str, str | None]:

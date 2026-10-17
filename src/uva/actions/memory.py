@@ -11,14 +11,14 @@ from uva.memory.store import MemoryCategory
 
 
 class MemorySaveParams(BaseModel):
-    key: str = Field(min_length=1, description="Chave curta e estável (ex.: cidade, nome_do_gato)")
-    value: str = Field(min_length=1, description="O que lembrar")
+    key: str = Field(min_length=1, description="Short, stable key (e.g. cidade, nome_do_gato)")
+    value: str = Field(min_length=1, description="What to remember")
     category: MemoryCategory = Field(
         default=MemoryCategory.FATO, description="perfil | preferencia | fato | contexto"
     )
-    relevance: float = Field(default=0.5, ge=0, le=1, description="Importância de 0 a 1")
+    relevance: float = Field(default=0.5, ge=0, le=1, description="Importance from 0 to 1")
     ttl_days: int | None = Field(
-        default=None, ge=1, description="Dias até esquecer sozinho (para contexto temporário)"
+        default=None, ge=1, description="Days until it is forgotten on its own (for temporary context)"
     )
 
 
@@ -39,7 +39,7 @@ def no_memory() -> ActionResult:
 def register(registry: ActionRegistry) -> None:
     @registry.action(
         "memory_save",
-        "Guarda algo duradouro sobre o usuário (perfil, preferência, fato ou contexto)",
+        "Stores something lasting about the user (profile, preference, fact or context)",
         MemorySaveParams,
         proactive_safe=True,
     )
@@ -61,7 +61,7 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "memory_update",
-        "Atualiza uma memória existente",
+        "Updates an existing memory",
         MemoryUpdateParams,
         proactive_safe=True,
     )
@@ -73,7 +73,7 @@ def register(registry: ActionRegistry) -> None:
         await emit(EventType.MEMORY, op="update", key=params.key, found=item is not None)
         return ActionResult(data={"key": params.key, "found": item is not None})
 
-    @registry.action("memory_forget", "Esquece uma memória", MemoryForgetParams)
+    @registry.action("memory_forget", "Forgets a memory", MemoryForgetParams)
     async def memory_forget(params: MemoryForgetParams, ctx: ActionContext) -> ActionResult:
         memory = ctx.services.memory
         if memory is None:

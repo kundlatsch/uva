@@ -47,12 +47,12 @@ EXAMPLE = "moeda"
 
 
 class GeneratedPlugin(BaseModel):
-    name: str = Field(description="Nome do módulo (a-z, 0-9, _), ex.: dado")
-    command: str = Field(description="Nome do comando principal, sem barra")
-    summary: str = Field(description="Uma frase dizendo o que o comando faz")
-    usage: str = Field(description="Exemplo de uso, ex.: /dado 20")
-    plugin_code: str = Field(description="Conteúdo completo de src/uva/plugins/<name>.py")
-    test_code: str = Field(description="Conteúdo completo de tests/plugins/test_<name>.py")
+    name: str = Field(description="Module name (a-z, 0-9, _), e.g. dado")
+    command: str = Field(description="Main command name, without the slash")
+    summary: str = Field(description="One sentence saying what the command does")
+    usage: str = Field(description="Usage example, e.g. /dado 20")
+    plugin_code: str = Field(description="Full contents of src/uva/plugins/<name>.py")
+    test_code: str = Field(description="Full contents of tests/plugins/test_<name>.py")
 
 
 GENERATED_SCHEMA = GeneratedPlugin.model_json_schema()
@@ -236,7 +236,7 @@ async def _attempt(
     try:
         plugin = GeneratedPlugin.model_validate_json(_strip_fence(response.text))
     except (ValidationError, ValueError) as exc:
-        return Attempt(None, f"A resposta não era o JSON pedido: {exc}")
+        return Attempt(None, f"The reply was not the requested JSON: {exc}")
 
     problems = (
         codecheck.check_name(plugin.name, taken_modules)
@@ -244,9 +244,9 @@ async def _attempt(
         + codecheck.check_test(plugin.test_code, plugin.name)
     )
     if services.registry.get(plugin.command) is not None:
-        problems.append(f"o comando /{plugin.command} já existe; escolha outro nome")
+        problems.append(f"the command /{plugin.command} already exists; pick another name")
     if problems:
-        return Attempt(plugin, "O código foi recusado pela checagem estática:\n- " + "\n- ".join(problems))
+        return Attempt(plugin, "The code was refused by the static check:\n- " + "\n- ".join(problems))
 
     plugin_path = work / PLUGINS_REL / f"{plugin.name}.py"
     test_path = work / TESTS_REL / f"test_{plugin.name}.py"
@@ -256,7 +256,7 @@ async def _attempt(
 
     result = await run_tests(work)
     if not result.ok:
-        return Attempt(plugin, f"Os testes falharam ({result.summary}):\n{result.output}", result)
+        return Attempt(plugin, f"The tests failed ({result.summary}):\n{result.output}", result)
     return Attempt(plugin, "", result)
 
 
@@ -266,7 +266,7 @@ async def _commit_and_merge(
     files = [f"{PLUGINS_REL.as_posix()}/{plugin.name}.py", f"{TESTS_REL.as_posix()}/test_{plugin.name}.py"]
     message = (
         f"Self-code: /{plugin.command} ({plugin.name})\n\n"
-        f"Pedido: {record.description}\n\n{plugin.summary}\n\n"
+        f"Request: {record.description}\n\n{plugin.summary}\n\n"
         f"{SELF_CODE}: true\nUVA-Feature-Id: {record.id}"
     )
     await repo.arun("add", "--", *files, cwd=work)
@@ -342,55 +342,55 @@ def _system_prompt(services: Services, work: Path) -> str:
     example_test = (work / TESTS_REL / f"test_{EXAMPLE}.py").read_text(encoding="utf-8")
     taken = sorted({n for c in services.registry for n in c.all_names})
     allowed = ", ".join(sorted(codecheck.PLUGIN_IMPORTS))
-    return f"""Você escreve plugins Python 3.12 para a UVA, um bot de Telegram.
-Cada plugin é um módulo em src/uva/plugins/<name>.py com testes pytest em
-tests/plugins/test_<name>.py. Responda SOMENTE com JSON no formato pedido.
+    return f"""You write Python 3.12 plugins for UVA, a Telegram bot.
+Each plugin is a module in src/uva/plugins/<name>.py with pytest tests in
+tests/plugins/test_<name>.py. Answer ONLY with JSON in the requested format.
 
-## Interface de plugins (src/uva/plugins/api.py)
+## Plugin interface (src/uva/plugins/api.py)
 ```python
 {api}
 ```
 
-## Plugin de exemplo (src/uva/plugins/{EXAMPLE}.py)
+## Example plugin (src/uva/plugins/{EXAMPLE}.py)
 ```python
 {example}
 ```
 
-## Teste de exemplo (tests/plugins/test_{EXAMPLE}.py)
+## Example test (tests/plugins/test_{EXAMPLE}.py)
 ```python
 {example_test}
 ```
 
-## Regras
-- Imports permitidos no plugin: {allowed}.
-- Nos testes, além desses: pytest, uva.plugins.testing e uva.plugins.<name>.
-- Proibido: open, eval, exec, compile, __import__, getattr/setattr, globals, atributos
-  começando com "_", import relativo, os, sys, subprocess, pathlib, socket, config, segurança.
-- O plugin não acessa arquivos, processos nem variáveis de ambiente.
-- Para LER dados do bot (memórias, objetivos, contexto recente, gastos, notas), use só
-  `await ctx.data.<método>(...)` (veja DataView na interface); o handler fica `async def`.
-  Não há como gravar dados. Nos testes, passe dados falsos com
+## Rules
+- Imports allowed in the plugin: {allowed}.
+- In the tests, besides those: pytest, uva.plugins.testing and uva.plugins.<name>.
+- Forbidden: open, eval, exec, compile, __import__, getattr/setattr, globals, attributes
+  starting with "_", relative imports, os, sys, subprocess, pathlib, socket, config, security.
+- The plugin doesn't access files, processes or environment variables.
+- To READ the bot's data (memories, goals, recent context, expenses, notes), use only
+  `await ctx.data.<method>(...)` (see DataView in the interface); the handler becomes `async def`.
+  There is no way to write data. In the tests, pass fake data with
   `run(handler, data=StaticData(goals=[...], working_memory=[...]))`
   (import: `from uva.plugins.testing import StaticData, run`).
-- O bot fala inglês e português: `ctx.lang` é "en" ou "pt" (o idioma do bot). Todo texto que o
-  usuário lê (respostas, mensagens de uso, erros) existe nos dois idiomas, em inglês e em
-  português do Brasil, dentro do próprio plugin (ex.: `TEXTS = {{"en": {{...}}, "pt": {{...}}}}`),
-  e a resposta segue ctx.lang (`TEXTS.get(ctx.lang, TEXTS["en"])`). Identificadores em inglês.
-- A descrição do @command vai como dicionário: `{{"en": "...", "pt": "..."}}`.
-- Nos testes, cubra os dois idiomas: `run(handler, ..., lang="en")` e `run(handler, ..., lang="pt")`.
-- O campo "summary" do JSON em {language_name()}.
-- Valide os argumentos e devolva uma mensagem de uso clara quando estiverem errados.
-- Os testes devem ser funções síncronas usando uva.plugins.testing.run, determinísticos
-  (para aleatoriedade, teste propriedades/intervalos, não valores exatos) e sem rede.
-- Comandos e apelidos já usados (não repita): {", ".join(taken)}.
-- "name" (módulo) e "command" podem ser iguais; use nomes curtos em português."""
+- The bot speaks English and Portuguese: `ctx.lang` is "en" or "pt" (the bot's language). Every
+  text the user reads (replies, usage messages, errors) exists in both languages, in English and
+  in Brazilian Portuguese, inside the plugin itself (e.g. `TEXTS = {{"en": {{...}}, "pt": {{...}}}}`),
+  and the reply follows ctx.lang (`TEXTS.get(ctx.lang, TEXTS["en"])`). Identifiers in English.
+- The @command description is a dictionary: `{{"en": "...", "pt": "..."}}`.
+- In the tests, cover both languages: `run(handler, ..., lang="en")` and `run(handler, ..., lang="pt")`.
+- The JSON "summary" field in {language_name()}.
+- Validate the arguments and return a clear usage message when they are wrong.
+- Tests must be synchronous functions using uva.plugins.testing.run, deterministic
+  (for randomness, test properties/ranges, not exact values) and without network.
+- Commands and aliases already taken (don't reuse them): {", ".join(taken)}.
+- "name" (module) and "command" may be the same; use short Portuguese names."""
 
 
 def _request_prompt(description: str, feedback: str) -> str:
-    prompt = f"Funcionalidade pedida pelo Gustavo:\n{description}"
+    prompt = f"Feature requested by Gustavo:\n{description}"
     if feedback:
         prompt += (
-            "\n\nSua tentativa anterior não passou. Corrija e mande o JSON completo de novo.\n"
+            "\n\nYour previous attempt didn't pass. Fix it and send the complete JSON again.\n"
             f"{feedback[-5000:]}"
         )
     return prompt

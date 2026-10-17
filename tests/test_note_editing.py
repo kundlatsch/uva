@@ -95,7 +95,7 @@ async def test_llm_placeholder_write_is_refused(services, vault):
 async def test_long_dictation_survives_in_short_term_memory(services):
     services.busy = FakeBusy()
     services.stm = ShortTermMemory(InMemorySessionBackend(), services.settings)
-    await services.stm.add_exchange("[voz] " + "palavra " * 500, "ok")
+    await services.stm.add_exchange("[voice] " + "palavra " * 500, "ok")
     turn = (await services.stm.session()).turns[0]
     assert len(turn.text) > 3000  # the old 500-char cut made the LLM invent the rest
 

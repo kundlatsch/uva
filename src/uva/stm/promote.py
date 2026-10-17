@@ -20,11 +20,11 @@ from uva.services import Services
 from uva.stm.session import Session
 
 SYSTEM = (
-    "Você revisa uma conversa entre um assistente pessoal (UVA) e o usuário dele. "
-    "Liste só fatos duradouros sobre o usuário que valem ser lembrados por semanas "
-    "(perfil, preferências, pessoas, rotina, projetos). Ignore pedidos pontuais, "
-    "piadas e o que já está na memória. Se nada valer, devolva lista vazia. "
-    'Responda SOMENTE com JSON: {"memories": [{"key": "chave_curta", "value": "...", '
+    "You review a conversation between a personal assistant (UVA) and its user. "
+    "List only lasting facts about the user that are worth remembering for weeks "
+    "(profile, preferences, people, routine, projects). Ignore one-off requests, "
+    "jokes and what is already in memory. If nothing is worth it, return an empty list. "
+    'Answer ONLY with JSON: {"memories": [{"key": "short_key", "value": "...", '
     '"category": "perfil|preferencia|fato|contexto", "relevance": 0.0-1.0}]}'
 )
 
@@ -71,13 +71,13 @@ async def promote(services: Services, user_id: int, session: Session) -> int | N
     if user_turns and services.llm is not None and services.memory is not None:
         if services.budget is not None and not (await services.budget.check(Scope.PROACTIVE)).allowed:
             return None
-        known = ", ".join(i.key for i in await services.memory.working_memory()) or "(nada)"
+        known = ", ".join(i.key for i in await services.memory.working_memory()) or "(nothing)"
         transcript = "\n".join(
-            f"{'Usuário' if t.role == 'user' else 'UVA'}: {t.text}" for t in session.turns
+            f"{'User' if t.role == 'user' else 'UVA'}: {t.text}" for t in session.turns
         )
         try:
             response = await services.llm.complete(
-                [LLMMessage("user", f"Já na memória: {known}\n\nConversa:\n{transcript}")],
+                [LLMMessage("user", f"Already in memory: {known}\n\nConversation:\n{transcript}")],
                 purpose="stm_promotion",
                 scope=Scope.PROACTIVE,
                 system=SYSTEM,

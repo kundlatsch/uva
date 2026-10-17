@@ -291,7 +291,7 @@ async def _commit_leftovers(cwd: Path, env, account) -> None:
     if not await _git(cwd, env, account, "status", "--porcelain"):
         return
     await _git(cwd, env, account, "add", "-A")
-    await _git(cwd, env, account, "commit", "-q", "-m", "Trabalho final do Claude Code")
+    await _git(cwd, env, account, "commit", "-q", "-m", "Final work by Claude Code")
 
 
 async def _count_commits(cwd: Path, env, account) -> int:

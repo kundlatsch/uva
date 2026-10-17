@@ -46,7 +46,7 @@ async def test_new_sticker_asks_and_learns_the_meaning(router, services):
     reply = await router.handle_sticker("u1", **LAUGH)
     assert reply.text == "kkkkk também achei"
     sent = provider.calls[0]["messages"][-1]
-    assert sent.content == "[figurinha 😂: rindo muito de algo absurdo]" and not sent.images
+    assert sent.content == "[sticker 😂: rindo muito de algo absurdo]" and not sent.images
     assert (await services.stickers.get("u1")).uses == 2
 
 

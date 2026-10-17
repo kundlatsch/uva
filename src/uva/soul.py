@@ -14,17 +14,17 @@ from pathlib import Path
 MAX_CHARS = 8000
 
 PREAMBLE = (
-    "## Sua personalidade (soul.md)\n"
-    "Siga esta personalidade no texto da conversa. Formatos exatos (JSON, comandos, "
-    "dados, código) continuam estritos.\n\n"
+    "## Your personality (soul.md)\n"
+    "Follow this personality in the conversation text. Exact formats (JSON, commands, "
+    "data, code) stay strict.\n\n"
 )
 
 
 PROFILE_PREAMBLE = (
-    "## Quem é o usuário (profile.md)\n"
-    "Contexto sobre o Gustavo, compilado de conversas antigas: use para entender pedidos e "
-    "personalizar respostas. Datas, valores e planos podem estar desatualizados; não trate "
-    "como fatos atuais nem repita dados pessoais sem necessidade.\n\n"
+    "## Who the user is (profile.md)\n"
+    "Context about Gustavo, compiled from old conversations: use it to understand requests and "
+    "personalize replies. Dates, amounts and plans may be out of date; don't treat them "
+    "as current facts and don't repeat personal data without need.\n\n"
 )
 PROFILE_MAX_CHARS = 30000
 

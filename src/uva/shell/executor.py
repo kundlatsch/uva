@@ -37,6 +37,10 @@ OUTPUT_LIMIT = int(os.environ.get("SHELL_OUTPUT_LIMIT", "60000"))
 PORT = int(os.environ.get("SHELL_PORT", "8700"))
 # Not worth snapshotting (big, rebuildable).
 EXCLUDE = (".venv/", ".cache/", "__pycache__/", "node_modules/", ".npm/")
+# Snapshot commit messages: "before: <command>".
+BEFORE = "before: "
+# The /undo error when there is no snapshot (shell/service.py maps it to the bot's language).
+NOTHING_TO_UNDO = "nothing to undo"
 
 _lock = Lock()  # one command at a time: snapshots must follow the commands
 
@@ -132,7 +136,7 @@ def run(kind: str, code: str, label: str) -> dict:
         unstaged = [line for line in changed.splitlines() if len(line) > 1 and line[1] != " "]
         result["snapshot"] = None
         if unstaged:
-            _git("commit", "-q", "--allow-empty", "-m", f"antes: {(label or code)[:200]}")
+            _git("commit", "-q", "--allow-empty", "-m", f"{BEFORE}{(label or code)[:200]}")
             result["snapshot"] = _git("rev-parse", "--short", "HEAD")
         return result
 
@@ -142,7 +146,7 @@ def undo() -> dict:
     with _lock:
         log = _git("log", "--format=%h %s", "-2", check=False).splitlines()
         if not log:
-            return {"ok": False, "error": "nada para desfazer"}
+            return {"ok": False, "error": NOTHING_TO_UNDO}
         target, label = log[0].split(" ", 1)
         changed = _git("status", "--porcelain", strip=False).splitlines()
         _git("reset", "-q", "--hard", target)
@@ -156,7 +160,15 @@ def undo() -> dict:
                 pass
         if len(log) > 1:
             _git("update-ref", "HEAD", "HEAD~1")  # next undo goes one step further back
-        return {"ok": True, "restored": label.removeprefix("antes: "), "changed": changed[:50]}
+        return {"ok": True, "restored": _strip_before(label), "changed": changed[:50]}
+
+
+def _strip_before(label: str) -> str:
+    """The command a snapshot was taken for (older snapshots say "antes: ")."""
+    for prefix in (BEFORE, "antes: "):
+        if label.startswith(prefix):
+            return label[len(prefix):]
+    return label
 
 
 EXCLUDE_NAMES = {e.strip("/") for e in EXCLUDE}

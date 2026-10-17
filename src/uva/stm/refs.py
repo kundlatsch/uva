@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from uva.i18n import t
 from uva.logging import get_logger
 
 if TYPE_CHECKING:
@@ -14,13 +13,16 @@ log = get_logger(__name__)
 
 
 def task_label(action: str, params: dict) -> str:
+    """Label of a task's ref ("search: Fórmula 1"): data for the LLM, always English."""
     subject = params.get("query") or params.get("title") or ""
-    kind = t("stm.refs.search") if action == "search" else action
-    return f"{kind}: {subject}" if subject else kind
+    return f"{action}: {subject}" if subject else action
 
 
 async def remember_ref(services: Services, tipo, id: str, rotulo: str, status="ok") -> None:
-    """Add a reference to the short-term memory (best effort)."""
+    """Add a reference to the short-term memory (best effort).
+
+    ``rotulo`` is data the LLM reads, so it is English in any language
+    ("note: Compras", "expense: R$ 12,00 mercado")."""
     if services.stm is None:
         return
     try:

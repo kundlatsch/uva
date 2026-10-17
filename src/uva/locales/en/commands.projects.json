@@ -6,7 +6,8 @@
   ],
   "projeto": {
     "description": "Creates a NEW project (outside the bot) with Claude Code and lets you know when it's done",
-    "usage": "Usage: /project <description>, e.g. /project a static recipe site with search"
+    "usage": "Usage: /project <description>, e.g. /project a static recipe site with search",
+    "usage_arg": "<description>"
   },
   "projetos": {
     "description": "Projects Claude Code created (or is creating)",

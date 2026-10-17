@@ -83,7 +83,7 @@ async def test_transcript_goes_through_the_llm_and_memory(audio_services):
     assert reply.text == "Paris, ué."
     assert provider.calls[0]["messages"][-1].content == "qual a capital da França?"
     turns = (await services.stm.session()).turns
-    assert turns[-2].text == "[voz] qual a capital da França?"
+    assert turns[-2].text == "[voice] qual a capital da França?"
 
 
 async def test_fallback_model_when_main_one_is_unavailable(audio_services):

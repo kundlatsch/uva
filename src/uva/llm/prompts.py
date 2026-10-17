@@ -12,7 +12,7 @@ from uva.clock import format_local, utcnow
 from uva.commands.registry import CommandRegistry
 from uva.i18n import language_name
 
-WEEKDAYS = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")
+WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 # Everything internal is in English (cheaper, and technical work stays in its
 # own language); only what the user reads is in the bot language (BOT_LANGUAGE).
@@ -24,7 +24,7 @@ def language_rule() -> str:
         "or Portuguese; answer in the language above either way."
     )
 
-PLAN_FORMAT = '{"actions": [{"type": "<nome da ação>", "params": {...}}], "reply": "<texto>"}'
+PLAN_FORMAT = '{"actions": [{"type": "<action name>", "params": {...}}], "reply": "<text>"}'
 
 
 def inline_refs(node: Any, defs: dict[str, Any], expansions: int = 0) -> Any:
@@ -51,7 +51,7 @@ def describe_actions(actions: Iterable[Action]) -> str:
         properties = inline_refs(schema.get("properties", {}), schema.get("$defs", {}))
         params = json.dumps(properties, ensure_ascii=False)
         required = schema.get("required", [])
-        lines.append(f"- {action.name}: {action.description}\n  params: {params}; obrigatórios: {required}")
+        lines.append(f"- {action.name}: {action.description}\n  params: {params}; required: {required}")
     return "\n".join(lines)
 
 
@@ -102,8 +102,8 @@ Rules:
   you answer in the same turn.
 - Use search when the user asks for research or the answer depends on current information.
   If he asks for Wikipedia, use "source": "wikipedia".
-- When an action produces the result (e.g. search), keep "reply" short ("Vou pesquisar sobre
-  X."); the result is appended later. Never make up an action's result.
+- When an action produces the result (e.g. search), keep "reply" short ("I'll look
+  up X."); the result is appended later. Never make up an action's result.
 - Use run_command only when the user clearly wants what a command does.
 - Don't repeat the "reply" text in a reply action.
 - When the user tells you something lasting about himself (name, city, preferences, routine,
@@ -146,7 +146,7 @@ Rules:
   title/name, use exactly that) and "description".
 - If the user asks for a new feature/command you don't have, use feature_request with a clear
   description (command name, what it does, usage examples).
-- "[figurinha 😂: <meaning>]" is a sticker the user sent, with the meaning he taught you:
+- "[sticker 😂: <meaning>]" is a sticker the user sent, with the meaning he taught you:
   answer what it means, in the context of the conversation, without describing the sticker.
 - You have your own folder, /uva, in an isolated container: use shell_run (bash) and
   python_run (Python, pip in a venv) to compute, test code, download and process files there.

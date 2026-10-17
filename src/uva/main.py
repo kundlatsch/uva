@@ -178,7 +178,7 @@ def main() -> None:
         log.error(
             "invalid_configuration",
             fields=fields,
-            hint="Preencha TELEGRAM_BOT_TOKEN e ALLOWED_TELEGRAM_USER_ID no .env",
+            hint="Set TELEGRAM_BOT_TOKEN and ALLOWED_TELEGRAM_USER_ID in .env",
         )
         sys.exit(1)
 

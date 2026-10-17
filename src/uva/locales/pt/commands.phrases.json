@@ -6,6 +6,7 @@
     "examples_hint": "Exemplos: /frases <categoria>",
     "unknown_category": "Categoria desconhecida: {name}. Veja /frases.",
     "samples_header": "{name} ({count} frases), alguns exemplos:",
-    "uses": "  [usa: {marks}]"
+    "uses": "  [usa: {marks}]",
+    "usage_arg": "[categoria]"
   }
 }

@@ -28,57 +28,57 @@ class NoteCreateParams(BaseModel):
         ),
     )
     title: str = Field(default="", description="(deprecated: use title_pt)")
-    body: str = Field(description="Conteúdo em Markdown")
+    body: str = Field(description="Content in Markdown")
     folder: Folder = Field(
         default="inbox",
-        description="inbox (entrada), projetos, areas, recursos (referência/pesquisas) ou arquivo",
+        description="inbox (incoming), projetos, areas, recursos (reference/research) or arquivo",
     )
     subfolder: str = Field(
-        default="", description="Subpasta dentro da pasta escolhida (ex.: Saúde ou Saúde/Exercícios)"
+        default="", description="Subfolder inside the chosen folder (e.g. Saúde or Saúde/Exercícios)"
     )
     tags: list[str] = Field(default_factory=list)
-    links: list[str] = Field(default_factory=list, description="Títulos de notas relacionadas")
+    links: list[str] = Field(default_factory=list, description="Titles of related notes")
 
 
 class FolderCreateParams(BaseModel):
-    name: str = Field(min_length=1, description="Nome da pasta nova (pode ter subníveis: A/B)")
+    name: str = Field(min_length=1, description="Name of the new folder (may have sublevels: A/B)")
     folder: Folder = Field(
         description=(
-            "Onde criar, pelo PARA: projetos (meta com prazo), areas (responsabilidade contínua: "
-            "saúde, finanças, casa), recursos (assuntos de interesse/referência), arquivo "
-            "(inativo), inbox (sem lugar claro)"
+            "Where to create it, by PARA: projetos (goal with a deadline), areas (ongoing "
+            "responsibility: health, finances, home), recursos (topics of interest/reference), "
+            "arquivo (inactive), inbox (no clear place)"
         )
     )
 
 
 class NoteAppendParams(BaseModel):
-    note: str = Field(description="Título ou caminho da nota existente")
-    text: str = Field(description="Texto a acrescentar no fim")
+    note: str = Field(description="Title or path of the existing note")
+    text: str = Field(description="Text to append at the end")
 
 
 class NoteUpdateParams(BaseModel):
-    note: str = Field(description="Título ou caminho da nota existente")
+    note: str = Field(description="Title or path of the existing note")
     title_pt: str | None = Field(
         default=None, description="New title in Brazilian Portuguese (renames the file); omit to keep it"
     )
     title: str | None = Field(default=None, description="(deprecated: use title_pt)")
     body: str | None = Field(
         default=None,
-        description="Conteúdo COMPLETO novo (sem cabeçalho YAML). Omita para só renomear",
+        description="New FULL content (without the YAML header). Omit it to only rename",
     )
     tags: list[str] | None = None
 
 
 class NoteSearchParams(BaseModel):
-    term: str = Field(description="Termo a procurar no título e no conteúdo")
+    term: str = Field(description="Term to look for in titles and contents (the notes are in Portuguese)")
 
 
 class NoteReadParams(BaseModel):
-    note: str = Field(description="Título ou caminho da nota")
+    note: str = Field(description="Title or path of the note")
 
 
 class RecallParams(BaseModel):
-    query: str = Field(description="O que procurar (palavras-chave)")
+    query: str = Field(description="What to look for (keywords; the user's content is in Portuguese)")
 
 
 def _vault(ctx: ActionContext) -> Vault | None:
@@ -91,7 +91,7 @@ def no_vault() -> ActionResult:
 
 def register(registry: ActionRegistry) -> None:
     @registry.action(
-        "note_create", "Cria uma nota no second brain", NoteCreateParams, proactive_safe=True
+        "note_create", "Creates a note in the second brain", NoteCreateParams, proactive_safe=True
     )
     async def note_create(params: NoteCreateParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
@@ -105,12 +105,12 @@ def register(registry: ActionRegistry) -> None:
         except ValueError as exc:  # bad folder or placeholders instead of content
             return ActionResult(text=t("actions.notes.create_failed", error=exc), data={"ok": False})
         vault.append_daily(f"Nota criada: {note.link}")
-        await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
+        await remember_ref(ctx.services, "nota", note.path, f"note: {note.title}")
         return ActionResult(text=t("actions.notes.created", path=note.path), data={"path": note.path})
 
     @registry.action(
         "folder_create",
-        "Cria uma pasta no second brain (você escolhe o lugar pelo PARA) com uma nota vazia",
+        "Creates a folder in the second brain (you pick the place by PARA) with an empty note",
         FolderCreateParams,
     )
     async def folder_create(params: FolderCreateParams, ctx: ActionContext) -> ActionResult:
@@ -123,14 +123,14 @@ def register(registry: ActionRegistry) -> None:
         if placeholder is None:
             return ActionResult(text=t("actions.notes.folder_exists", folder=folder), data={"folder": folder})
         vault.append_daily(f"Pasta criada: {folder}")
-        await remember_ref(ctx.services, "nota", placeholder, f"pasta: {folder}")
+        await remember_ref(ctx.services, "nota", placeholder, f"folder: {folder}")
         return ActionResult(
             text=t("actions.notes.folder_created", folder=folder, placeholder=placeholder),
             data={"folder": folder, "placeholder": placeholder},
         )
 
     @registry.action(
-        "note_append", "Acrescenta texto a uma nota existente", NoteAppendParams, proactive_safe=True
+        "note_append", "Appends text to an existing note", NoteAppendParams, proactive_safe=True
     )
     async def note_append(params: NoteAppendParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
@@ -145,8 +145,8 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "note_update",
-        "Corrige uma nota existente: renomeia e/ou reescreve o conteúdo inteiro (a versão "
-        "anterior é guardada em 04-arquivo/Versões)",
+        "Fixes an existing note: renames it and/or rewrites its whole content (the previous "
+        "version is kept in 04-arquivo/Versões)",
         NoteUpdateParams,
     )
     async def note_update(params: NoteUpdateParams, ctx: ActionContext) -> ActionResult:
@@ -162,14 +162,14 @@ def register(registry: ActionRegistry) -> None:
         except ValueError as exc:  # placeholders instead of content
             return ActionResult(text=t("actions.notes.not_changed", error=exc), data={"ok": False})
         vault.append_daily(f"Nota atualizada: {note.link}")
-        await remember_ref(ctx.services, "nota", note.path, f"nota: {note.title}")
+        await remember_ref(ctx.services, "nota", note.path, f"note: {note.title}")
         return ActionResult(
             text=t("actions.notes.updated", path=note.path, backup=backup),
             data={"path": note.path, "backup": backup},
         )
 
     @registry.action(
-        "note_search", "Procura notas no second brain", NoteSearchParams, proactive_safe=True,
+        "note_search", "Searches notes in the second brain", NoteSearchParams, proactive_safe=True,
         lookup=True,
     )
     async def note_search(params: NoteSearchParams, ctx: ActionContext) -> ActionResult:
@@ -187,7 +187,7 @@ def register(registry: ActionRegistry) -> None:
         )
 
     @registry.action(
-        "note_read", "Lê uma nota do second brain", NoteReadParams, proactive_safe=True, lookup=True
+        "note_read", "Reads a note from the second brain", NoteReadParams, proactive_safe=True, lookup=True
     )
     async def note_read(params: NoteReadParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
@@ -201,8 +201,8 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "recall",
-        "Busca em TODOS os seus sistemas de uma vez (memória longa, notas do brain, objetivos, "
-        "gastos) por palavras-chave",
+        "Searches ALL your systems at once (long-term memory, brain notes, goals, "
+        "expenses) by keywords",
         RecallParams,
         proactive_safe=True,
         lookup=True,

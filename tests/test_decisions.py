@@ -43,16 +43,16 @@ def prob(value, p, label=None):
     return SimpleNamespace(value=value, label=label, probability=p)
 
 
-PREDICATE = [SimpleNamespace(type="predicate", name="afirmacao", probability=0.873)]
+PREDICATE = [SimpleNamespace(type="predicate", name="statement", probability=0.873)]
 CHOICE = [
     SimpleNamespace(
-        type="choice", name="escolha", choice="sushi", confidence=0.71,
+        type="choice", name="choice", choice="sushi", confidence=0.71,
         probabilities=[prob("pizza", 0.2), prob("sushi", 0.71), prob("salada", 0.09)],
     )
 ]
 SCORE = [
     SimpleNamespace(
-        type="score", name="nota", score=1.8, confidence=0.6,
+        type="score", name="score", score=1.8, confidence=0.6,
         probabilities=[prob(0, 0.1, "baixa"), prob(1, 0.2, "média"), prob(2, 0.7, "alta")],
     )
 ]
@@ -63,10 +63,12 @@ async def test_predicate_command_and_cost(decide_services):
     services.decisions, fake = client_with(PREDICATE, usage, tokens=2000)
     reply = (await Router(services).handle_text("/decidir esse email é spam: Ganhe um iPhone grátis")).text
     assert "87% de chance de ser verdade" in reply
+    # The API gets English instructions; the user sees the title in the bot language.
+    assert "Isto é verdade? esse email é spam" in reply and "Is this true?" not in reply
     call = fake.calls[0]
     assert call["model"] == "gpt-6-luna" and call["input"] == "Ganhe um iPhone grátis"
     assert call["questions"] == [
-        {"type": "predicate", "name": "afirmacao", "instructions": "Isto é verdade? esse email é spam"}
+        {"type": "predicate", "name": "statement", "instructions": "Is this true? esse email é spam"}
     ]
     record = usage.records[0]
     assert record.purpose == "decisions" and record.cost_usd == pytest.approx(2000 * 0.10 / 1e6)
@@ -97,7 +99,7 @@ async def test_score_command(decide_services):
 
 async def test_refusal_is_reported(decide_services):
     services, _ = decide_services
-    services.decisions, _ = client_with([SimpleNamespace(type="refusal", name="afirmacao")])
+    services.decisions, _ = client_with([SimpleNamespace(type="refusal", name="statement")])
     reply = (await Router(services).handle_text("/decidir isso é perigoso")).text
     assert "se recusou" in reply
 
@@ -217,3 +219,4 @@ def test_prompt_shows_nested_question_schema():
     text = describe_actions([build_action_registry().get("decide")])
     assert "$ref" not in text
     assert '"instructions"' in text and '"predicate"' in text and '"levels"' in text
+    assert '"title"' not in text  # display-only field, hidden from the LLM

@@ -10,14 +10,14 @@ from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
 class FeatureRequestParams(BaseModel):
     description: str = Field(
         min_length=8,
-        description="O que o comando novo deve fazer, com nome sugerido e exemplos de uso",
+        description="What the new command should do, with a suggested name and usage examples",
     )
 
 
 def register(registry: ActionRegistry) -> None:
     @registry.action(
         "feature_request",
-        "Programa um comando novo para o bot (quando o usuário pedir uma funcionalidade nova)",
+        "Programs a new command for the bot (when the user asks for a new feature)",
         FeatureRequestParams,
     )
     async def feature_request(params: FeatureRequestParams, ctx: ActionContext) -> ActionResult:

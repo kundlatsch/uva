@@ -40,8 +40,9 @@ def parse(text: str, has_photo: bool = False) -> tuple[str, list[Question]]:
             raise ValueError(usage())
         question = Question(
             type="score",
-            name="nota",
-            instructions=f"Avalie: {criterion.strip()}",
+            name="score",
+            instructions=f"Rate: {criterion.strip()}",
+            title=t("commands.decide.title.score", criterion=criterion.strip()),
             levels=[Level(label=lv) for lv in levels],
         )
         return evidence, [question]
@@ -53,7 +54,7 @@ def parse(text: str, has_photo: bool = False) -> tuple[str, list[Question]]:
             raise ValueError(usage())
         question = Question(
             type="choice",
-            name="escolha",
+            name="choice",
             instructions=prompt.strip(),
             choices=[Choice(value=o) for o in options],
         )
@@ -65,8 +66,13 @@ def parse(text: str, has_photo: bool = False) -> tuple[str, list[Question]]:
     if not statement:
         raise ValueError(usage())
     evidence = evidence or rest.strip()
-    instructions = f"Isto é verdade? {statement}"
-    return evidence or statement, [Question(type="predicate", name="afirmacao", instructions=instructions)]
+    question = Question(
+        type="predicate",
+        name="statement",
+        instructions=f"Is this true? {statement}",
+        title=t("commands.decide.title.predicate", statement=statement),
+    )
+    return evidence or statement, [question]
 
 
 def register(registry: CommandRegistry) -> None:

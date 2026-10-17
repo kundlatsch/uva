@@ -1,9 +1,11 @@
 {
   "not_configured": "O /uva não está configurado (container shell).",
   "sh": {
-    "description": "Roda um comando Linux na minha pasta /uva (isolada; apagar pede confirmação)"
+    "description": "Roda um comando Linux na minha pasta /uva (isolada; apagar pede confirmação)",
+    "usage_arg": "<comando> | desfazer | historico"
   },
   "py": {
-    "description": "Roda código Python na minha pasta /uva (com pip num venv próprio)"
+    "description": "Roda código Python na minha pasta /uva (com pip num venv próprio)",
+    "usage_arg": "<código>"
   }
 }

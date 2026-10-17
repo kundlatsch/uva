@@ -180,7 +180,7 @@ async def test_rename_existing_notes_and_links_then_revert(services, tmp_path):
     assert reverted.startswith("↩️ Second brain: desfeito")
     assert old.exists() and book.exists()
     log = subprocess.run(["git", "-C", str(root), "log", "--format=%s"], capture_output=True, text=True, encoding="utf-8").stdout
-    assert "Renomeia 2 nota(s)" in log
+    assert "Rename 2 note(s)" in log
 
 
 async def test_note_actions_in_english(services, vault):

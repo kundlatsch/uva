@@ -21,7 +21,8 @@
     "paused": "⏸️ Routine {id} paused.",
     "resumed": "▶️ Routine {id} resumed.",
     "removed": "🗑️ Routine {id} removed.",
-    "run_now": "⏰ Routine {id} will run in the next minute."
+    "run_now": "⏰ Routine {id} will run in the next minute.",
+    "usage_arg": "<when> <request> | <id> pause|resume|remove|now"
   },
   "rotinas": {
     "description": "Scheduled recurring tasks",

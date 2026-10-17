@@ -84,7 +84,7 @@ async def _summarize(
     material = "\n\n".join(
         f"[{i}] {r.title} ({r.url})\n{r.snippet}" for i, r in enumerate(results, 1)
     )
-    prompt = f"Pergunta: {query}\n\nResultados:\n{material}"
+    prompt = f"Question: {query}\n\nResults:\n{material}"
     try:
         response = await llm.complete(
             [LLMMessage("user", prompt)],

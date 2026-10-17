@@ -51,7 +51,9 @@ def test_repository_ships_a_soul():
 
     settings = Settings(_env_file=None, telegram_bot_token="x", allowed_telegram_user_id=1)
     text = settings.soul_file.read_text(encoding="utf-8")
-    assert "parceir" in text and "Precisão" in text
+    assert "partner" in text and "Precision" in text
+    # Replies follow the language the system prompt asks for, not the soul's.
+    assert "language the system prompt asks for" in text
 
 
 

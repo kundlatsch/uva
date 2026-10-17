@@ -78,8 +78,8 @@ def test_trim_limits_and_ttl():
 def test_focus_resolution():
     session = Session(
         refs=[
-            Ref(ref="t1", tipo="pesquisa", id="aaa", rotulo="pesquisa: Fórmula 1"),
-            Ref(ref="t2", tipo="nota", id="00-inbox/x.md", rotulo="nota: compras"),
+            Ref(ref="t1", tipo="pesquisa", id="aaa", rotulo="search: Fórmula 1"),
+            Ref(ref="t2", tipo="nota", id="00-inbox/x.md", rotulo="note: compras"),
         ],
         focus="t2",
     )
@@ -129,7 +129,7 @@ async def test_search_creates_ref_and_worker_updates_it(services, stm):
 
     session = await stm.session()
     ref = session.refs[-1]
-    assert (ref.tipo, ref.rotulo, ref.status) == ("pesquisa", "pesquisa: Fórmula 1", "na fila")
+    assert (ref.tipo, ref.rotulo, ref.status) == ("pesquisa", "search: Fórmula 1", "na fila")
     assert session.focus == ref.ref
 
     record = services.tasks.sent[0]
@@ -146,21 +146,23 @@ async def test_search_creates_ref_and_worker_updates_it(services, stm):
 
 
 async def test_context_block_goes_into_the_prompt(services, stm):
-    await stm.add_ref("pesquisa", "abc123", "pesquisa: Fórmula 1", "rodando")
+    await stm.add_ref("pesquisa", "abc123", "search: Fórmula 1", "rodando")
     await stm.add_turn("notice", "🎯 Objetivo X rodou")
     provider, _ = with_llm(services, json.dumps({"actions": [], "reply": "ok"}))
     await Router(services).handle_text("me lembra o que você fez hoje")
     system = provider.calls[0]["system"]
     assert "Recent context" in system
-    assert "t1 [pesquisa] pesquisa: Fórmula 1 (id abc123" in system and "← em foco" in system
+    # The block is for the LLM: English even with BOT_LANGUAGE=pt.
+    assert "t1 [research] search: Fórmula 1 (id abc123" in system and "🔄 running ← in focus" in system
+    assert "Things you did/started in this session" in system
     assert "🎯 Objetivo X rodou" in system
     # The notice is also part of the conversation history sent as messages.
-    assert any(m.content.startswith("[aviso que eu mandei]") for m in provider.calls[0]["messages"])
+    assert any(m.content.startswith("[notice I sent]") for m in provider.calls[0]["messages"])
 
 
 async def test_status_question_is_answered_without_the_llm(services, stm):
     record = await services.tasks.enqueue("search", {"query": "Fórmula 1"}, None)
-    await stm.add_ref("pesquisa", record.id, "pesquisa: Fórmula 1", "na fila")
+    await stm.add_ref("pesquisa", record.id, "search: Fórmula 1", "na fila")
     await services.tasks.store.update(record.id, status=TaskStatus.DONE)
     provider, _ = with_llm(services)
 
@@ -169,7 +171,7 @@ async def test_status_question_is_answered_without_the_llm(services, stm):
     assert provider.calls == []
     phrase, facts = reply.split("\n")
     assert phrase in services.phrases.categories["tarefa_ok"] or record.id in phrase
-    assert facts.startswith(f"pesquisa: Fórmula 1 (t1, id {record.id}) terminou")
+    assert facts.startswith(f"search: Fórmula 1 (t1, id {record.id}) terminou")
     assert (await stm.session()).refs[-1].status == "ok"  # synced from the real record
 
 
@@ -182,7 +184,7 @@ async def test_status_question_without_refs_goes_to_the_llm(services, stm):
 async def test_retry_and_cancel_actions(services, stm):
     failed = await services.tasks.enqueue("search", {"query": "F1"}, None)
     await services.tasks.store.update(failed.id, status=TaskStatus.FAILED, error="timeout")
-    await stm.add_ref("pesquisa", failed.id, "pesquisa: F1", "falhou", )
+    await stm.add_ref("pesquisa", failed.id, "search: F1", "falhou", )
     with_llm(
         services,
         json.dumps({"actions": [{"type": "retry", "params": {}}], "reply": ""}),
@@ -190,23 +192,23 @@ async def test_retry_and_cancel_actions(services, stm):
     )
     router = Router(services)
     reply = (await router.handle_text("tenta de novo")).text
-    assert reply.startswith("🔁 Rodando de novo: pesquisa: F1")
+    assert reply.startswith("🔁 Rodando de novo: search: F1")
     new = services.tasks.sent[-1]
     assert new.id != failed.id and new.params == {"query": "F1"}
     session = await stm.session()
     assert session.focus == session.refs[-1].ref and session.refs[-1].id == new.id
 
     reply = (await router.handle_text("cancela isso")).text
-    assert "(pesquisa: F1 cancelada)" in reply
+    assert "(search: F1 cancelada)" in reply
     assert services.tasks.store.records[new.id].status is TaskStatus.CANCELLED
 
 
 async def test_contexto_command(services, stm):
     router = Router(services)
     assert "Nada no contexto" in (await router.handle_text("/contexto")).text
-    await stm.add_ref("nota", "00-inbox/x.md", "nota: compras")
+    await stm.add_ref("nota", "00-inbox/x.md", "note: compras")
     text = (await router.handle_text("/contexto")).text
-    assert "nota: compras" in text and "Últimos turnos" in text
+    assert "[nota] note: compras" in text and "Últimos turnos" in text
     assert "apagado" in (await router.handle_text("/contexto limpar")).text
     session = await stm.session()
     assert session.refs == [] and len(session.turns) == 2  # only the "limpar" exchange
@@ -219,7 +221,7 @@ async def test_promotion_saves_facts_and_discards_session(services, stm):
         json.dumps({"memories": [{"key": "time", "value": "Torce pro Avaí", "category": "perfil", "relevance": 0.7}]}),
     )
     await stm.add_exchange("eu torço pro Avaí, viu", "Anotado, sofredor.")
-    await stm.add_ref("tarefa", "run1", "tarefa: algo", "rodando")
+    await stm.add_ref("tarefa", "run1", "task: algo", "rodando")
     later = utcnow() + timedelta(hours=4)
 
     result = await promote_idle_sessions(services, now=later)
@@ -256,7 +258,7 @@ async def test_task_is_done_before_the_user_is_notified(services, stm):
     services.search = {"web": FakeSearch("web", SearchResult("F1", "https://f1.com", "x"))}
     with_llm(services, "Resumo.")
     record = await services.tasks.enqueue("search", {"query": "F1"}, None)
-    await stm.add_ref("pesquisa", record.id, "pesquisa: F1", "na fila")
+    await stm.add_ref("pesquisa", record.id, "search: F1", "na fila")
     seen = []
 
     async def notify(reply):
@@ -298,12 +300,12 @@ async def test_status_reply_and_context_in_english(services, stm):
 
     i18n.set_language("en")
     record = await services.tasks.enqueue("search", {"query": "Formula 1"}, None)
-    await stm.add_ref("pesquisa", record.id, "research: Formula 1", "na fila")
+    await stm.add_ref("pesquisa", record.id, "search: Formula 1", "na fila")
     with_llm(services)
 
     reply = (await Router(services).handle_text("how is that research going?")).text
 
-    assert reply.endswith(f"research: Formula 1 (t1, id {record.id}) is queued.")
+    assert reply.endswith(f"search: Formula 1 (t1, id {record.id}) is queued.")
     session = await stm.session()
     line = describe_ref(session.refs[-1], services.tz, focus=True)
     assert "[research]" in line and "⏳ queued" in line and line.endswith("← in focus")

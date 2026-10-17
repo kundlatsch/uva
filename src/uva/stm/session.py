@@ -32,7 +32,7 @@ class Ref(BaseModel):
     ref: str  # short handle, e.g. "t3"
     tipo: RefKind
     id: str  # task/feature/goal id, note path, expense id
-    rotulo: str  # human label ("pesquisa: Fórmula 1")
+    rotulo: str  # label, in English whatever the language ("search: Fórmula 1")
     status: RefStatus = "ok"
     erro: str | None = None
     quando: datetime = Field(default_factory=utcnow)

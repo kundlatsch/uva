@@ -26,14 +26,17 @@ class ImageSaveParams(BaseModel):
         ),
     )
     title: str = Field(default="", description="(deprecated: use title_pt)")
-    description: str = Field(default="", description="O que a imagem mostra (texto da nota)")
-    folder: str = Field(default="inbox", description="Pasta da nota: inbox, projetos, areas, recursos")
+    description: str = Field(
+        default="",
+        description="What the image shows (the note's text, in Brazilian Portuguese like the rest of the second brain)",
+    )
+    folder: str = Field(default="inbox", description="Folder of the note: inbox, projetos, areas, recursos")
 
 
 def register(registry: ActionRegistry) -> None:
     @registry.action(
         "image_save",
-        "Salva a última imagem que o usuário mandou no second brain, com uma nota que a mostra",
+        "Saves the last image the user sent to the second brain, with a note that shows it",
         ImageSaveParams,
     )
     async def image_save(params: ImageSaveParams, ctx: ActionContext) -> ActionResult:
@@ -58,7 +61,7 @@ def register(registry: ActionRegistry) -> None:
             body += f"\n\n{params.description.strip()}"
         note = vault.create_note(title, body, folder=folder, tags=["imagem"])
         vault.append_daily(f"Imagem salva: {note.link}")
-        await remember_ref(services, "nota", note.path, f"nota: {note.title}")
+        await remember_ref(services, "nota", note.path, f"note: {note.title}")
         return ActionResult(
             text=t("actions.images.saved", attachment=attachment, note=note.path),
             data={"attachment": attachment, "note": note.path},

@@ -4,6 +4,7 @@
     "unavailable": "Initiatives unavailable (Mongo).",
     "enabled": "✅ Initiatives on. I'll show up every now and then (respecting quiet hours and the daily limit).",
     "disabled": "🔕 Initiatives off. Goals keep running and reporting.",
-    "usage": "Usage: /proactive [on|off|now]"
+    "usage": "Usage: /proactive [on|off|now]",
+    "usage_arg": "[on|off|now]"
   }
 }

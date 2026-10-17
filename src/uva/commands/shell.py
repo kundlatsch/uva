@@ -13,7 +13,7 @@ def register(registry: CommandRegistry) -> None:
         "sh",
         t("commands.shell.sh.description"),
         aliases=("shell", "terminal"),
-        usage="<comando> | desfazer | historico",
+        usage=t("commands.shell.sh.usage_arg"),
     )
     async def sh(ctx: CommandContext) -> Reply:
         shell = ctx.services.shell
@@ -32,7 +32,7 @@ def register(registry: CommandRegistry) -> None:
         "py",
         t("commands.shell.py.description"),
         aliases=("python",),
-        usage="<código>",
+        usage=t("commands.shell.py.usage_arg"),
     )
     async def py(ctx: CommandContext) -> Reply:
         shell = ctx.services.shell

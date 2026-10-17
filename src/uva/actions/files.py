@@ -11,8 +11,8 @@ from uva.selfmod.files import FileAccessError
 
 READ_LIMIT = 4000
 PATH_HELP = (
-    "Caminho relativo: data/soul.md, data/fallback_phrases.json, data/<arquivo>.md "
-    "ou brain/<pasta>/<nota>.md"
+    "Relative path: data/soul.md, data/fallback_phrases.json, data/<file>.md "
+    "or brain/<folder>/<note>.md"
 )
 
 
@@ -22,14 +22,14 @@ class FileReadParams(BaseModel):
 
 class FileWriteParams(BaseModel):
     path: str = Field(description=PATH_HELP)
-    content: str = Field(description="Conteúdo completo do arquivo")
-    reason: str = Field(default="", description="Por que a mudança (vai na mensagem do commit)")
+    content: str = Field(description="Full content of the file")
+    reason: str = Field(default="", description="Why the change (goes into the commit message)")
 
 
 class FileAppendParams(BaseModel):
     path: str = Field(description=PATH_HELP)
-    content: str = Field(description="Texto a acrescentar no fim")
-    reason: str = Field(default="", description="Por que a mudança")
+    content: str = Field(description="Text to append at the end")
+    reason: str = Field(default="", description="Why the change")
 
 
 def not_configured() -> ActionResult:
@@ -39,7 +39,7 @@ def not_configured() -> ActionResult:
 def register(registry: ActionRegistry) -> None:
     @registry.action(
         "file_read",
-        "Lê um arquivo meu (soul.md, data/ ou second brain)",
+        "Reads one of my files (soul.md, data/ or the second brain)",
         FileReadParams,
     )
     async def file_read(params: FileReadParams, ctx: ActionContext) -> ActionResult:
@@ -55,7 +55,7 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "file_write",
-        "Reescreve um arquivo meu em data/ (ex.: soul.md) ou cria uma nota nova no second brain",
+        "Rewrites one of my files in data/ (e.g. soul.md) or creates a new note in the second brain",
         FileWriteParams,
     )
     async def file_write(params: FileWriteParams, ctx: ActionContext) -> ActionResult:
@@ -63,7 +63,7 @@ def register(registry: ActionRegistry) -> None:
 
     @registry.action(
         "file_append",
-        "Acrescenta texto no fim de um arquivo meu (data/ ou second brain)",
+        "Appends text to the end of one of my files (data/ or the second brain)",
         FileAppendParams,
     )
     async def file_append(params: FileAppendParams, ctx: ActionContext) -> ActionResult:

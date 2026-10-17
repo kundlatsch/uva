@@ -84,7 +84,7 @@ class Agent:
             recalled=found.render() if found else "",
         )
         images = (image,) if image else ()
-        messages = [*history, LLMMessage("user", text or "(imagem sem legenda)", images=images)]
+        messages = [*history, LLMMessage("user", text or "(image without caption)", images=images)]
         ctx = ActionContext(services, INTERACTIVE, self.run_command)
         for round_ in range(MAX_LOOKUP_ROUNDS + 1):
             try:
@@ -114,7 +114,7 @@ class Agent:
             if not lookups_only or round_ == MAX_LOOKUP_ROUNDS:
                 break
             # Only reading: hand what was found back to the LLM so it answers now,
-            # instead of replying "quer que eu abra a nota?".
+            # instead of replying "want me to open the note?".
             await activity("procurando")
             looked = [await self._run(action, params, ctx) for action, params in calls]
             found_text = "\n\n".join(
@@ -126,8 +126,8 @@ class Agent:
                 LLMMessage("assistant", response.text),
                 LLMMessage(
                     "user",
-                    "Resultado das suas consultas (o usuário ainda não viu):\n"
-                    f"{found_text}\n\nAgora responda à mensagem dele usando isso.",
+                    "Results of your lookups (the user has not seen them yet):\n"
+                    f"{found_text}\n\nNow answer his message using them.",
                 ),
             ]
 
@@ -147,7 +147,7 @@ class Agent:
         return reply
 
     async def _session_context(self) -> tuple[list[LLMMessage], str]:
-        """Recent turns (as messages) and the "Contexto recente" block."""
+        """Recent turns (as messages) and the "Recent context" block."""
         stm = self.services.stm
         limit = self.services.settings.llm_history_messages
         if stm is None:

@@ -18,6 +18,7 @@ from typing import Any, Literal
 import httpx
 import openai
 from pydantic import BaseModel, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from uva.config import LLMProvider, Settings
 from uva.i18n import t
@@ -46,12 +47,14 @@ class Level(BaseModel):
 
 class Question(BaseModel):
     type: Literal["predicate", "choice", "score"]
-    name: str = Field(min_length=1, max_length=64, description="Identificador único da pergunta")
-    instructions: str = Field(min_length=3, description="O que avaliar")
-    choices: list[Choice] | None = Field(default=None, description="Para choice: opções fixas")
+    name: str = Field(min_length=1, max_length=64, description="Unique identifier of the question")
+    instructions: str = Field(min_length=3, description="What to evaluate")
+    choices: list[Choice] | None = Field(default=None, description="For choice: the fixed options")
     levels: list[Level] | None = Field(
-        default=None, description="Para score: níveis em ordem, do mais baixo ao mais alto"
+        default=None, description="For score: the levels in order, from lowest to highest"
     )
+    # Shown to the user instead of the instructions (which go to the API in English).
+    title: SkipJsonSchema[str] = ""
 
     @model_validator(mode="after")
     def _shape(self) -> Question:
@@ -167,7 +170,7 @@ class DecisionsClient:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "input_text", "text": evidence or "Avalie a imagem."},
+                        {"type": "input_text", "text": evidence or "Evaluate the image."},
                         {"type": "input_image", "image_url": image_data_url},
                     ],
                 }
@@ -262,7 +265,7 @@ def pct(value: float | None) -> str:
 
 
 def format_answer(answer: Answer, question: Question | None) -> str:
-    title = question.instructions if question else answer.name
+    title = (question.title or question.instructions) if question else answer.name
     if answer.type == "refusal":
         return t("llm.decisions.refusal", title=title)
     if answer.type == "predicate":

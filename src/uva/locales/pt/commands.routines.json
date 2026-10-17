@@ -20,7 +20,8 @@
     "paused": "⏸️ Rotina {id} pausada.",
     "resumed": "▶️ Rotina {id} retomada.",
     "removed": "🗑️ Rotina {id} removida.",
-    "run_now": "⏰ Rotina {id} vai rodar no próximo minuto."
+    "run_now": "⏰ Rotina {id} vai rodar no próximo minuto.",
+    "usage_arg": "<quando> <pedido> | <id> pausar|retomar|remover|agora"
   },
   "rotinas": {
     "description": "Tarefas recorrentes agendadas",

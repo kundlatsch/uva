@@ -64,12 +64,12 @@ class InitiativeStore(Protocol):
 
 
 class Decision(BaseModel):
-    kind: Kind = Field(description="research, message ou nothing")
-    topic: str = Field(default="", description="Para research: o que pesquisar, em poucas palavras")
+    kind: Kind = Field(description="research, message or nothing")
+    topic: str = Field(default="", description="For research: what to look up, in a few words")
     message: str = Field(
-        default="", description="Texto para o usuário (para research, uma frase de abertura)"
+        default="", description="Text for the user (for research, an opening sentence)"
     )
-    reason: str = Field(default="", description="Por que isso, em uma frase (vai para o log)")
+    reason: str = Field(default="", description="Why this, in one sentence (goes to the log)")
     title_pt: str = Field(default="", description="For research: short note title in Brazilian Portuguese")
 
 
@@ -215,40 +215,40 @@ async def _decide(services: Services, now: datetime) -> Decision:
 
 async def _context(services: Services, now: datetime) -> str:
     tz = services.tz
-    parts = [f"Agora: {format_local(now, tz, '%A %d/%m %H:%M')}"]
+    parts = [f"Now: {format_local(now, tz, '%A %d/%m %H:%M')}"]
     if services.memory is not None:
         try:
             memory = render_memory(await services.memory.working_memory())
         except Exception:
             memory = ""
-        parts.append("Memória (o que você sabe dele):\n" + (memory or "(vazia)"))
+        parts.append("Memory (what you know about him):\n" + (memory or "(empty)"))
     if services.stm is not None:
         try:
             session = await services.stm.session()
             turns = "\n".join(
-                f"- {'ele' if t.role == 'user' else 'você'}: {t.text[:300]}" for t in session.turns[-8:]
+                f"- {'he' if t.role == 'user' else 'you'}: {t.text[:300]}" for t in session.turns[-8:]
             )
-            parts.append("Conversa recente:\n" + (turns or "(nenhuma)"))
+            parts.append("Recent conversation:\n" + (turns or "(none)"))
         except Exception:
             pass
     if services.vault is not None:
         try:
             notes = services.vault.recent(8)
-            parts.append("Notas recentes do second brain:\n" + "\n".join(f"- {n.path}" for n in notes))
+            parts.append("Recent second brain notes:\n" + "\n".join(f"- {n.path}" for n in notes))
         except Exception:
             pass
     if services.goals is not None:
         goals = await services.goals.list(GoalStatus.ATIVO)
-        parts.append("Objetivos ativos:\n" + ("\n".join(f"- {g.title}" for g in goals) or "(nenhum)"))
+        parts.append("Active goals:\n" + ("\n".join(f"- {g.title}" for g in goals) or "(none)"))
     if services.initiatives is not None:
         recent = await services.initiatives.recent(10)
         last = recent[0].at if recent else None
         hours = (now - last).total_seconds() / 3600 if last else None
         if hours is None or hours >= services.settings.proactive_force_after_hours:
-            since = "nunca" if hours is None else f"{hours:.0f}h"
-            parts.append(f"Last initiative: {since} ago. Do NOT choose \"nothing\" now: pick research or message.")
+            since = "never" if hours is None else f"{hours:.0f}h ago"
+            parts.append(f"Last initiative: {since}. Do NOT choose \"nothing\" now: pick research or message.")
         lines = [f"- {format_local(r.at, tz, '%d/%m %H:%M')} {r.kind}: {r.topic or r.message[:80]}" for r in recent]
-        parts.append("Suas iniciativas recentes (não repita):\n" + ("\n".join(lines) or "(nenhuma)"))
+        parts.append("Your recent initiatives (don't repeat them):\n" + ("\n".join(lines) or "(none)"))
     return "\n\n".join(parts)
 
 

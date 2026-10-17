@@ -55,7 +55,7 @@ def test_broken_or_clashing_plugins_are_reported_not_fatal(tmp_path):
     registry = build_registry(tmp_path)
     report = load_plugins(registry, tmp_path)
     assert set(report.errors) == {"broken", "clash", "empty"}
-    assert "nome já usado" in report.errors["clash"]
+    assert "name already used" in report.errors["clash"]
     assert report.loaded == {"eco": ["eco"]}
     assert registry.get("ping").source == "core"
 

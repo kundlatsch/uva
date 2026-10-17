@@ -19,6 +19,7 @@
     "meaning_set": "✅ {label} now means: {meaning}",
     "action_set": "✅ Every time you send {emoji}, I'll do: {action}",
     "action_cleared": "✅ {label} no longer does anything on its own (the meaning stays).",
-    "removed": "🗑️ Forgot the sticker {label} (meaning and action)."
+    "removed": "🗑️ Forgot the sticker {label} (meaning and action).",
+    "usage_arg": "<n> meaning|action|no-action|remove [text]"
   }
 }

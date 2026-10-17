@@ -15,15 +15,19 @@ ICONS = {"na fila": "⏳", "rodando": "🔄", "ok": "✅", "falhou": "❌"}
 STATUS_KEYS = {"na fila": "queued", "rodando": "running", "ok": "ok", "falhou": "failed"}
 
 
-def status_label(status: str) -> str:
+# What the LLM reads is always English; the user sees the configured language.
+LLM_LANGUAGE = "en"
+
+
+def status_label(status: str, lang: str | None = None) -> str:
     """How a stored status is shown ("rodando" -> "running" in English)."""
     key = STATUS_KEYS.get(status)
-    return t(f"stm.service.status.{key}") if key else status
+    return t(f"stm.service.status.{key}", lang=lang) if key else status
 
 
-def kind_label(kind: str) -> str:
+def kind_label(kind: str, lang: str | None = None) -> str:
     """How a stored reference kind is shown ("pesquisa" -> "research" in English)."""
-    label = t(f"stm.service.kind.{kind}")
+    label = t(f"stm.service.kind.{kind}", lang=lang)
     return kind if label == f"stm.service.kind.{kind}" else label
 
 
@@ -66,7 +70,7 @@ class ShortTermMemory:
         await self._update(lambda s: s.turns.append(turn), user_id)
 
     async def add_exchange(self, user_text: str, bot_text: str, user_id: int | None = None) -> None:
-        limit = VOICE_CHARS if user_text.startswith("[voz]") else TURN_CHARS
+        limit = VOICE_CHARS if user_text.startswith("[voice]") else TURN_CHARS
 
         def change(session: Session) -> None:
             session.turns.append(Turn(role="user", text=_clip(user_text, limit)))
@@ -123,33 +127,34 @@ class ShortTermMemory:
             if turn.role == "user":
                 messages.append(LLMMessage("user", turn.text))
             else:
-                prefix = "[aviso que eu mandei] " if turn.role == "notice" else ""
+                prefix = "[notice I sent] " if turn.role == "notice" else ""
                 messages.append(LLMMessage("assistant", prefix + turn.text))
         return messages
 
     def context_block(self, session: Session, tz, now: datetime | None = None) -> str:
-        """The "Contexto recente" block for the system prompt ('' if empty)."""
+        """The "Recent context" block for the system prompt ('' if empty), in English."""
         if not session.refs and not session.turns:
             return ""
         lines = []
         if session.refs:
-            lines.append("Coisas que você fez/disparou nesta sessão (mais recente por último):")
+            lines.append("Things you did/started in this session (most recent last):")
             for ref in session.refs:
-                lines.append(describe_ref(ref, tz, focus=ref.ref == session.focus))
-        notices = [t for t in session.turns if t.role == "notice"][-3:]
+                lines.append(describe_ref(ref, tz, focus=ref.ref == session.focus, lang=LLM_LANGUAGE))
+        notices = [turn for turn in session.turns if turn.role == "notice"][-3:]
         if notices:
-            lines.append("Últimos avisos que você mandou sozinha:")
-            lines += [f"- {format_local(t.at, tz, '%H:%M')}: {t.text[:200]}" for t in notices]
+            lines.append("Latest notices you sent on your own:")
+            lines += [f"- {format_local(turn.at, tz, '%H:%M')}: {turn.text[:200]}" for turn in notices]
         return "\n".join(lines)
 
 
-def describe_ref(ref: Ref, tz, focus: bool = False) -> str:
+def describe_ref(ref: Ref, tz, focus: bool = False, lang: str | None = None) -> str:
+    """One line per reference; ``lang`` forces a language (English for the LLM)."""
     when = format_local(ref.quando, tz, "%H:%M")
-    error = t("stm.service.error", error=ref.erro) if ref.erro else ""
-    mark = t("stm.service.focus") if focus else ""
+    error = t("stm.service.error", lang=lang, error=ref.erro) if ref.erro else ""
+    mark = t("stm.service.focus", lang=lang) if focus else ""
     return (
-        f"- {ref.ref} [{kind_label(ref.tipo)}] {ref.rotulo} (id {ref.id}, {when}): "
-        f"{ICONS[ref.status]} {status_label(ref.status)}{error}{mark}"
+        f"- {ref.ref} [{kind_label(ref.tipo, lang)}] {ref.rotulo} (id {ref.id}, {when}): "
+        f"{ICONS[ref.status]} {status_label(ref.status, lang)}{error}{mark}"
     )
 
 

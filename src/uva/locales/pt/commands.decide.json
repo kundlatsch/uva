@@ -13,5 +13,9 @@
     "description": "Probabilidade, escolha ou nota com a OpenAI Decisions",
     "usage_arg": "<afirmação>[: texto] | <pergunta> | op1, op2 | nota <critério> | n0, n1 :: texto",
     "not_configured": "A Decisions não está configurada (precisa de uma chave da OpenAI: DECISIONS_API_KEY)."
+  },
+  "title": {
+    "predicate": "Isto é verdade? {statement}",
+    "score": "Avalie: {criterion}"
   }
 }

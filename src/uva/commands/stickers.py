@@ -32,7 +32,7 @@ def register(registry: CommandRegistry) -> None:
         "figurinha",
         t("commands.stickers.figurinha.description"),
         aliases=("sticker",),
-        usage="<n> significado|acao|sem-acao|remover [texto]",
+        usage=t("commands.stickers.figurinha.usage_arg"),
     )
     async def sticker(ctx: CommandContext) -> Reply:
         repo = ctx.services.stickers

@@ -52,7 +52,7 @@ def register(registry: CommandRegistry) -> None:
             return t("commands.expenses.gasto.bad_amount", value=ctx.args[0])
         expense = await repo.add(cents, ctx.args[1], " ".join(ctx.args[2:]))
         await remember_ref(
-            ctx.services, "gasto", str(expense.id), f"gasto: {format_brl(cents)} {expense.category}"
+            ctx.services, "gasto", str(expense.id), f"expense: {format_brl(cents)} {expense.category}"
         )
         return t(
             "commands.expenses.gasto.saved",

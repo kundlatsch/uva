@@ -106,7 +106,7 @@ def register(registry: CommandRegistry) -> None:
             return t("commands.brain.nota.usage")
         saved = vault.create_note(title_from_text(text), text, folder="inbox", tags=["inbox"])
         vault.append_daily(t("commands.brain.nota.daily", link=saved.link))
-        await remember_ref(ctx.services, "nota", saved.path, f"nota: {saved.title}")
+        await remember_ref(ctx.services, "nota", saved.path, f"note: {saved.title}")
         return t("commands.brain.nota.saved", path=saved.path)
 
     @registry.command(
@@ -160,7 +160,7 @@ async def rename_brain(services) -> str:
             await asyncio.to_thread(repo.run, "add", "-A")
             await asyncio.to_thread(
                 repo.run, "commit", "-q", "-m",
-                f"Renomeia {len(renames)} nota(s) para o padrão em português\n\n{SELF_EDIT}: true",
+                f"Rename {len(renames)} note(s) to the Portuguese naming pattern\n\n{SELF_EDIT}: true",
             )
             lines.append(t("commands.brain.rename.undo"))
         except Exception as exc:

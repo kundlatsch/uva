@@ -309,15 +309,16 @@ Limits: at most `PROACTIVE_MAX_MESSAGES_PER_DAY` (8) per day, with `PROACTIVE_MI
 
 ## Routines (recurring tasks)
 
-Requests that run by themselves on a schedule, through the normal router (same budget and limits as a typed message). The result arrives on Telegram. The schedule is written in Portuguese:
+Requests that run by themselves on a schedule, through the normal router (same budget and limits as a typed message). The result arrives on Telegram. The schedule comes first, in English or Portuguese, whatever `BOT_LANGUAGE` is:
 
-- `/rotina todo dia 08:00 pesquisa se a skin X saiu na loja do LoL`
-- `/rotina segunda e quinta 9h me lembra de regar as plantas`
-- `/rotina a cada 6 horas confere o preço do dólar`
-- In natural language too ("todo dia às 8 vê se..."): the LLM uses `routine_create`.
+- `/routine every day 08:00 check whether skin X is in the LoL store` (also `daily at 9pm`, `everyday 7:30am`)
+- `/routine monday and thursday 9am remind me to water the plants` (also `every tuesday, saturday at 18:15`, `on wednesdays 10h`)
+- `/routine every 6 hours check the dollar price` (also `every 30 minutes`, `every hour`; at least 15 minutes)
+- In Portuguese: `/rotina todo dia 08:00 ...`, `/rotina segunda e quinta 9h ...`, `/rotina a cada 6 horas ...`
+- In natural language too ("every day at 8 check whether...", "todo dia às 8 vê se..."): the LLM uses `routine_create`.
 - `/rotinas` (`/routines`) lists them; `/rotina <id> pausar|retomar|remover|agora` (or `pause|resume|delete|now`).
 
-**PC turned off.** Beat checks every minute. A routine whose time passed while the PC was off runs **once** when it comes back, however many times it missed, and the message says "atrasada: era para 10/10 08:00". The next run is always the next scheduled time after now. The schedule and the last run live in Mongo (`routines`).
+**PC turned off.** Beat checks every minute. A routine whose time passed while the PC was off runs **once** when it comes back, however many times it missed, and the message says "late: it was due at 10/10 08:00" ("atrasada: era para ..." in Portuguese). The next run is always the next scheduled time after now. The schedule and the last run live in Mongo (`routines`).
 
 ## SQLite (structured data)
 
@@ -490,7 +491,8 @@ Everything internal is in English: system prompts, code, commits, READMEs and te
 - **LLM replies** are written in the bot language (the system prompts say which), keeping technical terms in English. The personality (`data/soul.md`) still applies.
 - **Ready-made phrases** come from `data/fallback_phrases.json` (pt) or `data/fallback_phrases.en.json` (en).
 - **Input** works in both languages: commands have Portuguese and English names (see [Commands](#commands)), and small talk like "oi"/"hi" or "valeu"/"thanks" is understood either way.
-- **Stays in Portuguese by design:** second-brain note titles and file names (your content, see [Names in the second brain](#names-in-the-second-brain)), the routine schedule syntax ("todo dia 08:00") and `TRANSCRIBE_LANGUAGE`/`WIKIPEDIA_LANG`, which are separate settings.
+- **Stays in Portuguese by design:** second-brain note titles and file names (your content, see [Names in the second brain](#names-in-the-second-brain)), and `TRANSCRIBE_LANGUAGE`/`WIKIPEDIA_LANG`, which are separate settings.
+- **Text only the LLM reads** (system prompts, action descriptions, context blocks, retry feedback) and the bot's commit messages are always in English.
 
 To add a language, create `src/uva/locales/<code>/` with the same files and a `data/fallback_phrases.<code>.json`, then add the code to `SUPPORTED` and `NAMES` in `uva/i18n.py`.
 

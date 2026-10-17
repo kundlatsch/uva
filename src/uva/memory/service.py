@@ -131,7 +131,7 @@ class MemoryService:
             if value < self.settings.memory_archive_score and item.last_used_at < cutoff
         ]
         if stale:
-            await self.store.archive(stale, reason="baixa nota sem uso")
+            await self.store.archive(stale, reason="low score, unused")
         working = await self.recompute_working_set(now)
         return {"archived": len(stale), "working_set": len(working)}
 

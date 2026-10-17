@@ -6,12 +6,14 @@
     "item": "{key} [{category}]: {value}\nRelevância {relevance:.2f}, usada {uses}x, último uso {last_used}",
     "empty": "Ainda não guardei nada. Use /lembrar <chave> <valor>.",
     "header": "Memória: {count} itens (★ = memória de trabalho)",
-    "line": "{star} {key}: {value} [{category}, nota {score:.2f}]"
+    "line": "{star} {key}: {value} [{category}, nota {score:.2f}]",
+    "usage_arg": "[chave]"
   },
   "lembrar": {
     "description": "Guarda uma memória",
     "usage": "Uso: /lembrar <chave> <valor> (ex.: /lembrar cidade Florianópolis)",
-    "saved": "Ok, vou lembrar: {key} = {value}"
+    "saved": "Ok, vou lembrar: {key} = {value}",
+    "usage_arg": "<chave> <valor>"
   },
   "esquecer": {
     "description": "Apaga uma memória",

@@ -14,7 +14,7 @@ def register(registry: CommandRegistry) -> None:
         "memoria",
         t("commands.memory.memoria.description"),
         aliases=("memória", "memorias", "memory"),
-        usage="[chave]",
+        usage=t("commands.memory.memoria.usage_arg"),
         examples=("o que voce sabe sobre mim", "o que voce lembra de mim"),
     )
     async def memory(ctx: CommandContext) -> str:
@@ -59,7 +59,7 @@ def register(registry: CommandRegistry) -> None:
         "lembrar",
         t("commands.memory.lembrar.description"),
         aliases=("lembra", "remember"),
-        usage="<chave> <valor>",
+        usage=t("commands.memory.lembrar.usage_arg"),
     )
     async def remember(ctx: CommandContext) -> str:
         service = ctx.services.memory

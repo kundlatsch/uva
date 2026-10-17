@@ -74,19 +74,19 @@ def check_test(code: str, plugin_name: str) -> list[str]:
 
 def check_name(name: str, taken: set[str]) -> list[str]:
     if not NAME_PATTERN.match(name):
-        return [f"nome de módulo inválido: {name!r} (use a-z, 0-9 e _)"]
+        return [f"invalid module name: {name!r} (use a-z, 0-9 and _)"]
     if name in taken:
-        return [f"já existe um plugin/módulo chamado {name!r}"]
+        return [f"a plugin/module named {name!r} already exists"]
     return []
 
 
 def _check(code: str, allowed_imports: set[str]) -> list[str]:
     if len(code) > MAX_CODE_CHARS:
-        return [f"código grande demais ({len(code)} caracteres; limite {MAX_CODE_CHARS})"]
+        return [f"code too long ({len(code)} characters; limit {MAX_CODE_CHARS})"]
     try:
         tree = ast.parse(code)
     except SyntaxError as exc:
-        return [f"erro de sintaxe: {exc}"]
+        return [f"syntax error: {exc}"]
 
     problems: list[str] = []
     for node in ast.walk(tree):
@@ -94,16 +94,16 @@ def _check(code: str, allowed_imports: set[str]) -> list[str]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name not in allowed_imports:
-                    problems.append(f"linha {line}: import proibido: {alias.name}")
+                    problems.append(f"line {line}: forbidden import: {alias.name}")
         elif isinstance(node, ast.ImportFrom):
             if node.level:
-                problems.append(f"linha {line}: import relativo não é permitido")
+                problems.append(f"line {line}: relative imports are not allowed")
             elif node.module not in allowed_imports:
-                problems.append(f"linha {line}: import proibido: {node.module}")
+                problems.append(f"line {line}: forbidden import: {node.module}")
         elif isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
-            problems.append(f"linha {line}: uso proibido de {node.id}()")
+            problems.append(f"line {line}: forbidden use of {node.id}()")
         elif isinstance(node, ast.Attribute) and node.attr.startswith("_"):
-            problems.append(f"linha {line}: atributo privado/mágico proibido: .{node.attr}")
+            problems.append(f"line {line}: forbidden private/magic attribute: .{node.attr}")
         elif isinstance(node, (ast.Global, ast.Nonlocal)):
-            problems.append(f"linha {line}: global/nonlocal não é permitido")
+            problems.append(f"line {line}: global/nonlocal is not allowed")
     return problems

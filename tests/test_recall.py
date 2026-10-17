@@ -85,7 +85,7 @@ async def test_lookup_action_is_read_and_answered_in_the_same_turn(mem_services)
     assert reply.text == "Sua receita leva frango e batata doce."  # no "Vou abrir a nota."
     assert len(provider.calls) == 2
     fed_back = provider.calls[1]["messages"][-1].content
-    assert "frango e batata doce" in fed_back and "o usuário ainda não viu" in fed_back
+    assert "frango e batata doce" in fed_back and "the user has not seen them yet" in fed_back
 
 
 async def test_lookup_rounds_are_capped(mem_services):

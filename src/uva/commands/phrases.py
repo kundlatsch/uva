@@ -14,7 +14,7 @@ def register(registry: CommandRegistry) -> None:
         "frases",
         t("commands.phrases.frases.description"),
         aliases=("phrases",),
-        usage="[categoria]",
+        usage=t("commands.phrases.frases.usage_arg"),
     )
     async def phrases(ctx: CommandContext) -> str:
         assert ctx.services.phrases is not None

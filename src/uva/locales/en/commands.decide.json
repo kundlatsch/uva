@@ -13,5 +13,9 @@
     "description": "Probability, choice or score with OpenAI Decisions",
     "usage_arg": "<statement>[: text] | <question> | opt1, opt2 | score <criterion> | n0, n1 :: text",
     "not_configured": "Decisions is not configured (it needs an OpenAI key: DECISIONS_API_KEY)."
+  },
+  "title": {
+    "predicate": "Is this true? {statement}",
+    "score": "Rate: {criterion}"
   }
 }

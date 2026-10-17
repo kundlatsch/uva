@@ -4,6 +4,7 @@
     "unavailable": "Iniciativas indisponíveis (Mongo).",
     "enabled": "✅ Iniciativas ligadas. Vou aparecer de vez em quando (respeitando o silêncio e o limite do dia).",
     "disabled": "🔕 Iniciativas desligadas. Objetivos continuam rodando e avisando.",
-    "usage": "Uso: /proativo [on|off|agora]"
+    "usage": "Uso: /proativo [on|off|agora]",
+    "usage_arg": "[on|off|agora]"
   }
 }

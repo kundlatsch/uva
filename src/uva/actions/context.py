@@ -9,7 +9,10 @@ from uva.i18n import t
 from uva.logging.events import current_trace_id
 from uva.stm.status import refresh
 
-REF_HELP = "Referência do contexto recente (ex.: t3), id, parte do rótulo, ou vazio para a em foco"
+REF_HELP = (
+    "Reference from the recent context (e.g. t3), an id, part of the label, or empty for the "
+    "one in focus"
+)
 
 
 class RefParams(BaseModel):
@@ -32,7 +35,7 @@ async def _resolve(ctx: ActionContext, query: str | None):
 def register(registry: ActionRegistry) -> None:
     @registry.action(
         "task_status",
-        "Estado real de algo que eu disparei antes (tarefa, pesquisa, feature, objetivo)",
+        "Real state of something I started earlier (task, search, feature, goal)",
         RefParams,
     )
     async def task_status(params: RefParams, ctx: ActionContext) -> ActionResult:
@@ -46,7 +49,7 @@ def register(registry: ActionRegistry) -> None:
             data={"ref": ref.ref, "status": live.status},
         )
 
-    @registry.action("retry", "Roda de novo uma tarefa/pesquisa/feature que falhou", RefParams)
+    @registry.action("retry", "Runs again a task/search/feature that failed", RefParams)
     async def retry(params: RefParams, ctx: ActionContext) -> ActionResult:
         ref, error = await _resolve(ctx, params.ref)
         if error:
@@ -74,7 +77,7 @@ def register(registry: ActionRegistry) -> None:
             return ActionResult(text=await request_feature(services, old_feature.description))
         return ActionResult(text=t("actions.context.retry.unsupported", kind=ref.tipo))
 
-    @registry.action("cancel", "Cancela uma tarefa/pesquisa que ainda está rodando", RefParams)
+    @registry.action("cancel", "Cancels a task/search that is still running", RefParams)
     async def cancel(params: RefParams, ctx: ActionContext) -> ActionResult:
         ref, error = await _resolve(ctx, params.ref)
         if error:
@@ -89,7 +92,7 @@ def register(registry: ActionRegistry) -> None:
         if not await services.tasks.cancel(ref.id):
             return ActionResult(text=t("actions.context.cancel.already_done", label=ref.rotulo))
         if services.stm is not None:
-            await services.stm.update_ref(ref.id, "falhou", "cancelada")
+            await services.stm.update_ref(ref.id, "falhou", t("stm.status.cancelled"))
         return ActionResult(
             text=t("actions.context.cancel.cancelled", phrase=services.say("cancelado", id=ref.id), label=ref.rotulo)
         )

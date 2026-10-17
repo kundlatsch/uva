@@ -12,15 +12,16 @@ from uva.llm.decisions import MAX_QUESTIONS, DecisionsError, Question, format_an
 
 
 class DecideParams(BaseModel):
-    input: str = Field(default="", description="Evidência a avaliar (texto)")
-    use_last_photo: bool = Field(default=False, description="Usar a última foto que o usuário mandou")
+    input: str = Field(default="", description="Evidence to evaluate (text)")
+    use_last_photo: bool = Field(default=False, description="Use the last photo the user sent")
     questions: list[Question] = Field(
         description=(
-            f"1 a {MAX_QUESTIONS} perguntas independentes: predicate (chance de ser verdade), "
-            "choice (uma de choices[{value}]) ou score (levels[{label}] do mais baixo ao mais alto). "
-            'Ex.: [{"type": "predicate", "name": "sarcasmo", "instructions": "A frase é sarcástica?"}, '
-            '{"type": "choice", "name": "tom", "instructions": "Qual o tom?", "choices": '
-            '[{"value": "irônico"}, {"value": "sincero"}]}]'
+            f"1 to {MAX_QUESTIONS} independent questions: predicate (chance of being true), "
+            "choice (one of choices[{value}]) or score (levels[{label}] from lowest to highest). "
+            "instructions, choices and levels are shown to the user: write them in the user's language. "
+            'E.g.: [{"type": "predicate", "name": "sarcasm", "instructions": "Is the sentence sarcastic?"}, '
+            '{"type": "choice", "name": "tone", "instructions": "What is the tone?", "choices": '
+            '[{"value": "ironic"}, {"value": "sincere"}]}]'
         )
     )
 
@@ -34,8 +35,8 @@ class DecideParams(BaseModel):
 def register(registry: ActionRegistry) -> None:
     @registry.action(
         "decide",
-        "Responde com números calibrados (OpenAI Decisions): chance de algo ser verdade, "
-        "escolha entre opções fixas ou nota numa escala; aceita a última foto",
+        "Answers with calibrated numbers (OpenAI Decisions): the chance of something being "
+        "true, a pick among fixed options or a rating on a scale; accepts the last photo",
         DecideParams,
     )
     async def decide(params: DecideParams, ctx: ActionContext) -> ActionResult:
