@@ -1,0 +1,91 @@
+{
+  "title": "UVA · dashboard",
+  "subtitle": "dashboard",
+  "tabs": {
+    "overview": "Overview",
+    "costs": "Costs and limits",
+    "chat": "Chat",
+    "logs": "Logs",
+    "env": "Environment"
+  },
+  "common": {
+    "nothing": "nothing"
+  },
+  "overview": {
+    "events_24h": "Events in the last 24h",
+    "counts": "Counts",
+    "errors": "Recent errors",
+    "up": "up",
+    "down": "down",
+    "queue": "Task queue",
+    "uptime": "Dashboard up for",
+    "minutes": "{n} min",
+    "no_errors": "No errors in the last 24h. 🎉",
+    "trace": "trace {id}"
+  },
+  "costs": {
+    "daily_chart": "LLM spend per day (US$, 30 days)",
+    "by_purpose": "By purpose (this month)",
+    "by_model": "By model (this month)",
+    "grant_title": "Unlock extra budget today (/unlock)",
+    "grant_button": "Unlock US$",
+    "granted": "unlocked today: {amount}",
+    "error": "error: {message}",
+    "expenses": "Personal expenses (SQLite, this month)",
+    "expenses_recent": "Latest",
+    "of_limit": "of {limit}",
+    "llm_today": "LLM today",
+    "extra_today": "(+{amount} unlocked)",
+    "llm_month": "LLM this month",
+    "proactive_today": "Proactive today",
+    "selfcode_today": "Self-coding today",
+    "projects_today": "Projects today (Claude Code)",
+    "no_spend": "no spend in this period",
+    "max_per_day": "max/day {amount}",
+    "calls": "calls",
+    "tokens": "tokens",
+    "usd": "US$"
+  },
+  "chat": {
+    "conversation": "Conversation (the same as on Telegram, with the notices)",
+    "placeholder": "Talk to UVA… (Enter sends, Shift+Enter adds a line)",
+    "send": "Send",
+    "notice": "notice",
+    "no_conversation": "No recent conversation (the short-term memory expires).",
+    "last_reply": "Last reply (complete)",
+    "button": "[button] {text}",
+    "typing": "typing…",
+    "now": "now",
+    "error": "Error: {message}"
+  },
+  "debug": {
+    "title": "Debug",
+    "empty": "Send a message from the dashboard to see how it was handled.",
+    "run_info": "{ms} ms · {tokens} tokens · {cost}",
+    "path": "Path:",
+    "recall": "Recall:",
+    "sections": "{n} sections",
+    "plan": "Actions JSON (the LLM's plan)",
+    "actions": "Actions run ({n})",
+    "llm_call": "LLM call {n}: {purpose} · {model} · {input}+{output} tokens · {cost} · {ms} ms",
+    "system_prompt": "System prompt (memory, recall, recent context)",
+    "messages": "Messages sent ({n}, with the short-term memory history)",
+    "images": "{n} image(s)",
+    "raw_response": "Raw response",
+    "all_events": "All events ({n})"
+  },
+  "logs": {
+    "days_7": "7 days",
+    "all_types": "all types",
+    "trace_placeholder": "trace id",
+    "filter_placeholder": "filter text",
+    "refresh": "Refresh",
+    "count": "{n} events"
+  },
+  "env": {
+    "title": "Environment variables (read-only; secrets masked)",
+    "filter_placeholder": "filter",
+    "variable": "variable",
+    "value": "value"
+  }
+}

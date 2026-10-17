@@ -1,11 +1,13 @@
 import json
+import re
 
 import pytest
 from fakes import make_settings, with_llm
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from uva.dashboard.app import create_app, mask_settings
+from uva import i18n
+from uva.dashboard.app import STATIC, create_app, mask_settings
 
 
 def test_secrets_are_masked():
@@ -39,6 +41,29 @@ def test_page_and_env(client):
     assert "TELEGRAM_BOT_TOKEN" in names
 
 
+def test_page_texts_in_both_languages(client):
+    pt = client.get("/api/i18n").json()
+    assert pt["lang"] == "pt"
+    assert pt["texts"]["overview.no_errors"] == "Nenhum erro nas últimas 24h. 🎉"
+    assert pt["texts"]["tabs.overview"] == "Visão geral"
+    i18n.set_language("en")
+    en = client.get("/api/i18n").json()
+    assert en["lang"] == "en"
+    assert en["texts"]["overview.no_errors"] == "No errors in the last 24h. 🎉"
+    assert en["texts"]["logs.count"] == "{n} events"  # placeholders are filled by the page
+    assert set(en["texts"]) == set(pt["texts"])
+    assert not any(k.startswith("dashboard.") for k in en["texts"])
+
+
+def test_every_text_the_page_uses_exists(client):
+    page = (STATIC / "index.html").read_text(encoding="utf-8")
+    used = set(re.findall(r'data-i18n(?:-title|-placeholder)?="([^"]+)"', page))
+    used |= set(re.findall(r'\bt\("([\w.]+)"', page))
+    assert len(used) > 50
+    texts = client.get("/api/i18n").json()["texts"]
+    assert sorted(used - set(texts)) == []
+
+
 def test_chat_goes_through_the_router_with_debug(client, services):
     plan = {"actions": [], "reply": "Oi, Taguma!"}
     with_llm(services, json.dumps(plan))
@@ -60,6 +85,7 @@ def test_password(services):
     services.settings.dashboard_password = SecretStr("s3nha")
     with TestClient(create_app(services=services)) as c:
         assert c.get("/api/env").status_code == 401
+        assert c.get("/api/i18n").status_code == 401
         assert c.get("/api/env", auth=("x", "errada")).status_code == 401
         assert c.get("/api/env", auth=("gustavo", "s3nha")).status_code == 200
 

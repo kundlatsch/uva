@@ -1,0 +1,91 @@
+{
+  "title": "UVA · painel",
+  "subtitle": "painel",
+  "tabs": {
+    "overview": "Visão geral",
+    "costs": "Custos e limites",
+    "chat": "Chat",
+    "logs": "Logs",
+    "env": "Ambiente"
+  },
+  "common": {
+    "nothing": "nada"
+  },
+  "overview": {
+    "events_24h": "Eventos nas últimas 24h",
+    "counts": "Contagens",
+    "errors": "Erros recentes",
+    "up": "no ar",
+    "down": "fora",
+    "queue": "Fila de tarefas",
+    "uptime": "Painel no ar há",
+    "minutes": "{n} min",
+    "no_errors": "Nenhum erro nas últimas 24h. 🎉",
+    "trace": "trace {id}"
+  },
+  "costs": {
+    "daily_chart": "Gasto com LLM por dia (US$, 30 dias)",
+    "by_purpose": "Por propósito (este mês)",
+    "by_model": "Por modelo (este mês)",
+    "grant_title": "Liberar orçamento extra hoje (/liberar)",
+    "grant_button": "Liberar US$",
+    "granted": "liberado hoje: {amount}",
+    "error": "erro: {message}",
+    "expenses": "Gastos pessoais (SQLite, este mês)",
+    "expenses_recent": "Últimos",
+    "of_limit": "de {limit}",
+    "llm_today": "LLM hoje",
+    "extra_today": "(+{amount} liberados)",
+    "llm_month": "LLM no mês",
+    "proactive_today": "Proativo hoje",
+    "selfcode_today": "Auto-código hoje",
+    "projects_today": "Projetos hoje (Claude Code)",
+    "no_spend": "sem gastos no período",
+    "max_per_day": "máx/dia {amount}",
+    "calls": "chamadas",
+    "tokens": "tokens",
+    "usd": "US$"
+  },
+  "chat": {
+    "conversation": "Conversa (a mesma do Telegram, com os avisos)",
+    "placeholder": "Fala com a UVA… (Enter envia, Shift+Enter quebra linha)",
+    "send": "Enviar",
+    "notice": "aviso",
+    "no_conversation": "Nenhuma conversa recente (a memória curta expira).",
+    "last_reply": "Última resposta (completa)",
+    "button": "[botão] {text}",
+    "typing": "digitando…",
+    "now": "agora",
+    "error": "Erro: {message}"
+  },
+  "debug": {
+    "title": "Debug",
+    "empty": "Mande uma mensagem pelo painel para ver como ela foi resolvida.",
+    "run_info": "{ms} ms · {tokens} tokens · {cost}",
+    "path": "Caminho:",
+    "recall": "Recall:",
+    "sections": "{n} seções",
+    "plan": "JSON de ações (plano da LLM)",
+    "actions": "Ações executadas ({n})",
+    "llm_call": "Chamada LLM {n}: {purpose} · {model} · {input}+{output} tokens · {cost} · {ms} ms",
+    "system_prompt": "Prompt de sistema (memória, recall, contexto recente)",
+    "messages": "Mensagens enviadas ({n}, com o histórico da memória curta)",
+    "images": "{n} imagem(ns)",
+    "raw_response": "Resposta bruta",
+    "all_events": "Todos os eventos ({n})"
+  },
+  "logs": {
+    "days_7": "7 dias",
+    "all_types": "todos os tipos",
+    "trace_placeholder": "trace id",
+    "filter_placeholder": "filtrar texto",
+    "refresh": "Atualizar",
+    "count": "{n} eventos"
+  },
+  "env": {
+    "title": "Variáveis de ambiente (somente leitura; segredos mascarados)",
+    "filter_placeholder": "filtrar",
+    "variable": "variável",
+    "value": "valor"
+  }
+}

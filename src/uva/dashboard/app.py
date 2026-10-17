@@ -26,7 +26,7 @@ from pydantic import BaseModel, SecretStr
 from uva.bootstrap import build_services, setup_storage
 from uva.clock import format_local, start_of_day, start_of_month, utcnow
 from uva.config import Settings, get_settings
-from uva.i18n import t
+from uva.i18n import DEFAULT, catalog, get_language, t
 from uva.llm.client import debug_calls
 from uva.logging import events
 from uva.logging.events import Event, EventQuery, EventType
@@ -160,7 +160,7 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
                     ok = False
             if not ok:
                 return JSONResponse(
-                    {"error": "senha"}, status_code=401, headers={"WWW-Authenticate": 'Basic realm="UVA"'}
+                    {"error": "password"}, status_code=401, headers={"WWW-Authenticate": 'Basic realm="UVA"'}
                 )
         return await call_next(request)
 
@@ -172,6 +172,13 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
     @app.get("/")
     async def index() -> FileResponse:
         return FileResponse(STATIC / "index.html")
+
+    @app.get("/api/i18n")
+    async def page_texts() -> dict[str, Any]:
+        """The page's texts in the bot's language ("dashboard.static.*", prefix stripped)."""
+        prefix = "dashboard.static."
+        keys = [k for k in catalog(DEFAULT) if k.startswith(prefix)]
+        return {"lang": get_language(), "texts": {k.removeprefix(prefix): t(k) for k in keys}}
 
     @app.get("/api/overview")
     async def overview() -> dict[str, Any]:
