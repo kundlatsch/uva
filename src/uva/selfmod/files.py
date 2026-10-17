@@ -24,6 +24,8 @@ from uva.selfmod.git import SELF_EDIT, GitRepo
 ALLOWED_SUFFIXES = {".md", ".txt"}
 DATA_ONLY_SUFFIXES = {".json"}
 MAX_BYTES = 50_000
+# Personal files kept out of git (see .gitignore): edits keep a copy in data/.versions/.
+UNTRACKED = {"data/profile.md"}
 
 
 class FileAccessError(PermissionError):
@@ -94,6 +96,7 @@ class FileAccess:
         except PlaceholderError as exc:
             raise FileAccessError(str(exc)) from exc
         target.path.parent.mkdir(parents=True, exist_ok=True)
+        self._backup_untracked(target)
         target.path.write_text(content, encoding="utf-8")
         return Change(target, await self._commit(target, "write", reason))
 
@@ -104,12 +107,26 @@ class FileAccess:
         existing = target.path.read_text(encoding="utf-8") if target.path.exists() else ""
         _check_size(existing + content)
         target.path.parent.mkdir(parents=True, exist_ok=True)
+        self._backup_untracked(target)
         with target.path.open("a", encoding="utf-8") as fh:
             fh.write(("\n" if existing and not existing.endswith("\n") else "") + content)
         return Change(target, await self._commit(target, "append", reason))
 
+    def _backup_untracked(self, target: Target) -> None:
+        """Files outside git (data/profile.md is gitignored): keep the old version."""
+        if target.repo_relative not in UNTRACKED or not target.path.exists():
+            return
+        from datetime import datetime
+
+        versions = target.path.parent / ".versions"
+        versions.mkdir(exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        (versions / f"{target.path.stem}-{stamp}{target.path.suffix}").write_text(
+            target.path.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+
     async def _commit(self, target: Target, op: str, reason: str) -> str | None:
-        if target.repo_relative is None or self.git is None:
+        if target.repo_relative is None or self.git is None or target.repo_relative in UNTRACKED:
             return None
         return await self.git.commit_paths(
             [target.repo_relative],

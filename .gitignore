@@ -42,3 +42,7 @@ celerybeat-schedule*
 /snapshots/
 node_modules/
 *.tmp.py
+
+# Personal profile (always loaded into prompts) and its versions: never published
+/data/profile.md
+/data/.versions/

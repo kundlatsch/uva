@@ -1,7 +1,10 @@
-"""The bot's personality (soul.md), injected into every LLM system prompt.
+"""Always-loaded documents: the personality (soul.md) and the user's profile
+(profile.md), put at the very start of every LLM system prompt.
 
-The file is re-read whenever its modification time changes, so edits (by
+The files are re-read whenever their modification time changes, so edits (by
 Gustavo or by the bot itself) apply on the next message without a restart.
+They come first and don't change between messages, so the provider's prompt
+cache covers them (OpenAI caches identical prefixes of 1024+ tokens).
 """
 
 from __future__ import annotations
@@ -17,9 +20,22 @@ PREAMBLE = (
 )
 
 
+PROFILE_PREAMBLE = (
+    "## Quem é o usuário (profile.md)\n"
+    "Contexto sobre o Gustavo, compilado de conversas antigas: use para entender pedidos e "
+    "personalizar respostas. Datas, valores e planos podem estar desatualizados; não trate "
+    "como fatos atuais nem repita dados pessoais sem necessidade.\n\n"
+)
+PROFILE_MAX_CHARS = 30000
+
+
 class Soul:
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self, path: Path, *, profile: Path | None = None, max_chars: int = MAX_CHARS
+    ) -> None:
         self.path = path
+        self.max_chars = max_chars
+        self.profile = Soul(profile, max_chars=PROFILE_MAX_CHARS) if profile is not None else None
         self._mtime: float | None = None
         self._text = ""
 
@@ -31,13 +47,17 @@ class Soul:
             self._mtime, self._text = None, ""
             return ""
         if mtime != self._mtime:
-            self._text = self.path.read_text(encoding="utf-8")[:MAX_CHARS].strip()
+            self._text = self.path.read_text(encoding="utf-8")[: self.max_chars].strip()
             self._mtime = mtime
         return self._text
 
     def apply(self, system: str | None) -> str | None:
-        """Prefix a system prompt with the personality."""
-        soul = self.text()
-        if not soul:
+        """Prefix a system prompt with the profile and the personality (stable first)."""
+        blocks = []
+        if self.profile is not None and (profile := self.profile.text()):
+            blocks.append(f"{PROFILE_PREAMBLE}{profile}")
+        if soul := self.text():
+            blocks.append(f"{PREAMBLE}{soul}")
+        if not blocks:
             return system
-        return f"{PREAMBLE}{soul}\n\n---\n\n{system or ''}".rstrip()
+        return ("\n\n---\n\n".join(blocks) + f"\n\n---\n\n{system or ''}").rstrip()

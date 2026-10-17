@@ -70,11 +70,14 @@ class OpenAICompatibleProvider:
 
         choice = response.choices[0]
         usage = response.usage
+        details = getattr(usage, "prompt_tokens_details", None)
+        cached = getattr(details, "cached_tokens", 0) or 0
         return LLMResponse(
             text=choice.message.content or "",
             model=response.model or model,
             input_tokens=getattr(usage, "prompt_tokens", 0) or 0,
             output_tokens=getattr(usage, "completion_tokens", 0) or 0,
+            extra={"cached_input_tokens": cached} if cached else {},
         )
 
     def _response_format(self, json_schema: dict[str, Any]) -> dict[str, Any]:

@@ -133,7 +133,11 @@ class LLMClient:
                 "response": response.text,
                 "input_tokens": response.input_tokens,
                 "output_tokens": response.output_tokens,
-                "cost_usd": round(self.prices.cost(response.model, response.input_tokens, response.output_tokens), 6),
+                "cached_input_tokens": int(response.extra.get("cached_input_tokens", 0) or 0),
+                "cost_usd": round(self.prices.cost(
+                    response.model, response.input_tokens, response.output_tokens,
+                    int(response.extra.get("cached_input_tokens", 0) or 0),
+                ), 6),
                 "duration_ms": round((time.perf_counter() - started) * 1000),
             })
         return response
@@ -161,7 +165,8 @@ class LLMClient:
         if (meter := _meter.get()) is not None:
             meter.input_tokens += response.input_tokens
             meter.output_tokens += response.output_tokens
-        cost = self.prices.cost(response.model, response.input_tokens, response.output_tokens)
+        cached = int(response.extra.get("cached_input_tokens", 0) or 0)
+        cost = self.prices.cost(response.model, response.input_tokens, response.output_tokens, cached)
         cost += response.extra.get("web_search_requests", 0) * WEB_SEARCH_COST_USD
         if meter is not None:
             meter.cost_usd += cost
@@ -190,6 +195,7 @@ class LLMClient:
             purpose=purpose,
             scope=scope.value,
             input_tokens=response.input_tokens,
+            cached_input_tokens=cached,
             output_tokens=response.output_tokens,
             cost_usd=round(cost, 6),
             price_known=self.prices.knows(response.model),
@@ -233,5 +239,5 @@ def build_llm_client(settings: Settings, usage: UsageStore | None) -> LLMClient 
         prices=PriceTable(settings.llm_prices, settings.llm_default_price),
         usage=usage,
         max_tokens=settings.llm_max_tokens,
-        soul=Soul(settings.soul_file),
+        soul=Soul(settings.soul_file, profile=settings.profile_file),
     )

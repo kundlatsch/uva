@@ -155,6 +155,8 @@ class Settings(BaseSettings):
     repo_path: str = ""
     # Personality file; empty means <repo>/data/soul.md.
     soul_path: str = ""
+    # User profile, always in the prompt; empty means <repo>/data/profile.md.
+    profile_path: str = ""
     # Self-coding (/feature): plugins written, tested and merged by the bot.
     selfcode_daily_budget_usd: float = 2.0
     selfcode_max_attempts: int = 3
@@ -236,6 +238,11 @@ class Settings(BaseSettings):
     @property
     def soul_file(self) -> Path:
         return Path(self.soul_path) if self.soul_path else self.repo_dir / "data" / "soul.md"
+
+    @property
+    def profile_file(self) -> Path:
+        """The user's profile (data/profile.md), always loaded like soul.md; gitignored."""
+        return Path(self.profile_path) if self.profile_path else self.repo_dir / "data" / "profile.md"
 
     @property
     def llm_default_price(self) -> tuple[float, float]:
