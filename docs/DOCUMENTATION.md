@@ -332,6 +332,7 @@ UVA's personality lives in [data/soul.md](../data/soul.md): ironic, playful, a b
 `data/profile.md` is your profile: context about you, compiled from past conversations. It is personal, so it is **gitignored**.
 
 - Both files go at the very start of the system prompt of every LLM call (conversation, search summaries, goals): profile first, then soul, then the dynamic part. Because this prefix does not change between messages, the provider's prompt cache can cover it.
+- Cost of the profile (~19 KB, about 4.3k tokens), measured on the router model: about US$ 0.0045 more per message while the cache is warm (cached tokens are billed at 10%), and about US$ 0.027 more on the first message after the cache expires (a few idle minutes).
 - Edit them freely: they are re-read when they change, without restarting anything.
 - `/soul` (`/alma`) shows the current personality.
 
