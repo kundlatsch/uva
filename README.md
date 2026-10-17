@@ -1,6 +1,6 @@
 # UVA
 
-A personal AI assistant that lives in Telegram. UVA serves a **single user**, runs in Docker on your own PC, and talks back in Portuguese with a personality of its own. Every command works in Portuguese and English.
+A personal AI assistant that lives in Telegram. UVA serves a **single user**, runs in Docker on your own PC, and talks back with a personality of its own, in English or Portuguese (`BOT_LANGUAGE`). Every command works in both languages.
 
 Full documentation: **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)**.
 
@@ -18,7 +18,7 @@ Full documentation: **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)**.
 ## Quick start
 
 1. Create a bot with **@BotFather** and get your numeric user id from **@userinfobot**.
-2. Copy the example settings and fill in at least `TELEGRAM_BOT_TOKEN` and `ALLOWED_TELEGRAM_USER_ID` (add `LLM_API_KEY` to enable the LLM):
+2. Copy the example settings and fill in at least `TELEGRAM_BOT_TOKEN` and `ALLOWED_TELEGRAM_USER_ID` (add `LLM_API_KEY` to enable the LLM, and `BOT_LANGUAGE=pt` for Portuguese replies):
 
    ```powershell
    Copy-Item .env.example .env

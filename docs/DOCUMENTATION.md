@@ -43,6 +43,8 @@ src/uva/
   main.py         # bot entry point (long polling)
   bootstrap.py    # builds the services (Mongo, Redis, LLM, vault, SQLite) for bot and worker
   config.py       # settings from .env (pydantic-settings)
+  i18n.py         # translations: t("key") in the language set by BOT_LANGUAGE
+  locales/        # en/ and pt/ JSON files with every text the user reads
   security.py     # single-user filter, runs before any handler
   router.py       # text -> reply: command, similarity or LLM
   matching.py     # fallback tier 2 (similarity with rapidfuzz), small talk
@@ -65,7 +67,7 @@ src/uva/
   shell/          # /sh and /py client for the isolated shell container
   dashboard/      # local web dashboard (FastAPI)
   logging/        # JSON logs and events with trace_id
-data/             # soul.md, profile.md (gitignored), fallback_phrases.json
+data/             # soul.md, profile.md (gitignored), fallback_phrases.json (pt) and .en.json
 tests/            # pytest (Telegram and LLM are faked)
 scripts/          # integration tests, latency and ask tools, Windows startup
 docs/             # this documentation, the original plan, short-term memory notes
@@ -73,7 +75,7 @@ docs/             # this documentation, the original plan, short-term memory not
 
 ## Commands
 
-The bot's own replies are in Portuguese, but **every command answers to a Portuguese and an English name**. Common subcommand words also work in both languages (`/log hoje` or `/log today`, `/gastos mes` or `/expenses month`). `/help` (or `/ajuda`) lists everything with its aliases, generated from the registry, and `/comandos` (or `/commands`) gives the full debug catalog.
+The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [Language](#language-and-formatting)), and **every command answers to a Portuguese and an English name** whatever the language. Common subcommand words also work in both languages (`/log hoje` or `/log today`, `/gastos mes` or `/expenses month`). `/help` (or `/ajuda`) lists everything with its aliases, generated from the registry, and `/comandos` (or `/commands`) gives the full debug catalog.
 
 | Command (PT / EN) | What it does |
 |---|---|
@@ -143,7 +145,7 @@ TELEGRAM_BOT_TOKEN=123456789:AA...
 ALLOWED_TELEGRAM_USER_ID=123456789
 ```
 
-Everything else is optional and has a default (see `.env.example` and `src/uva/config.py`). Without `LLM_API_KEY`, commands and similarity matching still work, but free text is not sent to an LLM. `.env` is in `.gitignore`: never commit it.
+Everything else is optional and has a default (see `.env.example` and `src/uva/config.py`). The bot speaks English by default; set `BOT_LANGUAGE=pt` for Portuguese. Without `LLM_API_KEY`, commands and similarity matching still work, but free text is not sent to an LLM. `.env` is in `.gitignore`: never commit it.
 
 > The bot refuses to start if `TELEGRAM_BOT_TOKEN` or `ALLOWED_TELEGRAM_USER_ID` is empty.
 
@@ -194,12 +196,14 @@ To run the bot outside Docker: `python -m uva.main` (reads `.env` from the curre
 
 ### Adding a command
 
-Commands are async functions registered in the `CommandRegistry` with a name, a description and aliases. `/help` and `/comandos` are generated from the registry. Give each command a Portuguese and an English name:
+Commands are async functions registered in the `CommandRegistry` with a name, a description and aliases. `/help` and `/comandos` are generated from the registry. Give each command a Portuguese and an English name, and put every text the user reads in the locale files (`src/uva/locales/en/<namespace>.json` and `pt/<namespace>.json`, see [Language](#language-and-formatting)):
 
 ```python
-@registry.command("hora", "Mostra a hora atual", aliases=("time", "horas"))
+from uva.i18n import t
+
+@registry.command("hora", t("commands.time.hora.description"), aliases=("time", "horas"))
 async def hora(ctx: CommandContext) -> str:
-    return datetime.now().strftime("%H:%M")
+    return t("commands.time.now", time=datetime.now().strftime("%H:%M"))
 ```
 
 Names and aliases must be unique; the registry refuses duplicates. Simple commands can also be plugins (see [Self-coding](#self-coding-uva-writes-new-commands)).
@@ -360,6 +364,7 @@ Ask with `/feature <description>` (e.g. `/feature /dado rola um dado de 6 lados`
 
 - `/features` lists the attempts; `/reverter` also undoes self-coding commits (and reloads the plugins).
 - Its own budget: `SELFCODE_DAILY_BUDGET_USD` (2; does not use the general daily budget, but counts toward the monthly one).
+- Plugins are bilingual: the description is a dict `{"en": "...", "pt": "..."}` and replies follow `ctx.lang` (`"en"` or `"pt"`). Plugins can't import `uva.i18n`, so each one keeps its own small translation table.
 - Plugins can also be written by hand: create the file in `src/uva/plugins/`, the tests in `tests/plugins/` and restart the bot (or use `/reverter`/`/feature` to trigger a reload). They show up as `[plugin]` in `/comandos`.
 - Requires the repository on the `main` branch; your uncommitted changes are not part of the clone.
 
@@ -372,7 +377,7 @@ UVA creates **new software projects, separate from itself**:
 - `/cancelar <id>`: stops a queued or running project.
 - `/log 1d projetos`: history.
 
-**New projects only.** Requests to clone, download or run third-party repositories are refused, because that code would run next to Claude Code's token. Claude Code's git also has no `clone`, `fetch`, `pull`, `submodule` or `remote`. It works in English (code, README, commits) and sends a short summary in Portuguese.
+**New projects only.** Requests to clone, download or run third-party repositories are refused, because that code would run next to Claude Code's token. Claude Code's git also has no `clone`, `fetch`, `pull`, `submodule` or `remote`. It works in English (code, README, commits) and sends a short summary in the bot language.
 
 One project at a time. Limits: `PROJECT_TIMEOUT_MINUTES` (30), `PROJECT_MAX_TURNS` (80) and `PROJECT_MAX_BUDGET_USD` (3) per project; `PROJECT_DAILY_BUDGET_USD` (10) per day.
 
@@ -443,7 +448,7 @@ For questions with a numeric, calibrated answer, UVA uses OpenAI's Decisions API
 
 ## Ready-made phrases
 
-[data/fallback_phrases.json](../data/fallback_phrases.json) has 200+ phrases in the tone of soul.md, in 22 categories (`sem_credito`, `llm_erro`, `nao_entendi`, `ocupado`, `tarefa_falhou`, `tarefa_ok`, `pesquisando`, `saudacao`, `agradecimento`, `despedida`, `confirmacao`, `cancelado`, `sem_resultado`, `erro_generico`, `transcrevendo`, `pensando`, `executando`, `programando`, `procurando`, `olhando`, `salvando`, `comando_desconhecido`). Placeholders such as `{id}` and `{termo}` are documented in the file itself.
+[data/fallback_phrases.json](../data/fallback_phrases.json) (Portuguese) and [data/fallback_phrases.en.json](../data/fallback_phrases.en.json) (English) have 200+ phrases each in the tone of soul.md; the bot uses the one for `BOT_LANGUAGE`. Both have the same 22 categories (`sem_credito`, `llm_erro`, `nao_entendi`, `ocupado`, `tarefa_falhou`, `tarefa_ok`, `pesquisando`, `saudacao`, `agradecimento`, `despedida`, `confirmacao`, `cancelado`, `sem_resultado`, `erro_generico`, `transcrevendo`, `pensando`, `executando`, `programando`, `procurando`, `olhando`, `salvando`, `comando_desconhecido`). Placeholders such as `{id}` and `{termo}` are documented in the file itself.
 
 - Used when the answer does not need the LLM: budget exceeded or provider out of credit (the phrase + the exact reason), LLM error, "didn't understand", unknown command, start of a search, task notices, cancellations, empty searches, and the progress messages described in [Instant feedback](#instant-feedback).
 - "oi", "valeu", "falou" and similar get answered from here, without spending on the LLM.
@@ -469,7 +474,7 @@ The `dashboard` service serves a dashboard at **http://localhost:8080**, only on
 Every input gets something back in under 1 second (`uva/progress.py`):
 
 - "typing…" goes out right away, for text, photo, audio, sticker and buttons, and is renewed while the work lasts;
-- if the answer is not ready in 0.7 s, a ready-made phrase for the kind of work appears (`pensando`, `executando`, `procurando`, `pesquisando`, `olhando`, `salvando`, `transcrevendo`...). It is drawn from `data/fallback_phrases.json`, without repeating the last ones, and **that same message is edited** with the result. If the work changes phase (for example, the LLM decides to read a note), the phrase follows;
+- if the answer is not ready in 0.7 s, a ready-made phrase for the kind of work appears (`pensando`, `executando`, `procurando`, `pesquisando`, `olhando`, `salvando`, `transcrevendo`...). It is drawn from the ready-made phrases file, without repeating the last ones, and **that same message is edited** with the result. If the work changes phase (for example, the LLM decides to read a note), the phrase follows;
 - when the LLM decides to run something slow (`/uva`, an unqueued search, `decide`...), its reply goes out first and the result comes after, in place of a "⚙️ Rodando…";
 - buttons answer right away with a short notice ("⚙️ Rodando…", "Ok");
 - the dashboard chat does the same, streaming: "typing…", then the phrases, then the answer.
@@ -478,7 +483,16 @@ To measure the time to first response on each path: `docker compose exec bot pyt
 
 ## Language and formatting
 
-Everything internal is in English: system prompts, code, commits, READMEs and technical notes. Only what you read comes in Portuguese, with technical terms in English. The personality (`data/soul.md`) still applies to replies. Commands accept Portuguese and English names (see [Commands](#commands)).
+Everything internal is in English: system prompts, code, commits, READMEs and technical notes. What you read comes in the **bot language**, set by `BOT_LANGUAGE` in `.env`: `en` (default) or `pt` (`pt-BR` also works). Restart the services after changing it (`docker compose up -d`).
+
+- **Fixed texts** (command replies, `/help`, usage hints, notices, buttons, errors) live in JSON files, one per module: `src/uva/locales/en/<namespace>.json` and `src/uva/locales/pt/<namespace>.json`. The file name is the namespace, named after the module (`commands.tasks.json` for `src/uva/commands/tasks.py`), and nested keys are joined with dots. Code reads them with `t("commands.tasks.none")` or, with placeholders, `t("commands.tasks.cancelar.not_found", id=task_id)` from `uva/i18n.py`. A key missing in Portuguese falls back to English; a key missing everywhere shows the key itself and is logged.
+- `tests/test_i18n.py` checks that every key exists in both languages with the same placeholders. Most tests run in Portuguese (`tests/conftest.py`), and each area has English tests too.
+- **LLM replies** are written in the bot language (the system prompts say which), keeping technical terms in English. The personality (`data/soul.md`) still applies.
+- **Ready-made phrases** come from `data/fallback_phrases.json` (pt) or `data/fallback_phrases.en.json` (en).
+- **Input** works in both languages: commands have Portuguese and English names (see [Commands](#commands)), and small talk like "oi"/"hi" or "valeu"/"thanks" is understood either way.
+- **Stays in Portuguese by design:** second-brain note titles and file names (your content, see [Names in the second brain](#names-in-the-second-brain)), the routine schedule syntax ("todo dia 08:00") and `TRANSCRIBE_LANGUAGE`/`WIKIPEDIA_LANG`, which are separate settings.
+
+To add a language, create `src/uva/locales/<code>/` with the same files and a `data/fallback_phrases.<code>.json`, then add the code to `SUPPORTED` and `NAMES` in `uva/i18n.py`.
 
 Replies reach Telegram as HTML (`uva/tgformat.py`). Common Markdown coming from the LLM and Claude Code (**bold**, `code`, blocks, headings, lists, links) is converted, and the rest is escaped. If Telegram rejects the formatting, the message is sent as plain text.
 
