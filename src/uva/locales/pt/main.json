@@ -1,0 +1,10 @@
+{
+  "button_ack": {
+    "confirm": "👍 Bora",
+    "deny": "Ok",
+    "shok": "⚙️ Rodando…",
+    "shno": "Ok, não rodo"
+  },
+  "file_too_big": "{phrase}\n(o arquivo passa de 20 MB, o limite do Telegram para bots)",
+  "audio_too_big": "{phrase}\n(o áudio passa de 20 MB, o limite do Telegram para bots)"
+}

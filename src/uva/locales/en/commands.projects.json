@@ -1,0 +1,16 @@
+{
+  "not_configured": "Projects are not configured (they need Mongo and the projects worker).",
+  "requested": [
+    "🏗️ Alright, I'll build the project {slug} ({id}) with Claude Code, in a new folder: {path}",
+    "Limits: {minutes} min, US$ {budget:.2f}. I'll let you know when it's done. Follow it in /projects; to stop it, /cancel {id}."
+  ],
+  "projeto": {
+    "description": "Creates a NEW project (outside the bot) with Claude Code and lets you know when it's done",
+    "usage": "Usage: /project <description>, e.g. /project a static recipe site with search"
+  },
+  "projetos": {
+    "description": "Projects Claude Code created (or is creating)",
+    "none": "No projects yet. Ask for one with /project <description>.",
+    "header": "Projects:"
+  }
+}

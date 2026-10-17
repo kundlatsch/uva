@@ -16,3 +16,8 @@ def test_converts_accented_letters():
 
 def test_requires_text():
     assert run(uppercase) == "Uso: /maiusculo <texto>"
+
+
+def test_english_usage():
+    assert run(uppercase, lang="en") == "Usage: /uppercase <text>"
+    assert run(uppercase, "good", "morning", lang="en") == "GOOD MORNING"

@@ -4,38 +4,41 @@ from __future__ import annotations
 
 from uva.clock import format_local
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.stm.service import describe_ref
 
-ROLE = {"user": "você", "bot": "eu", "notice": "eu (aviso)"}
 SHOWN_TURNS = 10
 
 
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "contexto",
-        "O que eu lembro da conversa de agora (ou 'limpar')",
+        t("commands.context.contexto.description"),
         aliases=("context",),
-        usage="[limpar]",
+        usage=t("commands.context.contexto.usage_arg"),
         examples=("do que estavamos falando",),
     )
     async def context(ctx: CommandContext) -> str:
         stm = ctx.services.stm
         if stm is None:
-            return "Memória de curto prazo indisponível (Redis)."
+            return t("commands.context.contexto.unavailable")
         if ctx.args and ctx.args[0].lower() in ("limpar", "apagar", "zerar", "clear", "reset"):
             await stm.clear()
-            return "Contexto apagado. Começando do zero."
+            return t("commands.context.contexto.cleared")
         session = await stm.session()
         if not session.turns and not session.refs:
-            return "Nada no contexto agora."
+            return t("commands.context.contexto.empty")
         tz = ctx.services.tz
-        lines = [f"Contexto recente ({len(session.turns)} turnos, {len(session.refs)} referências)"]
+        lines = [
+            t("commands.context.contexto.header", turns=len(session.turns), refs=len(session.refs))
+        ]
         if session.refs:
-            lines.append("\nReferências:")
+            lines.append(t("commands.context.contexto.refs"))
             lines += [describe_ref(r, tz, focus=r.ref == session.focus) for r in session.refs]
         if session.turns:
-            lines.append("\nÚltimos turnos:")
+            lines.append(t("commands.context.contexto.turns"))
             for turn in session.turns[-SHOWN_TURNS:]:
                 when = format_local(turn.at, tz, "%H:%M")
-                lines.append(f"- {when} {ROLE[turn.role]}: {turn.text[:120]}")
+                role = t(f"commands.context.role.{turn.role}")
+                lines.append(f"- {when} {role}: {turn.text[:120]}")
         return "\n".join(lines)

@@ -1,0 +1,11 @@
+{
+  "unexpected_output": "saída inesperada do Claude Code: {output}",
+  "empty": "(vazia)",
+  "not_installed": "Claude Code não está instalado ({bin})",
+  "cancelled": "cancelado",
+  "timeout": "passou de {minutes} min (PROJECT_TIMEOUT_MINUTES)",
+  "facts": "{minutes} min · {turns} turnos · US$ {cost} · {commits} commit(s)",
+  "done": "🚀 Projeto {slug} pronto ({id})\n📁 {path}\n{facts}\n\n{summary}",
+  "cancelled_notice": "🚫 Projeto {slug} cancelado ({id}). O que já tinha ficou em {path}.",
+  "failed": "❌ Projeto {slug} falhou ({id}): {error}\n📁 {path}\n{facts}"
+}

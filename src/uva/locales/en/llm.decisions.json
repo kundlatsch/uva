@@ -1,0 +1,15 @@
+{
+  "errors": {
+    "choices": "choice needs at least 2 options",
+    "levels": "score needs at least 2 levels",
+    "none": "no questions",
+    "too_many": "at most {max} questions at a time",
+    "unique": "question names must be unique"
+  },
+  "refusal": "🙅 {title}: the model refused to answer.",
+  "predicate": "📊 {title}\n{pct} chance of being true",
+  "choice": "Choice: {choice} (confidence {confidence})",
+  "score": "Score {score} on a scale from 0 to {top} (≈ {nearest}, confidence {confidence})",
+  "unknown": "{title}: answer of unknown type ({type})",
+  "no_answers": "No answers."
+}

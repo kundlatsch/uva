@@ -1,0 +1,16 @@
+{
+  "secret_set": "•••••• (set)",
+  "empty": "(empty)",
+  "unset": "(not set)",
+  "starting": "starting",
+  "counts": {
+    "memories": "memories",
+    "goals": "active goals",
+    "notes": "notes in the brain",
+    "stickers": "stickers",
+    "projects": "projects"
+  },
+  "no_budget": "no budget configured",
+  "amount_range": "amount between 0 and 50",
+  "empty_message": "empty message"
+}

@@ -364,3 +364,19 @@ async def test_rejected_html_falls_back_to_plain_text():
     bot = PickyBot()
     await send_reply(bot, 1, Reply("**oi** `x`"))
     assert bot.sent == ["oi x"]
+
+
+async def test_llm_texts_in_english(services):
+    from uva import i18n
+    from uva.llm.agent import LLM_DISABLED, llm_disabled
+
+    i18n.set_language("en")
+    assert llm_disabled() == "(the LLM is not configured: LLM_API_KEY is missing from .env)"
+    assert LLM_DISABLED.startswith("(a LLM não está configurada")
+    _, usage = with_llm(services)
+    await usage.add(UsageRecord(
+        provider="x", model="m", input_tokens=1, output_tokens=1,
+        cost_usd=services.settings.llm_daily_budget_usd + 1, scope=Scope.INTERACTIVE, purpose="plan",
+    ))
+    status = await services.budget.check(Scope.INTERACTIVE)
+    assert not status.allowed and status.reason.startswith("daily LLM budget reached")

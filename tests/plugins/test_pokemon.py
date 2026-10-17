@@ -54,3 +54,20 @@ def test_format_pokemon_includes_main_sections():
     assert "Velocidade 90" in reply
     assert "https://example.test/art.png" in reply
     assert "Pikachu Rock Star" in reply
+
+
+def test_english_usage_and_format():
+    assert run(pokemon, lang="en").startswith("Usage: /pokemon <name|id>")
+    data = {
+        "id": 25,
+        "name": "pikachu",
+        "types": [{"slot": 1, "type": {"name": "electric"}}],
+        "abilities": [{"slot": 3, "is_hidden": True, "ability": {"name": "lightning-rod"}}],
+        "stats": [{"base_stat": 90, "stat": {"name": "speed"}}],
+    }
+    reply = format_pokemon(data, ["pikachu"], lang="en")
+    assert "Types: electric" in reply
+    assert "Lightning Rod (hidden)" in reply
+    assert "Base stats: Speed 90" in reply
+    assert "Sprite: not available" in reply
+    assert "Forms/varieties: no varieties listed." in reply

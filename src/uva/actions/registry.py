@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ValidationError
 
+from uva.i18n import t
 from uva.llm.budget import Scope
 
 if TYPE_CHECKING:
@@ -54,13 +55,18 @@ class Action:
     proactive_safe: bool = False
     # Slow actions (network, LLM summaries) run as background tasks when possible.
     long_running: bool = False
-    # Shown to the user while a long-running action works in the background.
-    progress_text: str = "Trabalhando nisso…"
+    # Shown to the user while a long-running action works in the background
+    # (None: a generic "working on it" in the language set at startup).
+    progress_text: str | None = None
     # Phrase category used instead of progress_text when set (e.g. "pesquisando").
     progress_phrase: str | None = None
     # Read-only lookups (note_read, recall...): in a conversation their output goes
     # back to the LLM, which then answers in the same turn.
     lookup: bool = False
+
+    def __post_init__(self) -> None:
+        if self.progress_text is None:
+            object.__setattr__(self, "progress_text", t("actions.registry.working"))
 
 
 class InvalidActionError(ValueError):
@@ -89,7 +95,7 @@ class ActionRegistry:
         *,
         proactive_safe: bool = False,
         long_running: bool = False,
-        progress_text: str = "Trabalhando nisso…",
+        progress_text: str | None = None,
         progress_phrase: str | None = None,
         lookup: bool = False,
     ) -> Callable[[ActionHandler], ActionHandler]:
@@ -130,8 +136,8 @@ class ActionRegistry:
         """Resolve and validate one call, raising InvalidActionError."""
         action = self.get(name)
         if action is None or (allowed is not None and name not in allowed):
-            raise InvalidActionError(f"ação desconhecida ou não permitida: {name!r}")
+            raise InvalidActionError(t("actions.registry.unknown_action", name=repr(name)))
         try:
             return action, action.params_model.model_validate(params)
         except ValidationError as exc:
-            raise InvalidActionError(f"parâmetros inválidos para {name}: {exc}") from exc
+            raise InvalidActionError(t("actions.registry.invalid_params", name=name, error=exc)) from exc

@@ -1,0 +1,10 @@
+{
+  "title": "Status da UVA",
+  "uptime": "No ar há {duration}",
+  "queue": "Fila de tarefas: {size}",
+  "queue_unknown": "n/d",
+  "queue_unavailable": "Fila de tarefas: indisponível",
+  "status": {
+    "description": "Serviços, uptime, fila e gastos"
+  }
+}

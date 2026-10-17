@@ -3,43 +3,42 @@
 from __future__ import annotations
 
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.replies import Reply
-from uva.shell.service import USAGE
-
-NOT_CONFIGURED = "O /uva não está configurado (container shell)."
+from uva.shell.service import usage
 
 
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "sh",
-        "Roda um comando Linux na minha pasta /uva (isolada; apagar pede confirmação)",
+        t("commands.shell.sh.description"),
         aliases=("shell", "terminal"),
         usage="<comando> | desfazer | historico",
     )
     async def sh(ctx: CommandContext) -> Reply:
         shell = ctx.services.shell
         if shell is None:
-            return Reply(NOT_CONFIGURED)
+            return Reply(t("commands.shell.not_configured"))
         text = " ".join(ctx.args).strip()
         if text in ("desfazer", "undo", "voltar"):
             return await shell.undo()
         if text in ("historico", "histórico", "history", "snapshots"):
             return await shell.history()
         if not text:
-            return Reply(USAGE)
+            return Reply(usage())
         return await shell.request("sh", ctx.raw_args or text)
 
     @registry.command(
         "py",
-        "Roda código Python na minha pasta /uva (com pip num venv próprio)",
+        t("commands.shell.py.description"),
         aliases=("python",),
         usage="<código>",
     )
     async def py(ctx: CommandContext) -> Reply:
         shell = ctx.services.shell
         if shell is None:
-            return Reply(NOT_CONFIGURED)
+            return Reply(t("commands.shell.not_configured"))
         code = (ctx.raw_args or " ".join(ctx.args)).strip()
         if not code:
-            return Reply(USAGE)
+            return Reply(usage())
         return await shell.request("py", code)

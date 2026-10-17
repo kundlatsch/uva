@@ -1,0 +1,9 @@
+{
+  "not_configured": "/uva is not configured (shell container).",
+  "sh": {
+    "description": "Runs a Linux command in my /uva folder (isolated; deleting asks for confirmation)"
+  },
+  "py": {
+    "description": "Runs Python code in my /uva folder (with pip in its own venv)"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "liberar": {
+    "description": "Libera gasto extra de LLM hoje (sem valor: mais um limite diário)",
+    "usage_arg": "[valor em US$]",
+    "not_configured": "O orçamento não está configurado.",
+    "usage": "Uso: /liberar [valor em US$], ex.: /liberar 2 ou /liberar 0,50",
+    "out_of_range": "O valor precisa ficar entre US$ 0,01 e US$ {max}.",
+    "failed": "Não consegui liberar agora: {error}",
+    "granted": [
+      "✅ Liberei US$ {amount} a mais para hoje.",
+      "Limite de hoje: US$ {limit} (gasto até agora: US$ {today}). Vale até a meia-noite.",
+      "O limite mensal continua valendo: US$ {month} de {monthly}."
+    ]
+  }
+}

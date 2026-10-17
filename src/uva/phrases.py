@@ -12,9 +12,11 @@ import json
 import random
 import string
 from collections import deque
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
+from uva.i18n import t
 from uva.logging import get_logger
 
 log = get_logger(__name__)
@@ -22,31 +24,32 @@ log = get_logger(__name__)
 MAX_PHRASE_CHARS = 300
 RECENT_PER_CATEGORY = 3
 
-# Neutral phrases used when the file is unavailable or lacks a category.
-BUILTIN: dict[str, str] = {
-    "sem_credito": "A LLM está sem orçamento agora; os comandos continuam funcionando.",
-    "llm_erro": "Não consegui falar com a LLM agora. Tente de novo em instantes.",
-    "nao_entendi": "Não entendi. Envie /help para ver o que eu sei fazer.",
-    "ocupado": "Já estou fazendo outra coisa; tente de novo quando terminar.",
-    "tarefa_falhou": "Uma tarefa falhou.",
-    "tarefa_ok": "Tarefa concluída.",
-    "pesquisando": "🔎 Pesquisando…",
-    "saudacao": "Olá! Em que posso ajudar?",
-    "agradecimento": "De nada!",
-    "despedida": "Até mais!",
-    "confirmacao": "Feito.",
-    "cancelado": "Ok, cancelado.",
-    "sem_resultado": "Não encontrei nada.",
-    "erro_generico": "Algo deu errado do meu lado. O erro foi registrado.",
-    "transcrevendo": "🎙️ Transcrevendo o áudio…",
-    "comando_desconhecido": "/{comando} não existe. Envie /help para ver a lista.",
-    "pensando": "🤔 Pensando…",
-    "executando": "⚙️ Rodando…",
-    "programando": "🛠️ Programando…",
-    "procurando": "🔍 Procurando…",
-    "olhando": "👀 Olhando a imagem…",
-    "salvando": "💾 Salvando…",
-}
+# Categories with a neutral phrase (in the current language, from
+# locales/<lang>/phrases.json), used when the file is unavailable or lacks one.
+BUILTIN_CATEGORIES = (
+    "sem_credito", "llm_erro", "nao_entendi", "ocupado", "tarefa_falhou", "tarefa_ok",
+    "pesquisando", "saudacao", "agradecimento", "despedida", "confirmacao", "cancelado",
+    "sem_resultado", "erro_generico", "transcrevendo", "comando_desconhecido", "pensando",
+    "executando", "programando", "procurando", "olhando", "salvando",
+)
+
+
+class _Builtin(Mapping[str, str]):
+    """BUILTIN["saudacao"] -> the neutral phrase in the current language."""
+
+    def __getitem__(self, category: str) -> str:
+        if category not in BUILTIN_CATEGORIES:
+            raise KeyError(category)
+        return t(f"phrases.builtin.{category}")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(BUILTIN_CATEGORIES)
+
+    def __len__(self) -> int:
+        return len(BUILTIN_CATEGORIES)
+
+
+BUILTIN: Mapping[str, str] = _Builtin()
 
 
 class PhrasesError(ValueError):
@@ -60,27 +63,27 @@ def placeholders(phrase: str) -> set[str]:
 def validate(data: Any) -> dict[str, list[str]]:
     """Check the file structure; returns the categories."""
     if not isinstance(data, dict) or not isinstance(data.get("version"), int):
-        raise PhrasesError('precisa ser um objeto com "version" (número)')
+        raise PhrasesError(t("phrases.errors.structure"))
     documented = data.get("placeholders", {})
     if not isinstance(documented, dict):
-        raise PhrasesError('"placeholders" precisa ser um objeto')
+        raise PhrasesError(t("phrases.errors.placeholders"))
     categories = data.get("categories")
     if not isinstance(categories, dict) or not categories:
-        raise PhrasesError('"categories" precisa ser um objeto não vazio')
+        raise PhrasesError(t("phrases.errors.categories"))
     for name, phrases in categories.items():
         if not isinstance(phrases, list) or not phrases:
-            raise PhrasesError(f"categoria {name!r} precisa ser uma lista não vazia")
+            raise PhrasesError(t("phrases.errors.category", name=repr(name)))
         for phrase in phrases:
             if not isinstance(phrase, str) or not phrase.strip():
-                raise PhrasesError(f"frase vazia ou inválida em {name!r}")
+                raise PhrasesError(t("phrases.errors.empty_phrase", name=repr(name)))
             if len(phrase) > MAX_PHRASE_CHARS:
-                raise PhrasesError(f"frase longa demais em {name!r}: {phrase[:40]}…")
+                raise PhrasesError(t("phrases.errors.too_long", name=repr(name), start=phrase[:40]))
             try:
                 unknown = placeholders(phrase) - set(documented)
             except ValueError as exc:
-                raise PhrasesError(f"chaves mal formadas em {name!r}: {phrase}") from exc
+                raise PhrasesError(t("phrases.errors.malformed", name=repr(name), phrase=phrase)) from exc
             if unknown:
-                raise PhrasesError(f"placeholder não documentado {unknown} em {name!r}")
+                raise PhrasesError(t("phrases.errors.undocumented", unknown=unknown, name=repr(name)))
     return categories
 
 
@@ -105,7 +108,8 @@ class Phrases:
         options = self.categories.get(category, [])
         usable = [i for i, p in enumerate(options) if placeholders(p) <= values.keys()]
         if not usable:
-            return BUILTIN.get(category, BUILTIN["erro_generico"])
+            fallback = BUILTIN.get(category, BUILTIN["erro_generico"])
+            return fallback.format(**values) if placeholders(fallback) <= values.keys() else fallback
 
         recent = self._recent.setdefault(category, deque(maxlen=RECENT_PER_CATEGORY))
         fresh = [i for i in usable if i not in recent] or usable

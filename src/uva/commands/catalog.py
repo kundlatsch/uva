@@ -3,23 +3,28 @@
 from __future__ import annotations
 
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.replies import Reply
 from uva.services import Services
 
 
 def render_catalog(services: Services) -> str:
-    lines = ["# Comandos", ""]
+    lines = [t("commands.catalog.commands_header"), ""]
     for cmd in sorted(services.registry, key=lambda c: (c.source != "core", c.name)):
         head = f"/{cmd.name}" + (f" {cmd.usage}" if cmd.usage else "")
         lines.append(f"- {head} [{cmd.source}]: {cmd.description}")
         if cmd.aliases:
-            lines.append(f"  apelidos: {', '.join(cmd.aliases)}")
+            lines.append(t("commands.catalog.aliases", aliases=", ".join(cmd.aliases)))
         if cmd.examples:
-            lines.append(f"  exemplos: {'; '.join(cmd.examples)}")
+            lines.append(t("commands.catalog.examples", examples="; ".join(cmd.examples)))
 
-    lines += ["", "# Ações da LLM", ""]
+    lines += ["", t("commands.catalog.actions_header"), ""]
+    flag_names = (
+        (t("commands.catalog.flag_proactive"), "proactive_safe"),
+        (t("commands.catalog.flag_task"), "long_running"),
+    )
     for action in services.actions or []:
-        flags = [f for f, on in (("proativa", action.proactive_safe), ("tarefa", action.long_running)) if on]
+        flags = [f for f, attr in flag_names if getattr(action, attr)]
         suffix = f" [{', '.join(flags)}]" if flags else ""
         lines.append(f"- {action.name}{suffix}: {action.description}")
         lines.append(f"  params: {describe_params(action.params_model)}")
@@ -35,15 +40,16 @@ def describe_params(model) -> str:
             p.get("type", "?") for p in prop.get("anyOf", []) if p.get("type") != "null"
         ) or ("enum" if "enum" in prop or "$ref" in prop else "?")
         parts.append(f"{name}: {kind}" + ("" if name in required else "?"))
-    return ", ".join(parts) or "(nenhum)"
+    return ", ".join(parts) or t("commands.catalog.no_params")
 
 
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "comandos",
-        "Lista todos os comandos e ações da LLM (debug)",
+        t("commands.catalog.comandos.description"),
         aliases=("catalogo", "catálogo", "commands", "catalog"),
         examples=("lista de comandos", "todos os comandos"),
     )
     async def catalog(ctx: CommandContext) -> Reply:
-        return Reply(text=render_catalog(ctx.services), filename="comandos.md").fit_for_telegram()
+        text = render_catalog(ctx.services)
+        return Reply(text=text, filename=t("commands.catalog.comandos.filename")).fit_for_telegram()

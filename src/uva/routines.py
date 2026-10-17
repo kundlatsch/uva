@@ -21,6 +21,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, Field
 
 from uva.clock import format_local, utcnow
+from uva.i18n import t, t_list
 from uva.text import normalize
 
 
@@ -31,7 +32,6 @@ class Every(StrEnum):
 
 
 WEEKDAY_NAMES = ("segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo")
-WEEKDAY_LABELS = ("seg", "ter", "qua", "qui", "sex", "sáb", "dom")
 
 
 class Routine(BaseModel):
@@ -88,25 +88,25 @@ def next_run(routine: Routine, after: datetime, tz: tzinfo) -> datetime:
         candidate = datetime.combine(day, at, tzinfo=tz)
         if candidate > local:
             return candidate.astimezone(after.tzinfo)
-    raise ValueError("agenda sem dias")
+    raise ValueError(t("routines.errors.no_days"))
 
 
 def describe_schedule(routine: Routine) -> str:
     if routine.every is Every.DAY:
-        return f"todo dia às {routine.at}"
+        return t("routines.schedule.day", at=routine.at)
     if routine.every is Every.WEEKDAYS:
-        days = ", ".join(WEEKDAY_LABELS[d] for d in sorted(routine.weekdays))
-        return f"{days} às {routine.at}"
-    hours = f"{routine.hours:g}"
-    return f"a cada {hours}h"
+        labels = t_list("routines.weekdays")
+        days = ", ".join(labels[d] for d in sorted(routine.weekdays))
+        return t("routines.schedule.weekdays", days=days, at=routine.at)
+    return t("routines.schedule.hours", hours=f"{routine.hours:g}")
 
 
 def describe(routine: Routine, tz: tzinfo) -> str:
-    state = "" if routine.enabled else " (pausada)"
+    state = "" if routine.enabled else t("routines.paused")
     lines = [f"{routine.id} · {describe_schedule(routine)}{state}", f"   {routine.request[:150]}"]
     nxt = format_local(routine.next_run_at, tz, "%d/%m %H:%M")
-    last = format_local(routine.last_run_at, tz, "%d/%m %H:%M") if routine.last_run_at else "nunca"
-    lines.append(f"   próxima: {nxt} · última: {last} · {routine.runs} execução(ões)")
+    last = format_local(routine.last_run_at, tz, "%d/%m %H:%M") if routine.last_run_at else t("routines.never")
+    lines.append(t("routines.next_line", next=nxt, last=last, runs=routine.runs))
     return "\n".join(lines)
 
 
@@ -150,7 +150,7 @@ def parse(text: str) -> Routine | None:
 def _hhmm(hour: str, minute: str | None) -> str:
     h, mi = int(hour), int(minute or 0)
     if not (0 <= h <= 23 and 0 <= mi <= 59):
-        raise ValueError("horário inválido")
+        raise ValueError(t("routines.errors.bad_time"))
     return f"{h:02d}:{mi:02d}"
 
 
@@ -179,7 +179,7 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
             reply = await router.handle_text(routine.request)
             result = reply.text
         except Exception as exc:  # a broken routine must not block the others
-            reply, result = None, f"falhou: {exc!r}"[:300]
+            reply, result = None, t("routines.failed", error=repr(exc))[:300]
         next_at = next_run(routine.model_copy(update={"last_run_at": now}), now, tz)
         await store.update(
             routine.id, last_run_at=now, next_run_at=next_at, runs=routine.runs + 1, last_result=result[:500]
@@ -188,9 +188,10 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
         if notify is not None:
             from uva.replies import Reply
 
-            head = f"⏰ Rotina {routine.id}: {routine.request[:80]}"
+            head = t("routines.notice.head", id=routine.id, request=routine.request[:80])
             if late:
-                head += f"\n(atrasada: era para {format_local(routine.next_run_at, tz, '%d/%m %H:%M')}; o PC estava desligado)"
+                when = format_local(routine.next_run_at, tz, "%d/%m %H:%M")
+                head += "\n" + t("routines.notice.late", when=when)
             if reply is None:
                 await notify(Reply(f"{head}\n{result}"))
             else:

@@ -1,0 +1,35 @@
+{
+  "not_configured": "O second brain não está configurado.",
+  "notes_count": "{count} nota(s)",
+  "empty_folder": "📂 {where}: vazia.",
+  "more": "   … e mais {count} (/brain {path})",
+  "brain": {
+    "description": "Inspeciona o second brain: árvore, uma pasta ou o conteúdo bruto de uma nota",
+    "usage": "[pasta | título ou caminho da nota]",
+    "not_found": "Não achei nota nem pasta '{ref}'. Veja a árvore com /brain.",
+    "header": "📝 {path} · {size} · modificada {when}",
+    "empty_file": "(arquivo vazio)"
+  },
+  "nota": {
+    "description": "Salva uma nota rápida no inbox do second brain",
+    "usage_arg": "<texto>",
+    "usage": "Uso: /nota <texto>",
+    "daily": "Nota rápida: {link}",
+    "saved": "📝 Nota salva: {path}"
+  },
+  "buscar": {
+    "description": "Procura no second brain",
+    "usage_arg": "<termo>",
+    "usage": "Uso: /buscar <termo>",
+    "no_results": "(nenhuma nota com '{term}')",
+    "results": "Notas com '{term}':"
+  },
+  "rename": {
+    "nothing": "Todos os nomes já estão no padrão (português, snake_case).",
+    "renamed": "✅ {count} nota(s) renomeada(s):",
+    "new_title": " (título: {title})",
+    "attachments": "{count} anexo(s):",
+    "undo": "Desfaz com /reverter brain.",
+    "commit_failed": "(não consegui commitar no git do brain: {error})"
+  }
+}

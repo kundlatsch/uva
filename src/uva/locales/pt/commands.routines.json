@@ -1,0 +1,30 @@
+{
+  "not_configured": "Rotinas precisam do Mongo.",
+  "usage": [
+    "Uso:",
+    "/rotina todo dia 08:00 <pedido>",
+    "/rotina segunda e quinta 9h <pedido>",
+    "/rotina a cada 6 horas <pedido>",
+    "/rotinas — lista",
+    "/rotina <id> pausar|retomar|remover|agora"
+  ],
+  "bad_time": "Não entendi o horário: {error}.",
+  "created": [
+    "⏰ Rotina {id} criada: {schedule}",
+    "“{request}”",
+    "Primeira vez: {when}. Se o PC estiver desligado na hora, rodo uma vez quando ele ligar."
+  ],
+  "rotina": {
+    "description": "Cria uma tarefa recorrente (todo dia 08:00 ..., segunda 9h ..., a cada 6 horas ...)",
+    "not_found": "Não achei a rotina {id} (/rotinas).",
+    "paused": "⏸️ Rotina {id} pausada.",
+    "resumed": "▶️ Rotina {id} retomada.",
+    "removed": "🗑️ Rotina {id} removida.",
+    "run_now": "⏰ Rotina {id} vai rodar no próximo minuto."
+  },
+  "rotinas": {
+    "description": "Tarefas recorrentes agendadas",
+    "none": "Nenhuma rotina. Crie com /rotina todo dia 08:00 <pedido>.",
+    "header": "⏰ Rotinas ({count})"
+  }
+}

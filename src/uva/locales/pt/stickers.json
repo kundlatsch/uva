@@ -1,0 +1,9 @@
+{
+  "describe": {
+    "header": "{label} · usada {uses}x",
+    "set": " · pacote {name}",
+    "meaning": "   significado: {meaning}",
+    "no_meaning": "(nenhum)",
+    "action": "   ação: {action}"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "find_delete": "find -delete",
+  "git_discard": "git discarding changes",
+  "sed_in_place": "sed -i (edits in place)",
+  "xargs_rm": "xargs rm",
+  "deletes": "deletes files",
+  "renames": "renames/overwrites",
+  "moves": "moves/copies (may overwrite)",
+  "opens_for_writing": "opens a file for writing (overwrites)",
+  "writes": "writes a file (overwrites)",
+  "runs_commands": "runs system commands"
+}

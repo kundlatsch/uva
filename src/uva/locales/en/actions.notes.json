@@ -1,0 +1,15 @@
+{
+  "no_vault": "The second brain isn't configured.",
+  "create_failed": "Didn't create the note: {error}",
+  "created": "📝 Note saved: {path}",
+  "folder_failed": "Didn't create the folder: {error}",
+  "folder_exists": "📁 The folder {folder} already existed (I didn't touch a thing).",
+  "folder_created": "📁 Folder created: {folder} (with the empty note {placeholder})",
+  "not_found": "Couldn't find the note '{note}'.",
+  "not_changed": "Didn't change the note: {error}",
+  "appended": "📝 Text appended to {path}",
+  "updated": "✏️ Note updated: {path} (previous version in {backup})",
+  "no_hits": "{phrase}\n(no notes with '{term}')",
+  "hits": "Notes with '{term}':",
+  "recall_none": "Nothing found for '{query}'."
+}

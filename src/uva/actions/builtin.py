@@ -13,6 +13,7 @@ from uva.actions.registry import (
     RetryableActionError,
 )
 from uva.brain.naming import portuguese_title, require_title_pt
+from uva.i18n import t
 from uva.actions.search import ResearchError, research, save_research
 
 
@@ -49,10 +50,10 @@ def register(registry: ActionRegistry) -> None:
     @registry.action("run_command", "Executa um comando do bot", RunCommandParams)
     async def run_command(params: RunCommandParams, ctx: ActionContext) -> ActionResult:
         if ctx.run_command is None:
-            return ActionResult(text="Não posso executar comandos agora.")
+            return ActionResult(text=t("actions.builtin.run_command.unavailable"))
         command = params.command.lstrip("/")
         if ctx.services.registry.get(command) is None:
-            return ActionResult(text=f"Comando desconhecido: /{command}")
+            return ActionResult(text=t("actions.builtin.run_command.unknown", command=command))
         result = await ctx.run_command(command, params.args)
         return ActionResult(text=result.text, data={"command": command, "args": params.args})
 
@@ -62,7 +63,7 @@ def register(registry: ActionRegistry) -> None:
         SearchParams,
         proactive_safe=True,
         long_running=True,
-        progress_text="🔎 Pesquisando…",
+        progress_text=t("actions.builtin.search.progress"),
         progress_phrase="pesquisando",
     )
     async def search(params: SearchParams, ctx: ActionContext) -> ActionResult:
@@ -71,7 +72,7 @@ def register(registry: ActionRegistry) -> None:
         except ResearchError as exc:
             if exc.retryable and ctx.allow_retry:
                 raise RetryableActionError(str(exc)) from exc
-            return ActionResult(text=f"Não consegui pesquisar: {exc}", data={"error": str(exc)})
+            return ActionResult(text=t("actions.builtin.search.failed", error=exc), data={"error": str(exc)})
         text = found.render()
         note_path = None
         if ctx.services.vault is not None:
@@ -79,7 +80,7 @@ def register(registry: ActionRegistry) -> None:
                 ctx.services, params.title_pt, found.summary, scope=ctx.scope, alternatives=(found.query,)
             )
             note_path = save_research(ctx.services.vault, found, title).path
-            text += f"\n\n📝 Salvo em {note_path}"
+            text += "\n\n" + t("actions.builtin.search.saved", path=note_path)
         return ActionResult(
             text=text,
             data={

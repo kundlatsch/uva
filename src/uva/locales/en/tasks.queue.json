@@ -1,0 +1,10 @@
+{
+  "status": {
+    "queued": "queued",
+    "running": "running",
+    "retrying": "retrying",
+    "done": "done",
+    "failed": "failed",
+    "cancelled": "cancelled"
+  }
+}

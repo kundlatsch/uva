@@ -8,6 +8,7 @@ from pathlib import Path
 from uva.brain.vault import Entry, NoteNotFoundError, Vault, title_from_text
 from uva.clock import format_local
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.replies import Reply
 from uva.stm.refs import remember_ref
 
@@ -17,7 +18,7 @@ TREE_FILES_PER_FOLDER = 30  # the tree is paginated, so show plenty
 
 def _size(entry: Entry) -> str:
     if entry.is_dir:
-        return f"{entry.size} nota(s)"
+        return t("commands.brain.notes_count", count=entry.size)
     return f"{entry.size} B" if entry.size < 1024 else f"{entry.size / 1024:.1f} KB"
 
 
@@ -25,7 +26,7 @@ def render_listing(vault: Vault, folder: Path, tz) -> str:
     entries = vault.list_folder(folder)
     where = vault._relative(folder) if folder != vault.root.resolve() else "brain"
     if not entries:
-        return f"📂 {where}: vazia."
+        return t("commands.brain.empty_folder", where=where)
     lines = [f"📂 {where}"]
     for entry in entries:
         name = entry.path.rsplit("/", 1)[-1]
@@ -42,7 +43,7 @@ def render_tree(vault: Vault) -> str:
         if not entry.is_dir:
             lines.append(f"📝 {entry.path}")
             continue
-        lines.append(f"📁 {entry.path}/ ({entry.size} nota(s))")
+        lines.append(f"📁 {entry.path}/ ({_size(entry)})")
         notes = sorted(
             (p for p in (vault.root / entry.path).rglob("*.md") if vault._visible(p)),
             key=lambda p: p.stat().st_mtime,
@@ -51,22 +52,24 @@ def render_tree(vault: Vault) -> str:
         for path in notes[:TREE_FILES_PER_FOLDER]:
             lines.append(f"   · {vault._relative(path).split('/', 1)[1]}")
         if len(notes) > TREE_FILES_PER_FOLDER:
-            lines.append(f"   … e mais {len(notes) - TREE_FILES_PER_FOLDER} (/brain {entry.path})")
+            lines.append(
+                t("commands.brain.more", count=len(notes) - TREE_FILES_PER_FOLDER, path=entry.path)
+            )
     return "\n".join(lines)
 
 
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "brain",
-        "Inspeciona o second brain: árvore, uma pasta ou o conteúdo bruto de uma nota",
+        t("commands.brain.brain.description"),
         aliases=("cerebro", "cérebro", "ver", "abrir", "inspecionar", "view", "open", "inspect"),
-        usage="[pasta | título ou caminho da nota]",
+        usage=t("commands.brain.brain.usage"),
         examples=("mostra o brain", "o que tem no second brain"),
     )
     async def inspect(ctx: CommandContext) -> str | Reply:
         vault = ctx.services.vault
         if vault is None:
-            return "O second brain não está configurado."
+            return t("commands.brain.not_configured")
         ref = " ".join(ctx.args).strip()
         if ref in ("renomear", "renomeia", "rename"):
             return Reply.paginated(await rename_brain(ctx.services))
@@ -80,50 +83,53 @@ def register(registry: CommandRegistry) -> None:
         try:
             entry, raw = await asyncio.to_thread(vault.inspect, ref)
         except NoteNotFoundError:
-            return f"Não achei nota nem pasta '{ref}'. Veja a árvore com /brain."
+            return t("commands.brain.brain.not_found", ref=ref)
         when = format_local(entry.modified, ctx.services.tz, "%d/%m/%Y %H:%M")
-        header = f"📝 {entry.path} · {_size(entry)} · modificada {when}"
+        header = t("commands.brain.brain.header", path=entry.path, size=_size(entry), when=when)
         if not raw.strip():
-            return f"{header}\n(arquivo vazio)"
+            return f"{header}\n{t('commands.brain.brain.empty_file')}"
         return Reply.paginated(raw.strip(), header=header)
 
 
     @registry.command(
         "nota",
-        "Salva uma nota rápida no inbox do second brain",
+        t("commands.brain.nota.description"),
         aliases=("anota", "anotar", "note"),
-        usage="<texto>",
+        usage=t("commands.brain.nota.usage_arg"),
     )
     async def note(ctx: CommandContext) -> str:
         vault = ctx.services.vault
         if vault is None:
-            return "O second brain não está configurado."
+            return t("commands.brain.not_configured")
         text = " ".join(ctx.args).strip()
         if not text:
-            return "Uso: /nota <texto>"
+            return t("commands.brain.nota.usage")
         saved = vault.create_note(title_from_text(text), text, folder="inbox", tags=["inbox"])
-        vault.append_daily(f"Nota rápida: {saved.link}")
+        vault.append_daily(t("commands.brain.nota.daily", link=saved.link))
         await remember_ref(ctx.services, "nota", saved.path, f"nota: {saved.title}")
-        return f"📝 Nota salva: {saved.path}"
+        return t("commands.brain.nota.saved", path=saved.path)
 
     @registry.command(
         "buscar",
-        "Procura no second brain",
+        t("commands.brain.buscar.description"),
         aliases=("procurar", "search"),
-        usage="<termo>",
+        usage=t("commands.brain.buscar.usage_arg"),
         examples=("procura nas notas",),
     )
     async def search(ctx: CommandContext) -> str:
         vault = ctx.services.vault
         if vault is None:
-            return "O second brain não está configurado."
+            return t("commands.brain.not_configured")
         term = " ".join(ctx.args).strip()
         if not term:
-            return "Uso: /buscar <termo>"
+            return t("commands.brain.buscar.usage")
         hits = await asyncio.to_thread(vault.search, term, SEARCH_LIMIT)
         if not hits:
-            return f"{ctx.services.say('sem_resultado', termo=term)}\n(nenhuma nota com '{term}')"
-        return f"Notas com '{term}':\n" + "\n".join(f"- {h.path}\n  {h.snippet}" for h in hits)
+            no_results = t("commands.brain.buscar.no_results", term=term)
+            return f"{ctx.services.say('sem_resultado', termo=term)}\n{no_results}"
+        return t("commands.brain.buscar.results", term=term) + "\n" + "\n".join(
+            f"- {h.path}\n  {h.snippet}" for h in hits
+        )
 
 
 async def rename_brain(services) -> str:
@@ -135,15 +141,20 @@ async def rename_brain(services) -> str:
 
     vault, repo = services.vault, services.brain_repo
     if vault is None:
-        return "O second brain não está configurado."
+        return t("commands.brain.not_configured")
     renames = await plan_renames(services, vault)
     if not renames:
-        return "Todos os nomes já estão no padrão (português, snake_case)."
+        return t("commands.brain.rename.nothing")
     attachments = await asyncio.to_thread(apply_renames, vault, renames)
-    lines = [f"✅ {len(renames)} nota(s) renomeada(s):"]
-    lines += [f"- {r.old} → {r.new}" + (f" (título: {r.new_title})" if r.new_title != r.old_title else "") for r in renames]
+    lines = [t("commands.brain.rename.renamed", count=len(renames))]
+    lines += [
+        f"- {r.old} → {r.new}"
+        + (t("commands.brain.rename.new_title", title=r.new_title) if r.new_title != r.old_title else "")
+        for r in renames
+    ]
     if attachments:
-        lines += [f"{len(attachments)} anexo(s):"] + [f"- {a} → {b}" for a, b in attachments.items()]
+        lines += [t("commands.brain.rename.attachments", count=len(attachments))]
+        lines += [f"- {a} → {b}" for a, b in attachments.items()]
     if repo is not None:
         try:
             await asyncio.to_thread(repo.run, "add", "-A")
@@ -151,7 +162,7 @@ async def rename_brain(services) -> str:
                 repo.run, "commit", "-q", "-m",
                 f"Renomeia {len(renames)} nota(s) para o padrão em português\n\n{SELF_EDIT}: true",
             )
-            lines.append("Desfaz com /reverter brain.")
+            lines.append(t("commands.brain.rename.undo"))
         except Exception as exc:
-            lines.append(f"(não consegui commitar no git do brain: {exc})")
+            lines.append(t("commands.brain.rename.commit_failed", error=exc))
     return "\n".join(lines)

@@ -1,0 +1,25 @@
+{
+  "goal_done": "🎯 Goal \"{title}\" done ✅",
+  "errors": {
+    "missing": "feature {id} doesn't exist",
+    "not_configured": "I need the repository (git) and the LLM configured",
+    "budget_ran_out": "the self-coding budget ran out in the middle of the attempts",
+    "not_green": "didn't go green in {attempts} attempts. Last problem: {problem}",
+    "load_failed": "it didn't load in the bot: {error}",
+    "no_reload": "the bot didn't answer the reload; the command shows up when it restarts",
+    "llm": "the LLM failed: {error}",
+    "branch": "the repository is on branch {branch}, not on main",
+    "merge": "I couldn't merge into main: {error}"
+  },
+  "report": {
+    "merged": [
+      "🛠️ Done! I made /{command}: {summary}",
+      "Usage: {usage}",
+      "Tests: {tests} · attempts: {attempts} · cost ≈ {cost}",
+      "Commit {commit} on main (/undo reverts it)."
+    ],
+    "note": "Note: {error}",
+    "reverted": "😬 I built /{command}, but it didn't load in the bot, so I reverted it. {error}",
+    "failed": "😵 I couldn't build \"{description}\" ({attempts} attempt(s), cost ≈ {cost}).\nReason: {error}"
+  }
+}

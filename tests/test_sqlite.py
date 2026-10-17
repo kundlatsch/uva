@@ -112,3 +112,30 @@ async def test_llm_records_expense(services, repo):
     reply = await Router(services).handle_text("gastei 30 reais no mercado")
     assert "R$ 30,00 em mercado" in reply.text
     assert await repo.totals_by_category() == [("mercado", 3000)]
+
+
+async def test_expense_action_in_english(services, repo):
+    from uva import i18n
+    from uva.actions import ActionContext
+
+    i18n.set_language("en")
+    services.expenses = repo
+    action = services.actions.get("expense_add")
+    params = action.params_model(amount=30, category="mercado")
+    result = await action.handler(params, ActionContext(services))
+    assert result.text == "💸 R$ 30,00 on mercado recorded (#1)."
+
+
+async def test_expenses_commands_in_english(services, repo):
+    from uva import i18n
+
+    i18n.set_language("en")
+    services.expenses = repo
+    router = Router(services)
+    reply = (await router.handle_text("/expense 25 groceries")).text
+    assert reply.startswith("💸 R$ 25,00 on groceries recorded")
+    summary = (await router.handle_text("/expenses month")).text
+    assert summary.startswith("Expenses this month: R$ 25,00")
+    assert (await router.handle_text("/expenses year")).text.startswith("Expenses this year")
+    assert "No expenses" not in summary
+    assert "I didn't get the amount" in (await router.handle_text("/expense lots groceries")).text

@@ -1,0 +1,24 @@
+{
+  "not_configured": "Figurinhas precisam do SQLite.",
+  "usage": [
+    "Uso:",
+    "/figurinhas — lista",
+    "/figurinha <n> significado <texto>",
+    "/figurinha <n> acao <pedido>",
+    "/figurinha <n> sem-acao",
+    "/figurinha <n> remover"
+  ],
+  "figurinhas": {
+    "description": "Figurinhas que eu conheço: significado e ação de cada uma",
+    "none": "Ainda não conheço nenhuma figurinha. Manda uma que eu pergunto o que significa.",
+    "header": "🏷️ Figurinhas ({count})"
+  },
+  "figurinha": {
+    "description": "Edita uma figurinha: significado, ação ou remover",
+    "unknown": "Não conheço a figurinha #{id} (/figurinhas).",
+    "meaning_set": "✅ {label} agora significa: {meaning}",
+    "action_set": "✅ Toda vez que você mandar {emoji}, eu faço: {action}",
+    "action_cleared": "✅ {label} não faz mais nada sozinha (o significado continua).",
+    "removed": "🗑️ Esqueci a figurinha {label} (significado e ação)."
+  }
+}

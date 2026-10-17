@@ -1,0 +1,6 @@
+{
+  "sources": "Sources:",
+  "no_backend": "no search backend configured",
+  "failed": "the search failed ({error})",
+  "summarize_failed": "couldn't summarize the results ({error})"
+}

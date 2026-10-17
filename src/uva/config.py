@@ -6,7 +6,7 @@ from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     # Telegram (required)
     telegram_bot_token: SecretStr
     allowed_telegram_user_id: int
+
+    # Language of everything the user reads (replies, help, notices): "en" or "pt".
+    bot_language: str = "en"
 
     # LLM
     llm_provider: LLMProvider = LLMProvider.ANTHROPIC
@@ -231,9 +234,18 @@ class Settings(BaseSettings):
 
         return default_plugins_dir()
 
+    @field_validator("bot_language")
+    @classmethod
+    def _check_language(cls, value: str) -> str:
+        from uva.i18n import normalize
+
+        return normalize(value)
+
     @property
     def phrases_file(self) -> Path:
-        return self.repo_dir / "data" / "fallback_phrases.json"
+        """Ready-made phrases: data/fallback_phrases.json (pt) or fallback_phrases.<lang>.json."""
+        suffix = "" if self.bot_language == "pt" else f".{self.bot_language}"
+        return self.repo_dir / "data" / f"fallback_phrases{suffix}.json"
 
     @property
     def soul_file(self) -> Path:

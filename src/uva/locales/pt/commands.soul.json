@@ -1,0 +1,6 @@
+{
+  "soul": {
+    "description": "Mostra minha personalidade (soul.md)",
+    "missing": "Não achei o soul.md ({path})."
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "no_progress": "No progress.",
+  "skipped_interval": "skipped: interval between runs",
+  "skipped_busy": "skipped: busy ({reasons})",
+  "skipped_budget": "skipped: {reason}",
+  "token_limit": "the run's token limit was reached",
+  "llm_unavailable": "LLM unavailable: {error}",
+  "invalid_reply": "invalid reply from the LLM: {error}",
+  "needs_feature_summary": "Needs a new command: /feature {feature}",
+  "command_ready": "/{command} ready",
+  "feature_ready": "feature ready",
+  "report": {
+    "ready": "🎯 Goal \"{title}\" done ✅ ({note})",
+    "requested": [
+      "🎯 Goal \"{title}\" needed a new command, so I asked for one:",
+      "🛠️ feature {id}: {feature}",
+      "I'll let you know when it's ready (or if it goes wrong). /features keeps track."
+    ],
+    "needs_feature": [
+      "🎯 Goal \"{title}\" needs a new command, and that's not something I do on my own.",
+      "If you want it, send: /feature {feature}"
+    ],
+    "paused": "I paused the goal; /resume {id} turns it back on.",
+    "head": "🎯 Goal \"{title}\" {label}",
+    "status": {
+      "done": "ran",
+      "concluido": "done ✅",
+      "failed": "failed ⚠️"
+    }
+  },
+  "feature": {
+    "disabled": "self-coding for goals is off (PROACTIVE_ALLOW_SELFCODE)",
+    "not_configured": "self-coding is not configured",
+    "ready": "ready",
+    "building": "being built",
+    "exists": "feature {id} already exists for this ({state})",
+    "other_building": "another feature ({id}) is being built; I'll try again later",
+    "budget": "self-coding budget: {reason}"
+  },
+  "attempt": {
+    "failed": "failed: {error}",
+    "done": "done: {note}",
+    "requested": "asked for feature {id}",
+    "needs_feature": "needs /feature {feature}"
+  },
+  "note": {
+    "run": "**Run {n}** ({when}): {summary}",
+    "intro": "Goal followed by UVA.",
+    "daily": "Goal worked on: {link}"
+  }
+}

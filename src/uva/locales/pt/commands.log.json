@@ -1,0 +1,44 @@
+{
+  "usage": [
+    "Uso: /log [período] [tipo]  ou  /log trace <id>",
+    "Período: 30m, 6h, 2d, hoje/today, ontem/yesterday (padrão: 1h)",
+    "Tipo: llm, goals, erros, tarefas, memoria, acoes, selfcode"
+  ],
+  "unknown_arg": "Não entendi '{word}'.\n{usage}",
+  "period": {
+    "last_hour": "última hora",
+    "today": "hoje",
+    "yesterday": "ontem"
+  },
+  "log": {
+    "description": "Mostra o que aconteceu (eventos)",
+    "usage_arg": "[período] [tipo] | trace <id>",
+    "unavailable": "O log de eventos não está disponível (Mongo não configurado).",
+    "none": "Nenhum evento ({label})."
+  },
+  "summary": {
+    "header": "Log ({label}): {traces} rastros, {events} eventos",
+    "details": "\nDetalhes: /log trace <id>",
+    "task_enqueued": "tarefa {action} enfileirada",
+    "task_finished": "tarefa {status}",
+    "needs_feature": ", precisa de /feature {feature}",
+    "goal": "objetivo '{title}' ({status}{reason})",
+    "error": "ERRO: {error}",
+    "actions": "ações: {actions}"
+  },
+  "route": {
+    "command": "comando /{command}",
+    "similarity": "similaridade /{command} ({score})",
+    "confirm": "confirmação /{command}? ({score})",
+    "small_talk": "conversa ({category})",
+    "llm_disabled": "LLM desligada",
+    "similarity_miss": "sem comando parecido (melhor: /{command} {score})",
+    "confirmed": "confirmado /{command}",
+    "confirm_denied": "recusado /{command}",
+    "confirm_expired": "confirmação expirada",
+    "none": "não entendido",
+    "unknown_command": "comando desconhecido /{command}"
+  },
+  "event_list": "Log ({label}): {events} eventos",
+  "trace": "Trace {id}: {events} eventos"
+}

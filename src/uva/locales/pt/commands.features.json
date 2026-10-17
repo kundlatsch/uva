@@ -1,0 +1,16 @@
+{
+  "not_configured": "Auto-código não está configurado (precisa de repositório, LLM e worker).",
+  "over_budget": "Agora não dá: {reason}.",
+  "busy": "(feature {id} ainda em construção; veja /features)",
+  "requested": "🛠️ Beleza, vou construir isso (feature {id}). Escrevo o plugin, rodo todos os testes e te aviso quando estiver no ar. Acompanhe em /features.",
+  "feature": {
+    "description": "Pede para eu programar um comando novo para mim mesma",
+    "usage_arg": "<descrição>",
+    "usage": "Uso: /feature <descrição>, ex.: /feature /dado rola um dado de 6 lados"
+  },
+  "features": {
+    "description": "Funcionalidades que eu programei (ou tentei)",
+    "none": "Ainda não programei nada. Peça com /feature <descrição>.",
+    "header": "Funcionalidades:"
+  }
+}

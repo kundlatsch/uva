@@ -9,7 +9,8 @@ from pathlib import Path
 
 from uva.clock import format_local, start_of_day, utcnow
 from uva.config import Settings
-from uva.projects.store import ACTIVE, STATUS_LABEL, ProjectRecord, ProjectStatus, ProjectStore
+from uva.i18n import t
+from uva.projects.store import ACTIVE, ProjectRecord, ProjectStatus, ProjectStore, status_label
 from uva.text import normalize
 
 Enqueue = Callable[[str], Awaitable[None]]
@@ -40,12 +41,6 @@ THIRD_PARTY = re.compile(
     r"|\bgit\s+clone\b|\bclon(?:ar|e|a|ando)\b|\b(?:baixar|baixa|rodar|executar)\s+(?:o\s+|esse\s+|este\s+)?(?:repo|repositorio|repositório)\b",
     re.IGNORECASE,
 )
-THIRD_PARTY_REFUSAL = (
-    "🚫 Isso é rodar código de terceiros, e o /projeto não faz isso: ele roda o Claude Code com "
-    "o seu token, e um repositório alheio rodaria ao lado dele. Para clonar e rodar repositórios "
-    "vai existir o /rodar, num container isolado sem token (ainda espera o seu ok). "
-    "O /projeto é para projetos novos escritos do zero."
-)
 
 
 class ProjectService:
@@ -62,14 +57,11 @@ class ProjectService:
         """Why projects can't run, or None."""
         s = self.settings
         if not s.projects_enabled:
-            return "Projetos estão desligados (PROJECTS_ENABLED=false)."
+            return t("projects.service.disabled")
         if self.enqueue is None:
-            return "A fila de tarefas não está configurada."
+            return t("projects.service.no_queue")
         if s.claude_code_oauth_token is None and s.projects_anthropic_api_key is None:
-            return (
-                "Falta a credencial do Claude Code no .env: CLAUDE_CODE_OAUTH_TOKEN (gere com "
-                "`claude setup-token`) ou PROJECTS_ANTHROPIC_API_KEY."
-            )
+            return t("projects.service.no_credential")
         return None
 
     def _free_slug(self, base: str, taken: set[str]) -> str:
@@ -83,18 +75,18 @@ class ProjectService:
             raise ProjectError(problem)
         description = description.strip()
         if THIRD_PARTY.search(description):
-            raise ProjectError(THIRD_PARTY_REFUSAL)
+            raise ProjectError(t("projects.service.third_party"))
         if len(description) < 10:
-            raise ProjectError("Descreva o projeto, ex.: /projeto um site estático de receitas com busca")
+            raise ProjectError(t("projects.service.describe"))
         recent = await self.store.recent(50)
         if running := [r for r in recent if r.status in ACTIVE]:
-            raise ProjectError(f"Já tem um projeto em construção ({running[0].id}); veja /projetos.")
+            raise ProjectError(t("projects.service.already_running", id=running[0].id))
         spent = await self.store.cost_since(start_of_day(tz, utcnow()))
         if spent >= self.settings.project_daily_budget_usd:
-            raise ProjectError(
-                f"Orçamento diário de projetos esgotado (US$ {spent:.2f} de "
-                f"{self.settings.project_daily_budget_usd:.2f}, PROJECT_DAILY_BUDGET_USD)."
-            )
+            raise ProjectError(t(
+                "projects.service.budget", spent=f"{spent:.2f}",
+                limit=f"{self.settings.project_daily_budget_usd:.2f}",
+            ))
         slug = self._free_slug(slugify(description), {r.slug for r in recent})
         record = ProjectRecord(description=description, slug=slug, trace_id=trace_id)
         await self.store.add(record)
@@ -119,7 +111,7 @@ class ProjectService:
 
 
 def describe_project(record: ProjectRecord, tz: tzinfo, host_path: str) -> str:
-    lines = [f"{record.id} {STATUS_LABEL[record.status]} {record.slug}", f"   {record.description[:120]}"]
+    lines = [f"{record.id} {status_label(record.status)} {record.slug}", f"   {record.description[:120]}"]
     details = [format_local(record.created_at, tz, "%d/%m %H:%M")]
     if record.cost_usd:
         details.append(f"US$ {record.cost_usd:.2f}")
@@ -129,5 +121,5 @@ def describe_project(record: ProjectRecord, tz: tzinfo, host_path: str) -> str:
         details.append(host_path)
     lines.append("   " + " · ".join(details))
     if record.error and record.status is not ProjectStatus.DONE:
-        lines.append(f"   motivo: {record.error[:200]}")
+        lines.append(t("projects.service.reason", error=record.error[:200]))
     return "\n".join(lines)

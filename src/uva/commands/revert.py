@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit
 from uva.selfmod.features import FeatureStatus
@@ -14,7 +15,7 @@ log = get_logger(__name__)
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "reverter",
-        "Desfaz a última mudança que eu fiz no meu repositório (/reverter brain: no second brain)",
+        t("commands.revert.reverter.description"),
         aliases=("desfazer", "revert", "undo"),
         examples=("desfaz o que voce mudou",),
     )
@@ -23,15 +24,15 @@ def register(registry: CommandRegistry) -> None:
             return await _revert_brain(ctx.services)
         repo = ctx.services.repo
         if repo is None:
-            return "Não tenho acesso ao repositório (git) aqui."
+            return t("commands.revert.reverter.no_repo")
         commit = await repo.last_bot_commit()
         if commit is None:
-            return "Não achei nenhuma mudança minha para desfazer."
+            return t("commands.revert.reverter.nothing")
         try:
             new_sha = await repo.revert(commit)
         except GitError as exc:
             await emit(EventType.SELFCODE, op="revert", sha=commit.sha, ok=False, error=str(exc))
-            return f"Não consegui reverter {commit.sha[:7]} ({commit.subject}): {exc}"
+            return t("commands.revert.reverter.failed", sha=commit.sha[:7], subject=commit.subject, error=exc)
 
         await emit(EventType.SELFCODE, op="revert", sha=commit.sha, revert_sha=new_sha, ok=True)
         feature_id = commit.trailer("UVA-Feature-Id")
@@ -43,22 +44,24 @@ def register(registry: CommandRegistry) -> None:
                     await hook()
                 except Exception as exc:  # reload problems are reported, not fatal
                     log.warning("code_changed_hook_failed", error=str(exc))
-        return f"↩️ Revertido {commit.sha[:7]}: {commit.subject} (novo commit {new_sha[:7]})."
+        return t(
+            "commands.revert.reverter.done", sha=commit.sha[:7], subject=commit.subject, new_sha=new_sha[:7]
+        )
 
 
 async def _revert_brain(services) -> str:
     repo = services.brain_repo
     if repo is None:
-        return "O second brain não tem histórico (git) aqui."
+        return t("commands.revert.reverter.brain_no_history")
     try:
         commit = await repo.last_bot_commit()
     except GitError:
         commit = None
     if commit is None:
-        return "Não achei nenhuma mudança minha no second brain para desfazer."
+        return t("commands.revert.reverter.brain_nothing")
     try:
         new_sha = await repo.revert(commit)
     except GitError as exc:
-        return f"Não consegui reverter {commit.sha[:7]} ({commit.subject}): {exc}"
+        return t("commands.revert.reverter.failed", sha=commit.sha[:7], subject=commit.subject, error=exc)
     await emit(EventType.SELF_EDIT, op="revert_brain", sha=commit.sha, revert_sha=new_sha)
-    return f"↩️ Second brain: desfeito {commit.sha[:7]} ({commit.subject})."
+    return t("commands.revert.reverter.brain_done", sha=commit.sha[:7], subject=commit.subject)

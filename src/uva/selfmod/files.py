@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from uva.brain.vault import PlaceholderError, check_no_placeholders
+from uva.i18n import t
 from uva.phrases import PhrasesError
 from uva.phrases import validate as validate_phrases
 from uva.selfmod.git import SELF_EDIT, GitRepo
@@ -58,21 +59,21 @@ class FileAccess:
         rel = PurePosixPath(raw.strip().replace("\\", "/"))
         parts = rel.parts
         if rel.is_absolute() or len(parts) < 2 or any(p in ("", ".", "..") for p in parts):
-            raise FileAccessError(f"caminho não permitido: {raw}")
+            raise FileAccessError(t("selfmod.files.bad_path", path=raw))
         if any(p.startswith(".") for p in parts):
-            raise FileAccessError(f"arquivos ocultos não são permitidos: {raw}")
+            raise FileAccessError(t("selfmod.files.hidden", path=raw))
         root_name = parts[0]
         if root_name not in self.roots:
             allowed = ", ".join(f"{r}/" for r in self.roots)
-            raise FileAccessError(f"só posso mexer em {allowed} (pedido: {raw})")
+            raise FileAccessError(t("selfmod.files.roots", allowed=allowed, path=raw))
         suffix = rel.suffix.lower()
         if suffix not in ALLOWED_SUFFIXES and not (root_name == "data" and suffix in DATA_ONLY_SUFFIXES):
-            raise FileAccessError(f"só arquivos .md ou .txt (ou .json em data/) (pedido: {raw})")
+            raise FileAccessError(t("selfmod.files.suffix", path=raw))
 
         root = self.roots[root_name].resolve()
         path = (root / PurePosixPath(*parts[1:])).resolve()
         if not path.is_relative_to(root):
-            raise FileAccessError(f"caminho não permitido: {raw}")
+            raise FileAccessError(t("selfmod.files.bad_path", path=raw))
         repo_relative = None
         if root_name == "data":
             repo_relative = path.relative_to(self.repo_dir.resolve()).as_posix()
@@ -88,7 +89,7 @@ class FileAccess:
         target = self.resolve(raw)
         _check_size(content)
         if target.root == "brain" and target.path.exists():
-            raise FileAccessError("notas do second brain não são sobrescritas; use file_append")
+            raise FileAccessError(t("selfmod.files.no_overwrite"))
         if target.path.suffix == ".json":
             _validate_json(target, content)
         try:
@@ -103,7 +104,7 @@ class FileAccess:
     async def append(self, raw: str, content: str, reason: str) -> Change:
         target = self.resolve(raw)
         if target.path.suffix == ".json":
-            raise FileAccessError("arquivos JSON não aceitam append; use file_write com o conteúdo completo")
+            raise FileAccessError(t("selfmod.files.no_json_append"))
         existing = target.path.read_text(encoding="utf-8") if target.path.exists() else ""
         _check_size(existing + content)
         target.path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,14 +142,14 @@ def _validate_json(target: Target, content: str) -> None:
     try:
         data = json.loads(content)
     except ValueError as exc:
-        raise FileAccessError(f"JSON inválido: {exc}") from exc
+        raise FileAccessError(t("selfmod.files.bad_json", error=exc)) from exc
     if target.path.name == "fallback_phrases.json":
         try:
             validate_phrases(data)
         except PhrasesError as exc:
-            raise FileAccessError(f"arquivo de frases inválido: {exc}") from exc
+            raise FileAccessError(t("selfmod.files.bad_phrases", error=exc)) from exc
 
 
 def _check_size(content: str) -> None:
     if len(content.encode("utf-8")) > MAX_BYTES:
-        raise FileAccessError(f"arquivo grande demais (limite {MAX_BYTES // 1000} KB)")
+        raise FileAccessError(t("selfmod.files.too_big", limit=MAX_BYTES // 1000))

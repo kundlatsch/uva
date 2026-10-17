@@ -1,0 +1,7 @@
+{
+  "not_configured": "File editing isn't configured.",
+  "read_failed": "Couldn't read {path}: {error}",
+  "change_failed": "Left {path} alone: {error}",
+  "commit": " (commit {commit}; /undo reverts it)",
+  "updated": "✏️ {path} updated{commit}."
+}

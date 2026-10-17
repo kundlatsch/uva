@@ -1,0 +1,36 @@
+{
+  "builtin": {
+    "sem_credito": "A LLM está sem orçamento agora; os comandos continuam funcionando.",
+    "llm_erro": "Não consegui falar com a LLM agora. Tente de novo em instantes.",
+    "nao_entendi": "Não entendi. Envie /help para ver o que eu sei fazer.",
+    "ocupado": "Já estou fazendo outra coisa; tente de novo quando terminar.",
+    "tarefa_falhou": "Uma tarefa falhou.",
+    "tarefa_ok": "Tarefa concluída.",
+    "pesquisando": "🔎 Pesquisando…",
+    "saudacao": "Olá! Em que posso ajudar?",
+    "agradecimento": "De nada!",
+    "despedida": "Até mais!",
+    "confirmacao": "Feito.",
+    "cancelado": "Ok, cancelado.",
+    "sem_resultado": "Não encontrei nada.",
+    "erro_generico": "Algo deu errado do meu lado. O erro foi registrado.",
+    "transcrevendo": "🎙️ Transcrevendo o áudio…",
+    "comando_desconhecido": "/{comando} não existe. Envie /help para ver a lista.",
+    "pensando": "🤔 Pensando…",
+    "executando": "⚙️ Rodando…",
+    "programando": "🛠️ Programando…",
+    "procurando": "🔍 Procurando…",
+    "olhando": "👀 Olhando a imagem…",
+    "salvando": "💾 Salvando…"
+  },
+  "errors": {
+    "structure": "precisa ser um objeto com \"version\" (número)",
+    "placeholders": "\"placeholders\" precisa ser um objeto",
+    "categories": "\"categories\" precisa ser um objeto não vazio",
+    "category": "categoria {name} precisa ser uma lista não vazia",
+    "empty_phrase": "frase vazia ou inválida em {name}",
+    "too_long": "frase longa demais em {name}: {start}…",
+    "malformed": "chaves mal formadas em {name}: {phrase}",
+    "undocumented": "placeholder não documentado {unknown} em {name}"
+  }
+}

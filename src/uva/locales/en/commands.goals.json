@@ -1,0 +1,37 @@
+{
+  "not_configured": "Goals are not configured.",
+  "status": {
+    "ativo": "▶️ active",
+    "pausado": "⏸ paused",
+    "concluido": "✅ done"
+  },
+  "describe": {
+    "head": "{id} {status} · priority {priority} · {kind} · every {hours}h",
+    "late": " (overdue; runs as soon as possible)",
+    "next_run": "   next run: {when}{late}",
+    "last_attempt": "   last attempt: {when} ({attempt}) · runs: {runs}",
+    "never": "   last attempt: never · runs: {runs}",
+    "needs_feature": "   needs: /feature {feature}",
+    "last_result": "   latest ({when}): {summary}"
+  },
+  "objetivos": {
+    "description": "Lists the goals I work on by myself",
+    "none": "No goals yet. Ask for something like: \"create a goal to follow solar energy news every week\".",
+    "header": "Goals:"
+  },
+  "not_found": "I couldn't find goal {id}.",
+  "status_changed": "Goal {id} ({title}): {status}.",
+  "pausar": {
+    "description": "Pauses a goal",
+    "usage": "Usage: /pause <id> (ids in /goals)"
+  },
+  "retomar": {
+    "description": "Resumes a paused goal",
+    "usage": "Usage: /resume <id> (ids in /goals)"
+  },
+  "remover": {
+    "description": "Removes a goal (its notes stay)",
+    "removed": "Goal {id} removed. Its notes stay in the second brain.",
+    "usage": "Usage: /remove <id> (ids in /goals)"
+  }
+}

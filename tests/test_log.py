@@ -116,3 +116,25 @@ async def test_status_lists_health_checks(services):
     services.health_checks = {"MongoDB": up, "Redis": down}
     text = (await Router(services).handle_text("/status")).text
     assert "🟢 MongoDB" in text and "🔴 Redis" in text
+
+
+def test_labels_and_errors_in_english():
+    from uva import i18n
+
+    i18n.set_language("en")
+    assert parse_log_args([], TZ, NOW).label == "last hour"
+    assert parse_log_args(["yesterday", "errors"], TZ, NOW).label == "yesterday, errors"
+    with pytest.raises(LogArgsError, match="I didn't get 'ontem[?]'"):
+        parse_log_args(["ontem?"], TZ, NOW)
+
+
+async def test_log_summary_in_english(services):
+    from uva import i18n
+
+    i18n.set_language("en")
+    router = Router(services)
+    await router.handle_text("/ping")
+    text = (await router.handle_text("/log 1h")).text
+    assert text.startswith("Log (1h): 2 traces")
+    assert '"/ping" → command /ping' in text
+    assert "Details: /log trace <id>" in text

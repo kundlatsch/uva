@@ -1,0 +1,36 @@
+{
+  "builtin": {
+    "sem_credito": "The LLM is out of budget right now; commands still work.",
+    "llm_erro": "I couldn't reach the LLM right now. Try again in a moment.",
+    "nao_entendi": "I didn't get that. Send /help to see what I can do.",
+    "ocupado": "I'm already doing something else; try again when it's done.",
+    "tarefa_falhou": "A task failed.",
+    "tarefa_ok": "Task done.",
+    "pesquisando": "🔎 Searching…",
+    "saudacao": "Hi! How can I help?",
+    "agradecimento": "You're welcome!",
+    "despedida": "See you!",
+    "confirmacao": "Done.",
+    "cancelado": "Ok, cancelled.",
+    "sem_resultado": "I found nothing.",
+    "erro_generico": "Something went wrong on my side. The error was logged.",
+    "transcrevendo": "🎙️ Transcribing the audio…",
+    "comando_desconhecido": "/{comando} doesn't exist. Send /help to see the list.",
+    "pensando": "🤔 Thinking…",
+    "executando": "⚙️ Running…",
+    "programando": "🛠️ Coding…",
+    "procurando": "🔍 Looking…",
+    "olhando": "👀 Looking at the image…",
+    "salvando": "💾 Saving…"
+  },
+  "errors": {
+    "structure": "must be an object with \"version\" (a number)",
+    "placeholders": "\"placeholders\" must be an object",
+    "categories": "\"categories\" must be a non-empty object",
+    "category": "category {name} must be a non-empty list",
+    "empty_phrase": "empty or invalid phrase in {name}",
+    "too_long": "phrase too long in {name}: {start}…",
+    "malformed": "malformed braces in {name}: {phrase}",
+    "undocumented": "undocumented placeholder {unknown} in {name}"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "not_configured": "Background tasks are not configured (Redis).",
+  "none": "No recent tasks.",
+  "recent": "Recent tasks:",
+  "tarefas": {
+    "description": "Recent background tasks"
+  },
+  "cancelar": {
+    "description": "Cancels a task",
+    "usage": "Usage: /cancel <id> (see the ids in /tasks or /projects)",
+    "stopping_project": "🛑 Stopping project {slug} ({id}). I'll let you know when it stops.",
+    "cancelled": "{phrase}\n(task {id} cancelled)",
+    "not_found": "I couldn't find a running task {id} (/tasks)."
+  }
+}

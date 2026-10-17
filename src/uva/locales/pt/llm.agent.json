@@ -1,0 +1,6 @@
+{
+  "disabled": "(a LLM não está configurada: falta LLM_API_KEY no .env)",
+  "quota": "(o provedor recusou por limite/crédito)",
+  "queued": "{progress} (tarefa {id}; /cancelar {id})",
+  "action_failed": "Não consegui executar {action}."
+}

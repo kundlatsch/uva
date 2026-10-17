@@ -1,0 +1,11 @@
+{
+  "failed": "⚠️ {phrase}\n({what} falhou: {error})",
+  "what": {
+    "task": "A tarefa {id} ({action})",
+    "memory": "A limpeza diária da memória",
+    "proactive": "O loop proativo",
+    "selfcode": "O auto-código da feature {id}",
+    "project": "O projeto {id}",
+    "routines": "As rotinas"
+  }
+}

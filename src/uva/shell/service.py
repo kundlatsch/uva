@@ -10,6 +10,7 @@ import httpx
 
 from uva.clock import utcnow
 from uva.config import Settings
+from uva.i18n import t
 from uva.logging.events import EventType, emit
 from uva.progress import activity
 from uva.replies import Button, Reply
@@ -45,7 +46,7 @@ class ShellService:
             async with self._client() as client:
                 response = await client.request(method, path, json=payload)
         except httpx.HTTPError as exc:
-            raise ShellUnavailable(f"o container shell não respondeu ({exc.__class__.__name__})") from exc
+            raise ShellUnavailable(t("shell.service.unavailable", error=exc.__class__.__name__)) from exc
         data = response.json()
         if response.status_code != 200:
             raise ShellUnavailable(data.get("error", f"HTTP {response.status_code}"))
@@ -57,16 +58,16 @@ class ShellService:
         reasons, maybe = shell_risks(code)
         if maybe:
             existing = (await self._call("POST", "/exists", {"paths": maybe}))["exists"]
-            reasons += [f"sobrescreve {p}" for p in existing]
+            reasons += [t("shell.service.overwrites", path=p) for p in existing]
         return reasons
 
     async def request(self, kind: str, code: str) -> Reply:
         """Run now, or ask first when it may delete/overwrite files."""
         code = code.strip()
         if not code:
-            return Reply(USAGE)
+            return Reply(usage())
         if not self.settings.shell_enabled:
-            return Reply("O /uva está desligado (SHELL_ENABLED=false).")
+            return Reply(t("shell.service.disabled"))
         try:
             reasons = await self.risks(kind, code)
         except ShellUnavailable as exc:
@@ -83,21 +84,23 @@ class ShellService:
         self.pending[token] = Pending(kind, code, reasons)
         shown = code if len(code) <= 600 else code[:600] + "…"
         return Reply(
-            text=(
-                f"⚠️ Isso pode apagar ou sobrescrever arquivos em /uva ({'; '.join(reasons)}):\n"
-                f"{'🐍' if kind == 'py' else '$'} {shown}\n\nRodo mesmo? (antes eu tiro um snapshot; "
-                "dá para voltar com /sh desfazer)"
+            text=t(
+                "shell.service.confirm", reasons="; ".join(reasons), prompt="🐍" if kind == "py" else "$",
+                code=shown,
             ),
-            buttons=[Button("Sim, rodar", f"shok:{token}"), Button("Não", f"shno:{token}")],
+            buttons=[
+                Button(t("shell.service.yes"), f"shok:{token}"),
+                Button(t("shell.service.no"), f"shno:{token}"),
+            ],
         )
 
     async def resolve(self, verb: str, token: str) -> Reply:
         pending = self.pending.pop(token, None)
         if pending is None or pending.expires_at < utcnow():
-            return Reply("Esse pedido expirou; mande o comando de novo.")
+            return Reply(t("shell.service.expired"))
         if verb != "shok":
             await emit(EventType.SHELL, op="denied", kind=pending.kind, code=pending.code[:500])
-            return Reply("Ok, não rodei nada.")
+            return Reply(t("shell.service.denied"))
         return await self.execute(pending.kind, pending.code, confirmed=pending.reasons)
 
     async def execute(self, kind: str, code: str, confirmed: list[str] | None = None) -> Reply:
@@ -120,11 +123,14 @@ class ShellService:
             return Reply(f"⚠️ {exc}")
         await emit(EventType.SHELL, op="undo", result=result)
         if not result.get("ok"):
-            return Reply(f"Nada para desfazer ({result.get('error')}).")
+            error = result.get("error")
+            if error == EMPTY_UNDO:  # the sandbox speaks Portuguese (stdlib only, no i18n)
+                error = t("shell.service.undo_empty")
+            return Reply(t("shell.service.nothing_to_undo", error=error))
         changed = result.get("changed") or []
-        lines = [f"↩️ /uva voltou para antes de: {result['restored']}"]
+        lines = [t("shell.service.restored", label=result["restored"])]
         if changed:
-            lines.append("Desfeito:\n" + "\n".join(f"  {c}" for c in changed[:30]))
+            lines.append(t("shell.service.undone") + "\n" + "\n".join(f"  {c}" for c in changed[:30]))
         return Reply("\n".join(lines))
 
     async def history(self) -> Reply:
@@ -134,29 +140,37 @@ class ShellService:
             return Reply(f"⚠️ {exc}")
         lines = result.get("history") or []
         if not lines:
-            return Reply("Nenhum comando ainda.")
-        return Reply.paginated("Snapshots de /uva (o mais novo primeiro):\n" + "\n".join(lines))
+            return Reply(t("shell.service.no_history"))
+        return Reply.paginated(t("shell.service.history") + "\n" + "\n".join(lines))
 
 
-USAGE = (
-    "Uso:\n/sh <comando> — roda um comando Linux em /uva\n/py <código> — roda Python em /uva\n"
-    "/sh desfazer — volta /uva para antes do último comando\n/sh historico — snapshots"
-)
+# The "nothing to undo" error from the sandbox (shell/executor.py).
+EMPTY_UNDO = "nada para desfazer"
+
+
+def usage() -> str:
+    return t("shell.service.usage")
+
+
+# Kept for importers that still read the constant (Portuguese); prefer usage().
+USAGE = t("shell.service.usage", lang="pt")
 
 
 def render_result(kind: str, code: str, result: dict, timeout: int) -> Reply:
     prompt = "🐍" if kind == "py" else "$"
     head = f"{prompt} {code if len(code) <= 200 else code[:200] + '…'}"
-    output = (result.get("output") or "").rstrip() or "(sem saída)"
+    output = (result.get("output") or "").rstrip() or t("shell.service.no_output")
     if result.get("truncated"):
-        output += "\n… (saída cortada)"
+        output += "\n" + t("shell.service.truncated")
     if result.get("timed_out"):
-        status = f"⏱️ parado depois de {timeout}s (SHELL_TIMEOUT_SECONDS)"
+        status = t("shell.service.timed_out", seconds=timeout)
+    elif result.get("exit") == 0:
+        status = "✅ ok"
     else:
-        status = "✅ ok" if result.get("exit") == 0 else f"❌ saiu com código {result.get('exit')}"
+        status = t("shell.service.exit_code", code=result.get("exit"))
     status += f" · {result.get('seconds', 0)}s"
     if result.get("snapshot"):
-        status += f" · mudou arquivos (snapshot {result['snapshot']}; /sh desfazer)"
+        status += t("shell.service.changed_files", snapshot=result["snapshot"])
     reply = Reply.paginated(f"{output}\n\n{status}", header=head)
     reply.summary = f"{head} → {status}"
     return reply

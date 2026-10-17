@@ -1,0 +1,15 @@
+{
+  "not_configured": "Tarefas em segundo plano não estão configuradas (Redis).",
+  "none": "Nenhuma tarefa recente.",
+  "recent": "Tarefas recentes:",
+  "tarefas": {
+    "description": "Tarefas em segundo plano recentes"
+  },
+  "cancelar": {
+    "description": "Cancela uma tarefa",
+    "usage": "Uso: /cancelar <id> (veja os ids em /tarefas ou /projetos)",
+    "stopping_project": "🛑 Parando o projeto {slug} ({id}). Te aviso quando parar.",
+    "cancelled": "{phrase}\n(tarefa {id} cancelada)",
+    "not_found": "Não achei a tarefa {id} em andamento (/tarefas)."
+  }
+}

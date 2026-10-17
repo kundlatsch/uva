@@ -1,0 +1,43 @@
+{
+  "confirm_expired": "That question expired. Mind sending it again?",
+  "pages_expired": "These pages expired. Run the command again.",
+  "page_footer": "— page {page}/{total} —",
+  "error_logged": "{phrase}\n(logged in /log errors)",
+  "did_you_mean": "Did you mean {suggestion}?",
+  "button": {
+    "yes": "Yes",
+    "no": "No",
+    "previous": "◀ Previous",
+    "next": "Next ▶"
+  },
+  "sticker": {
+    "no_storage": "{emoji} (without SQLite I can't learn stickers)",
+    "new": [
+      "🤔 This sticker {emoji} is new to me. What does it mean?",
+      "(your next message becomes its meaning; /skip to leave it without one)"
+    ],
+    "action_set": [
+      "✅ Deal: every time you send {emoji}, I'll do: {action}",
+      "(/sticker {id} no-action to undo)"
+    ],
+    "skipped": "Ok, it stays without a meaning. If you want, later: /stickers",
+    "learned": [
+      "✅ Got it: {emoji} = “{meaning}”. Next time I'll know.",
+      "(to make it always do something: “every time I send this sticker, ...”)"
+    ]
+  },
+  "photo": {
+    "kept_no_llm": "📷 I kept the photo. Send /decide ... or ask something about it.",
+    "kept_no_budget": "📷 I kept the photo, but I can't look at it right now.\n{phrase}\n({reason})",
+    "kept_llm_error": "📷 I kept the photo, but I couldn't look at it.\n{phrase}",
+    "no_description": "(I couldn't describe it)",
+    "described": "📷 {description}\n\n(Ask anything you want about it, or ask me to save it.)"
+  },
+  "audio": {
+    "no_transcriber": "I can't listen to audio yet: an OpenAI key is missing (TRANSCRIBE_API_KEY).",
+    "transcription_failed": "{phrase}\n(transcription: {error})",
+    "nothing_heard": "{phrase}\n(I couldn't hear anything in the audio)",
+    "heard": "🎙️ heard: {text}",
+    "kept_transcript": "(I kept the whole transcript; after /unlock just ask again)"
+  }
+}

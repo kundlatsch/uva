@@ -1,0 +1,18 @@
+{
+  "no_stm": "Short-term memory is unavailable.",
+  "unknown_ref": "I don't know what you mean ({query}).",
+  "nothing_in_focus": "nothing in focus",
+  "retry": {
+    "not_failed": "{label} didn't fail (it's {status}); nothing to retry.",
+    "record_gone": "The record of {label} is gone.",
+    "rerunning": "🔁 Running it again: {label} (task {id}).",
+    "feature_gone": "That feature is gone.",
+    "unsupported": "I don't know how to retry that ({kind})."
+  },
+  "cancel": {
+    "already_done": "{label} had already finished.",
+    "stopping": "🛑 Stopping {label}. I'll let you know when it stops.",
+    "unsupported": "Can't cancel that ({kind}).",
+    "cancelled": "{phrase}\n({label} cancelled)"
+  }
+}

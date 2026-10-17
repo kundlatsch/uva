@@ -31,6 +31,23 @@ def test_shipped_file_is_valid_and_big_enough(shipped):
         assert len(set(items)) == len(items), f"duplicates in {name}"
 
 
+def test_english_file_matches_the_portuguese_one(shipped):
+    english_file = make_settings(bot_language="en").phrases_file
+    assert english_file.name == "fallback_phrases.en.json"
+    english = json.loads(english_file.read_text(encoding="utf-8"))
+    categories = validate(english)
+    assert english["version"] == shipped["version"]
+    assert set(english["placeholders"]) == set(shipped["placeholders"])
+    assert set(categories) == set(shipped["categories"])
+    for name, items in categories.items():
+        pt_items = shipped["categories"][name]
+        assert len(items) == len(pt_items), name
+        assert len(set(items)) == len(items), f"duplicates in {name}"
+        en_names = set().union(*(placeholders(item) for item in items))
+        pt_names = set().union(*(placeholders(item) for item in pt_items))
+        assert en_names == pt_names, name
+
+
 def test_every_placeholder_is_documented_and_renders(shipped):
     phrases = Phrases(SHIPPED)
     values = {key: "X" for key in shipped["placeholders"]}
@@ -178,3 +195,29 @@ async def test_phrase_file_edits_are_validated(tmp_path):
     await files.write("data/fallback_phrases.json", ok, reason="")
     with pytest.raises(FileAccessError):
         files.resolve("brain/x.json")  # .json only inside data/
+
+
+def test_builtin_phrases_and_errors_follow_the_language(tmp_path):
+    from uva import i18n
+
+    missing = Phrases(tmp_path / "nope.json")
+    assert missing.pick("saudacao") == "Olá! Em que posso ajudar?"
+    i18n.set_language("en")
+    assert missing.pick("saudacao") == "Hi! How can I help?"
+    assert missing.pick("comando_desconhecido", comando="xyz").startswith("/xyz doesn't exist")
+    assert set(BUILTIN) >= set(REQUIRED)
+    with pytest.raises(PhrasesError, match="must be a non-empty list"):
+        validate({"version": 1, "categories": {"c": []}})
+
+
+@pytest.mark.parametrize(
+    ("text", "category"),
+    [
+        ("hi", "saudacao"), ("Hello!", "saudacao"), ("good morning", "saudacao"),
+        ("thanks!", "agradecimento"), ("thank you", "agradecimento"),
+        ("bye", "despedida"), ("see you later", "despedida"),
+        ("hi, search F1 for me please", None), ("what is the capital of France", None),
+    ],
+)
+def test_small_talk_detection_in_english(text, category):
+    assert small_talk(text) == category

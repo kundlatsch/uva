@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from uva.brain.vault import Note, Vault
+from uva.i18n import t
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.prompts import summary_system_prompt
@@ -23,7 +24,7 @@ class Research:
     def render(self) -> str:
         lines = [f"🔎 {self.query}", "", self.summary.strip()]
         if self.sources:
-            lines += ["", "Fontes:"]
+            lines += ["", t("actions.search.sources")]
             lines += [f"- {s.title}: {s.url}" for s in self.sources if s.url]
         return "\n".join(lines)
 
@@ -55,12 +56,12 @@ class ResearchError(RuntimeError):
 async def research(services: Services, query: str, source: str, scope: Scope) -> Research:
     backend = services.search.get(source) or services.search.get("web")
     if backend is None:
-        raise ResearchError("nenhum backend de pesquisa configurado")
+        raise ResearchError(t("actions.search.no_backend"))
 
     try:
         response = await backend.search(query, services.settings.search_max_results)
     except SearchError as exc:
-        raise ResearchError(f"a pesquisa falhou ({exc})", retryable=True) from exc
+        raise ResearchError(t("actions.search.failed", error=exc), retryable=True) from exc
 
     if response.summary is not None:
         summary = response.summary
@@ -93,5 +94,5 @@ async def _summarize(
             system=summary_system_prompt(),
         )
     except LLMError as exc:
-        raise ResearchError(f"não consegui resumir os resultados ({exc})", retryable=True) from exc
+        raise ResearchError(t("actions.search.summarize_failed", error=exc), retryable=True) from exc
     return response.text

@@ -1,0 +1,6 @@
+{
+  "not_configured": "A Decisions não está configurada (falta chave da OpenAI).",
+  "no_photo": "Não tenho foto recente (mande a foto de novo).",
+  "nothing_to_evaluate": "Preciso de algum texto ou foto para avaliar.",
+  "failed": "A Decisions falhou: {error}"
+}

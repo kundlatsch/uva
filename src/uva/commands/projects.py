@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.projects.service import ProjectError, describe_project
 from uva.stm.refs import remember_ref
 
-NOT_CONFIGURED = "Projetos não estão configurados (precisa de Mongo e do worker de projetos)."
 RECENT = 10
 
 
@@ -15,7 +15,7 @@ async def request_project(services, description: str) -> str:
     """Shared by /projeto and the project_create action."""
     projects = services.projects
     if projects is None:
-        return NOT_CONFIGURED
+        return t("commands.projects.not_configured")
     try:
         record = await projects.request(description, current_trace_id(), services.tz)
     except ProjectError as exc:
@@ -23,42 +23,44 @@ async def request_project(services, description: str) -> str:
     await emit(EventType.PROJECT, op="requested", project_id=record.id, slug=record.slug, description=description)
     await remember_ref(services, "projeto", record.id, f"projeto: {record.slug}", "na fila")
     s = services.settings
-    return (
-        f"🏗️ Beleza, vou criar o projeto {record.slug} ({record.id}) com o Claude Code, numa pasta "
-        f"nova: {projects.host_path(record.slug)}\n"
-        f"Limites: {s.project_timeout_minutes} min, US$ {s.project_max_budget_usd:.2f}. Te aviso quando "
-        f"terminar. Acompanhe em /projetos; para parar, /cancelar {record.id}."
+    return t(
+        "commands.projects.requested",
+        slug=record.slug,
+        id=record.id,
+        path=projects.host_path(record.slug),
+        minutes=s.project_timeout_minutes,
+        budget=s.project_max_budget_usd,
     )
 
 
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "projeto",
-        "Cria um projeto NOVO (fora do bot) com o Claude Code e avisa quando terminar",
+        t("commands.projects.projeto.description"),
         aliases=("novoprojeto", "project", "newproject"),
         usage="<descrição>",
     )
     async def project(ctx: CommandContext) -> str:
         description = " ".join(ctx.args).strip()
         if not description:
-            return "Uso: /projeto <descrição>, ex.: /projeto um site estático de receitas com busca"
+            return t("commands.projects.projeto.usage")
         return await request_project(ctx.services, description)
 
     @registry.command(
         "projetos",
-        "Projetos que o Claude Code criou (ou está criando)",
+        t("commands.projects.projetos.description"),
         aliases=("projects",),
         examples=("meus projetos", "como estao os projetos"),
     )
     async def projects(ctx: CommandContext) -> str:
         service = ctx.services.projects
         if service is None:
-            return NOT_CONFIGURED
+            return t("commands.projects.not_configured")
         records = await service.store.recent(RECENT)
         if not records:
-            return "Nenhum projeto ainda. Peça com /projeto <descrição>."
+            return t("commands.projects.projetos.none")
         tz = ctx.services.tz
         lines = [describe_project(r, tz, service.host_path(r.slug)) for r in records]
         if problem := service.configured():
             lines.append(f"\n⚠️ {problem}")
-        return "Projetos:\n" + "\n".join(lines)
+        return t("commands.projects.projetos.header") + "\n" + "\n".join(lines)

@@ -1,0 +1,5 @@
+{
+  "no_vault": "The second brain isn't configured.",
+  "no_photo": "I don't have a recent image to save (send it again).",
+  "saved": "🖼️ Image saved to {attachment}\n📝 Note: {note}"
+}

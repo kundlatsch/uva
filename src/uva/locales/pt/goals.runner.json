@@ -1,0 +1,51 @@
+{
+  "no_progress": "Sem progresso.",
+  "skipped_interval": "pulado: intervalo entre execuções",
+  "skipped_busy": "pulado: ocupado ({reasons})",
+  "skipped_budget": "pulado: {reason}",
+  "token_limit": "limite de tokens da execução atingido",
+  "llm_unavailable": "LLM indisponível: {error}",
+  "invalid_reply": "resposta inválida da LLM: {error}",
+  "needs_feature_summary": "Precisa de um comando novo: /feature {feature}",
+  "command_ready": "/{command} pronto",
+  "feature_ready": "feature pronta",
+  "report": {
+    "ready": "🎯 Objetivo \"{title}\" concluído ✅ ({note})",
+    "requested": [
+      "🎯 Objetivo \"{title}\" precisava de um comando novo, então pedi:",
+      "🛠️ feature {id}: {feature}",
+      "Te aviso quando ficar pronta (ou se der ruim). /features acompanha."
+    ],
+    "needs_feature": [
+      "🎯 Objetivo \"{title}\" precisa de um comando novo, e isso eu não faço sozinha.",
+      "Se quiser, manda: /feature {feature}"
+    ],
+    "paused": "Pausei o objetivo; /retomar {id} reativa.",
+    "head": "🎯 Objetivo \"{title}\" {label}",
+    "status": {
+      "done": "rodou",
+      "concluido": "concluído ✅",
+      "failed": "falhou ⚠️"
+    }
+  },
+  "feature": {
+    "disabled": "auto-código por objetivos está desligado (PROACTIVE_ALLOW_SELFCODE)",
+    "not_configured": "auto-código não está configurado",
+    "ready": "pronta",
+    "building": "em construção",
+    "exists": "já existe a feature {id} para isso ({state})",
+    "other_building": "outra feature ({id}) está em construção; tento de novo depois",
+    "budget": "orçamento de auto-código: {reason}"
+  },
+  "attempt": {
+    "failed": "falhou: {error}",
+    "done": "concluído: {note}",
+    "requested": "pediu a feature {id}",
+    "needs_feature": "precisa de /feature {feature}"
+  },
+  "note": {
+    "run": "**Execução {n}** ({when}): {summary}",
+    "intro": "Objetivo acompanhado pela UVA.",
+    "daily": "Objetivo trabalhado: {link}"
+  }
+}

@@ -15,9 +15,10 @@ from pathlib import Path
 from types import ModuleType
 
 from uva.clock import utcnow
+from uva import i18n
 from uva.commands.registry import Command, CommandContext, CommandRegistry
 from uva.logging import get_logger
-from uva.plugins.api import PluginCommand, PluginContext, commands_in
+from uva.plugins.api import PluginCommand, PluginContext, commands_in, resolve_description
 from uva.selfmod.plugin_data import make_data_view
 
 log = get_logger(__name__)
@@ -102,14 +103,18 @@ def _to_command(pc: PluginCommand) -> Command:
     async def handler(ctx: CommandContext) -> str:
         now = utcnow().astimezone(ctx.services.tz)
         data = make_data_view(ctx.services)
-        result = pc.handler(PluginContext(args=list(ctx.args), now=now, data=data))
+        context = PluginContext(
+            args=list(ctx.args), now=now, data=data, lang=i18n.get_language()
+        )
+        result = pc.handler(context)
         if inspect.isawaitable(result):
             result = await result
         return str(result)
 
     return Command(
         name=pc.name,
-        description=pc.description,
+        # Resolved once, when (re)loading: the language is set at startup.
+        description=resolve_description(pc.description, i18n.get_language()),
         handler=handler,
         aliases=tuple(pc.aliases),
         usage=pc.usage,

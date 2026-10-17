@@ -1,0 +1,20 @@
+{
+  "weekdays": ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"],
+  "schedule": {
+    "day": "todo dia às {at}",
+    "weekdays": "{days} às {at}",
+    "hours": "a cada {hours}h"
+  },
+  "paused": " (pausada)",
+  "never": "nunca",
+  "next_line": "   próxima: {next} · última: {last} · {runs} execução(ões)",
+  "failed": "falhou: {error}",
+  "notice": {
+    "head": "⏰ Rotina {id}: {request}",
+    "late": "(atrasada: era para {when}; o PC estava desligado)"
+  },
+  "errors": {
+    "no_days": "agenda sem dias",
+    "bad_time": "horário inválido"
+  }
+}

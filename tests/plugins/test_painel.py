@@ -56,3 +56,24 @@ def test_panel_uses_read_only_data():
     assert "- k6: v6" not in reply
     assert "- Meta A (próxima: 12/10 09:00; última: tentativa ok em 11/10 08:00)" in reply
     assert "- Ref A — feito" in reply
+
+
+def test_english_panel():
+    assert run(panel, "extra", lang="en") == "Usage: /dashboard"
+    data = StaticData(
+        goals=[
+            {
+                "id": "g1",
+                "title": "Goal A",
+                "status": "ativo",
+                "next_run": "12/10 09:00",
+                "last_attempt": "ok",
+                "last_attempt_at": "11/10 08:00",
+            },
+        ],
+    )
+    reply = run(panel, data=data, lang="en")
+    assert "Working memory\nnothing" in reply
+    assert "- Goal A (next: 12/10 09:00; last: ok at 11/10 08:00)" in reply
+    assert "Recent context\nnothing" in reply
+    assert "Expenses\n- today: R$ 0,00\n- month: R$ 0,00" in reply

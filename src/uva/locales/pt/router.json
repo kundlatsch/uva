@@ -1,0 +1,43 @@
+{
+  "confirm_expired": "Essa pergunta expirou. Pode mandar de novo?",
+  "pages_expired": "Essa paginação expirou. Rode o comando de novo.",
+  "page_footer": "— página {page}/{total} —",
+  "error_logged": "{phrase}\n(registrado em /log erros)",
+  "did_you_mean": "Você quis dizer {suggestion}?",
+  "button": {
+    "yes": "Sim",
+    "no": "Não",
+    "previous": "◀ Anterior",
+    "next": "Próxima ▶"
+  },
+  "sticker": {
+    "no_storage": "{emoji} (sem o SQLite não consigo aprender figurinhas)",
+    "new": [
+      "🤔 Essa figurinha {emoji} é nova pra mim. O que ela significa?",
+      "(sua próxima mensagem vira o significado; /pular para deixar sem)"
+    ],
+    "action_set": [
+      "✅ Combinado: toda vez que você mandar {emoji}, eu faço: {action}",
+      "(/figurinha {id} sem-acao para desfazer)"
+    ],
+    "skipped": "Ok, ela fica sem significado. Se quiser, depois: /figurinhas",
+    "learned": [
+      "✅ Anotado: {emoji} = “{meaning}”. Da próxima vez eu já sei.",
+      "(para ela fazer algo sempre: “toda vez que eu mandar essa figurinha, ...”)"
+    ]
+  },
+  "photo": {
+    "kept_no_llm": "📷 Guardei a foto. Manda /decidir ... ou pergunta algo sobre ela.",
+    "kept_no_budget": "📷 Guardei a foto, mas não posso olhar agora.\n{phrase}\n({reason})",
+    "kept_llm_error": "📷 Guardei a foto, mas não consegui olhar.\n{phrase}",
+    "no_description": "(não consegui descrever)",
+    "described": "📷 {description}\n\n(Pergunta o que quiser sobre ela, ou pede para eu salvar.)"
+  },
+  "audio": {
+    "no_transcriber": "Ainda não sei ouvir áudio: falta uma chave da OpenAI (TRANSCRIBE_API_KEY).",
+    "transcription_failed": "{phrase}\n(transcrição: {error})",
+    "nothing_heard": "{phrase}\n(não consegui ouvir nada no áudio)",
+    "heard": "🎙️ entendi: {text}",
+    "kept_transcript": "(guardei a transcrição inteira; depois do /liberar é só pedir de novo)"
+  }
+}

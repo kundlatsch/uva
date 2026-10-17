@@ -1,0 +1,22 @@
+{
+  "unavailable": "o container shell não respondeu ({error})",
+  "overwrites": "sobrescreve {path}",
+  "disabled": "O /uva está desligado (SHELL_ENABLED=false).",
+  "confirm": "⚠️ Isso pode apagar ou sobrescrever arquivos em /uva ({reasons}):\n{prompt} {code}\n\nRodo mesmo? (antes eu tiro um snapshot; dá para voltar com /sh desfazer)",
+  "yes": "Sim, rodar",
+  "no": "Não",
+  "expired": "Esse pedido expirou; mande o comando de novo.",
+  "denied": "Ok, não rodei nada.",
+  "undo_empty": "nada para desfazer",
+  "nothing_to_undo": "Nada para desfazer ({error}).",
+  "restored": "↩️ /uva voltou para antes de: {label}",
+  "undone": "Desfeito:",
+  "no_history": "Nenhum comando ainda.",
+  "history": "Snapshots de /uva (o mais novo primeiro):",
+  "usage": "Uso:\n/sh <comando> — roda um comando Linux em /uva\n/py <código> — roda Python em /uva\n/sh desfazer — volta /uva para antes do último comando\n/sh historico — snapshots",
+  "no_output": "(sem saída)",
+  "truncated": "… (saída cortada)",
+  "timed_out": "⏱️ parado depois de {seconds}s (SHELL_TIMEOUT_SECONDS)",
+  "exit_code": "❌ saiu com código {code}",
+  "changed_files": " · mudou arquivos (snapshot {snapshot}; /sh desfazer)"
+}

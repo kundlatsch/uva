@@ -1,0 +1,16 @@
+{
+  "secret_set": "•••••• (definido)",
+  "empty": "(vazio)",
+  "unset": "(não definido)",
+  "starting": "iniciando",
+  "counts": {
+    "memories": "memórias",
+    "goals": "objetivos ativos",
+    "notes": "notas no brain",
+    "stickers": "figurinhas",
+    "projects": "projetos"
+  },
+  "no_budget": "sem orçamento configurado",
+  "amount_range": "valor entre 0 e 50",
+  "empty_message": "mensagem vazia"
+}

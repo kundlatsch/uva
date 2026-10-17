@@ -46,10 +46,19 @@ class StaticData(NoData):
 
 
 def run(
-    handler: Handler, *args: str, now: datetime | None = None, data: DataView | None = None
+    handler: Handler,
+    *args: str,
+    now: datetime | None = None,
+    data: DataView | None = None,
+    lang: str = "pt",
 ) -> str:
-    """Call a plugin handler as if the user typed ``/<command> <args...>``."""
-    context = PluginContext(args=list(args), now=now or datetime.now(), data=data or NoData())
+    """Call a plugin handler as if the user typed ``/<command> <args...>``.
+
+    ``lang`` is the bot language the handler sees in ``ctx.lang`` ("en" | "pt").
+    """
+    context = PluginContext(
+        args=list(args), now=now or datetime.now(), data=data or NoData(), lang=lang
+    )
     result = handler(context)
     if inspect.isawaitable(result):
         result = asyncio.run(_await(result))

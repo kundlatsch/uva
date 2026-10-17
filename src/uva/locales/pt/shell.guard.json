@@ -1,0 +1,12 @@
+{
+  "find_delete": "find -delete",
+  "git_discard": "git apagando mudanças",
+  "sed_in_place": "sed -i (edita no lugar)",
+  "xargs_rm": "xargs rm",
+  "deletes": "apaga arquivos",
+  "renames": "renomeia/sobrescreve",
+  "moves": "move/copia (pode sobrescrever)",
+  "opens_for_writing": "abre arquivo para escrita (sobrescreve)",
+  "writes": "escreve arquivo (sobrescreve)",
+  "runs_commands": "roda comandos do sistema"
+}

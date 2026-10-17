@@ -1,0 +1,35 @@
+{
+  "not_configured": "The second brain is not configured.",
+  "notes_count": "{count} note(s)",
+  "empty_folder": "📂 {where}: empty.",
+  "more": "   … and {count} more (/brain {path})",
+  "brain": {
+    "description": "Inspects the second brain: the tree, a folder or the raw content of a note",
+    "usage": "[folder | note title or path]",
+    "not_found": "I couldn't find a note or folder '{ref}'. See the tree with /brain.",
+    "header": "📝 {path} · {size} · modified {when}",
+    "empty_file": "(empty file)"
+  },
+  "nota": {
+    "description": "Saves a quick note to the second brain inbox",
+    "usage_arg": "<text>",
+    "usage": "Usage: /note <text>",
+    "daily": "Quick note: {link}",
+    "saved": "📝 Note saved: {path}"
+  },
+  "buscar": {
+    "description": "Searches the second brain",
+    "usage_arg": "<term>",
+    "usage": "Usage: /search <term>",
+    "no_results": "(no notes with '{term}')",
+    "results": "Notes with '{term}':"
+  },
+  "rename": {
+    "nothing": "All names already follow the pattern (Portuguese, snake_case).",
+    "renamed": "✅ {count} note(s) renamed:",
+    "new_title": " (title: {title})",
+    "attachments": "{count} attachment(s):",
+    "undo": "Undo with /undo brain.",
+    "commit_failed": "(I couldn't commit to the brain's git: {error})"
+  }
+}

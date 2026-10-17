@@ -1,0 +1,9 @@
+{
+  "no_extras": "budget unlocking is not configured",
+  "unknown_spend": "I couldn't check the API spend (is Mongo down?)",
+  "monthly": "monthly LLM budget reached (US$ {spent} of {limit}); back next month",
+  "selfcode": "daily self-coding budget reached (US$ {spent} of {limit}); back tomorrow",
+  "extra": ", with US$ {extra} unlocked",
+  "daily": "daily LLM budget reached (US$ {spent} of {limit}{extra}); back tomorrow, or use /unlock",
+  "proactive": "daily proactive budget reached"
+}

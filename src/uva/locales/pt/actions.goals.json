@@ -1,0 +1,4 @@
+{
+  "not_configured": "Objetivos não estão configurados.",
+  "created": "🎯 Objetivo criado ({id}): {title}. Veja em /objetivos."
+}

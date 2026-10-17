@@ -1,0 +1,12 @@
+{
+  "reverter": {
+    "description": "Desfaz a última mudança que eu fiz no meu repositório (/reverter brain: no second brain)",
+    "no_repo": "Não tenho acesso ao repositório (git) aqui.",
+    "nothing": "Não achei nenhuma mudança minha para desfazer.",
+    "failed": "Não consegui reverter {sha} ({subject}): {error}",
+    "done": "↩️ Revertido {sha}: {subject} (novo commit {new_sha}).",
+    "brain_no_history": "O second brain não tem histórico (git) aqui.",
+    "brain_nothing": "Não achei nenhuma mudança minha no second brain para desfazer.",
+    "brain_done": "↩️ Second brain: desfeito {sha} ({subject})."
+  }
+}

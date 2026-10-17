@@ -35,9 +35,17 @@ STOPWORDS = frozenset(
     qual quais quando onde como quem porque pq quero queria pode poderia tem tinha ter foi
     era sao ser estar esta estou li ler lido leu vi ver visto fiz fazer feito tudo todo toda
     algo alguma algum coisa coisas livro livros nota notas favor oi ola hoje ontem agora
+    the and for with without about what which when where who why how you your yours
+    are was were been being have has had did does doing done can could would should will
+    tell talk say know remember read saw seen see made make something anything thing things
+    book books note notes please hello today yesterday now that this these those there here
+    from into just want wanted
     """.split()
 )
-MONEY_WORDS = frozenset({"gasto", "gastos", "gastei", "gastar", "dinheiro", "despesa", "despesas", "paguei", "custo", "reais"})
+MONEY_WORDS = frozenset({
+    "gasto", "gastos", "gastei", "gastar", "dinheiro", "despesa", "despesas", "paguei", "custo", "reais",
+    "spent", "spend", "spending", "money", "expense", "expenses", "paid", "cost", "costs",
+})
 
 MAX_MEMORY = 8
 MAX_NOTES = 4

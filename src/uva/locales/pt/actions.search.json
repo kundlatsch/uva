@@ -1,0 +1,6 @@
+{
+  "sources": "Fontes:",
+  "no_backend": "nenhum backend de pesquisa configurado",
+  "failed": "a pesquisa falhou ({error})",
+  "summarize_failed": "não consegui resumir os resultados ({error})"
+}

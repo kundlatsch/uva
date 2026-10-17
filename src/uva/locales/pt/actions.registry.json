@@ -1,0 +1,5 @@
+{
+  "working": "Trabalhando nisso…",
+  "unknown_action": "ação desconhecida ou não permitida: {name}",
+  "invalid_params": "parâmetros inválidos para {name}: {error}"
+}

@@ -6,22 +6,19 @@ from datetime import datetime
 
 from uva.clock import format_local, start_of_day, start_of_month, start_of_week, start_of_year
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.stm.refs import remember_ref
 from uva.services import Services
 from uva.storage.expenses import format_brl, parse_amount
 
-NO_DB = "O banco SQLite não está configurado."
-
-PERIODS = {
-    "hoje": "hoje",
-    "semana": "nesta semana",
-    "mes": "neste mês",
-    "mês": "neste mês",
-    "ano": "neste ano",
-    "tudo": "desde sempre",
-}
+PERIODS = ("hoje", "semana", "mes", "mês", "ano", "tudo")
 # English period names accepted by /gastos (and /expenses).
 PERIOD_ALIASES = {"today": "hoje", "week": "semana", "month": "mes", "year": "ano", "all": "tudo"}
+
+
+def period_label(name: str) -> str:
+    """'mes' -> 'neste mês' / 'this month'."""
+    return t(f"commands.expenses.period.{'mes' if name == 'mês' else name}")
 
 
 def period_start(name: str, services: Services) -> datetime | None:
@@ -39,54 +36,59 @@ def period_start(name: str, services: Services) -> datetime | None:
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "gasto",
-        "Registra um gasto",
+        t("commands.expenses.gasto.description"),
         aliases=("despesa", "expense"),
-        usage="<valor> <categoria> [descrição]",
+        usage=t("commands.expenses.gasto.usage_arg"),
     )
     async def add_expense(ctx: CommandContext) -> str:
         repo = ctx.services.expenses
         if repo is None:
-            return NO_DB
+            return t("commands.expenses.no_db")
         if len(ctx.args) < 2:
-            return "Uso: /gasto <valor> <categoria> [descrição] (ex.: /gasto 25,90 mercado pão e leite)"
+            return t("commands.expenses.gasto.usage")
         try:
             cents = parse_amount(ctx.args[0])
         except ValueError:
-            return f"Não entendi o valor '{ctx.args[0]}'. Use algo como 25 ou 25,90."
+            return t("commands.expenses.gasto.bad_amount", value=ctx.args[0])
         expense = await repo.add(cents, ctx.args[1], " ".join(ctx.args[2:]))
         await remember_ref(
             ctx.services, "gasto", str(expense.id), f"gasto: {format_brl(cents)} {expense.category}"
         )
-        return f"💸 {format_brl(expense.amount_cents)} em {expense.category} registrado (#{expense.id})."
+        return t(
+            "commands.expenses.gasto.saved",
+            amount=format_brl(expense.amount_cents),
+            category=expense.category,
+            id=expense.id,
+        )
 
     @registry.command(
         "gastos",
-        "Soma dos gastos por categoria",
+        t("commands.expenses.gastos.description"),
         aliases=("despesas", "expenses"),
-        usage="[hoje|semana|mes|ano|tudo]",
+        usage=t("commands.expenses.gastos.usage_arg"),
         examples=("quanto gastei", "quanto gastei esse mes"),
     )
     async def list_expenses(ctx: CommandContext) -> str:
         repo = ctx.services.expenses
         if repo is None:
-            return NO_DB
+            return t("commands.expenses.no_db")
         name = (ctx.args[0].lower() if ctx.args else "mes")
         name = PERIOD_ALIASES.get(name, name)
         if name not in PERIODS:
-            return "Uso: /gastos [hoje|semana|mes|ano|tudo] (ou today|week|month|year|all)"
+            return t("commands.expenses.gastos.usage")
 
         totals = await repo.totals_by_category(since=period_start(name, ctx.services))
         if not totals:
-            return f"Nenhum gasto {PERIODS[name]}."
+            return t("commands.expenses.gastos.none", period=period_label(name))
         grand = sum(total for _, total in totals)
-        lines = [f"Gastos {PERIODS[name]}: {format_brl(grand)}"]
+        lines = [t("commands.expenses.gastos.total", period=period_label(name), total=format_brl(grand))]
         lines += [
             f"- {category}: {format_brl(total)} ({total * 100 / grand:.0f}%)"
             for category, total in totals
         ]
         recent = await repo.recent(3)
         if recent:
-            lines.append("\nÚltimos:")
+            lines.append(t("commands.expenses.gastos.recent"))
             lines += [
                 f"- {format_local(e.spent_at, ctx.services.tz, '%d/%m')} {format_brl(e.amount_cents)}"
                 f" {e.category}{' · ' + e.description if e.description else ''}"

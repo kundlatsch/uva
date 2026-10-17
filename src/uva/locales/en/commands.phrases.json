@@ -1,0 +1,11 @@
+{
+  "frases": {
+    "description": "Categories of ready-made phrases, or examples from one category",
+    "missing_file": "Phrases file missing or invalid ({path}).",
+    "header": "Ready-made phrases: {total} in {count} categories",
+    "examples_hint": "Examples: /phrases <category>",
+    "unknown_category": "Unknown category: {name}. See /phrases.",
+    "samples_header": "{name} ({count} phrases), a few examples:",
+    "uses": "  [uses: {marks}]"
+  }
+}

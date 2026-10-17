@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from uva.i18n import t
 from uva.logging import get_logger
 
 if TYPE_CHECKING:
@@ -14,7 +15,7 @@ log = get_logger(__name__)
 
 def task_label(action: str, params: dict) -> str:
     subject = params.get("query") or params.get("title") or ""
-    kind = "pesquisa" if action == "search" else action
+    kind = t("stm.refs.search") if action == "search" else action
     return f"{kind}: {subject}" if subject else kind
 
 

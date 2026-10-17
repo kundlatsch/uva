@@ -24,6 +24,7 @@ from uva.brain.naming import portuguese_title
 from uva.clock import format_local, start_of_day, utcnow
 from uva.goals.runner import in_quiet_hours
 from uva.goals.store import GoalStatus
+from uva.i18n import language_name, t
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.logging import get_logger
@@ -82,9 +83,13 @@ to Gustavo, your only user, on Telegram. Options:
   day; alternate research about his interests and short messages.
 Don't repeat topics of recent initiatives. Active goals are already being worked on by
 themselves: don't ask about or research what they cover. Don't make up facts about him.
-"topic" in English; "message" (what he reads) in Brazilian Portuguese, technical terms in
+"topic" in English; "message" (what he reads) in {language}, technical terms in
 English; "title_pt" (for research): a short Brazilian Portuguese title for the note.
-Answer with ONLY JSON: {"kind": "...", "topic": "...", "message": "...", "reason": "...", "title_pt": "..."}"""
+Answer with ONLY JSON: {{"kind": "...", "topic": "...", "message": "...", "reason": "...", "title_pt": "..."}}"""
+
+
+def system_prompt() -> str:
+    return SYSTEM.format(language=language_name())
 
 
 async def is_enabled(services: Services) -> bool:
@@ -175,7 +180,7 @@ async def initiative_tick(
                     alternatives=(decision.topic,),
                 )
                 record.note = save_research(services.vault, found, title).path
-            opening = decision.message.strip() or "Vi isso e lembrei de você:"
+            opening = decision.message.strip() or t("initiatives.opening")
             text = f"🧠 {opening}\n\n{found.render()}"
             if record.note:
                 text += f"\n\n📝 {record.note}"
@@ -200,7 +205,7 @@ async def _decide(services: Services, now: datetime) -> Decision:
         [LLMMessage("user", context)],
         purpose="initiative",
         scope=Scope.PROACTIVE,
-        system=SYSTEM,
+        system=system_prompt(),
         json_schema=Decision.model_json_schema(),
         max_tokens=800,
     )
@@ -253,48 +258,53 @@ async def describe_status(services: Services, now: datetime | None = None) -> st
     s = services.settings
     tz = services.tz
     store = services.initiatives
-    lines = ["🤖 Proatividade"]
+    lines = [t("initiatives.status.title")]
     enabled = await is_enabled(services)
-    lines.append(f"Iniciativas: {'ligadas' if enabled else 'desligadas'} (/proativo on|off)")
+    state = t("initiatives.status.on" if enabled else "initiatives.status.off")
+    lines.append(t("initiatives.status.enabled", state=state))
     if store is not None:
         today = await store.count_since(start_of_day(tz, now))
-        lines.append(f"Hoje: {today} de {s.proactive_max_messages_per_day} mensagens · intervalo mínimo {s.proactive_min_gap_minutes} min")
+        lines.append(t(
+            "initiatives.status.today", count=today, cap=s.proactive_max_messages_per_day,
+            gap=s.proactive_min_gap_minutes,
+        ))
     lines.append(
-        f"Silêncio: {s.proactive_quiet_start_hour}h–{s.proactive_quiet_end_hour}h"
-        + (" (agora em silêncio)" if in_quiet_hours(services, now) else "")
+        t("initiatives.status.quiet", start=s.proactive_quiet_start_hour, end=s.proactive_quiet_end_hour)
+        + (t("initiatives.status.quiet_now") if in_quiet_hours(services, now) else "")
     )
-    lines.append(f"Verificação a cada {s.proactive_poll_minutes} min · objetivos no máximo a cada {s.proactive_interval_minutes} min")
+    lines.append(t(
+        "initiatives.status.poll", poll=s.proactive_poll_minutes, interval=s.proactive_interval_minutes
+    ))
     blocked = await gate(services, now)
-    reasons = {
-        "off": "desligadas", "quiet": "horário de silêncio", "daily_cap": "limite do dia atingido",
-        "gap": "esperando o intervalo mínimo", "busy": "você está conversando ou um objetivo está rodando",
-        "goal_due": "um objetivo vai rodar antes", "disabled": "sem LLM",
-        "waiting": f"pensei há pouco; penso de novo a cada {s.proactive_decide_every_minutes} min",
-    }
-    lines.append("Próxima iniciativa: " + ("pode sair no próximo ciclo" if blocked is None else reasons.get(blocked, blocked)))
+    if blocked is None:
+        next_one = t("initiatives.status.next_ready")
+    elif blocked in ("off", "quiet", "daily_cap", "gap", "busy", "goal_due", "disabled", "waiting"):
+        next_one = t(f"initiatives.status.blocked.{blocked}", minutes=s.proactive_decide_every_minutes)
+    else:
+        next_one = blocked
+    lines.append(t("initiatives.status.next", reason=next_one))
     if services.goals is not None:
         active = await services.goals.list(GoalStatus.ATIVO)
         if active:
             nxt = min(active, key=lambda g: g.next_run_at)
-            lines.append(f"Objetivos ativos: {len(active)} · próximo: \"{nxt.title}\" às {format_local(nxt.next_run_at, tz, '%d/%m %H:%M')}")
+            lines.append(t(
+                "initiatives.status.goals", count=len(active), title=nxt.title,
+                at=format_local(nxt.next_run_at, tz, '%d/%m %H:%M'),
+            ))
         else:
-            lines.append("Objetivos ativos: nenhum")
+            lines.append(t("initiatives.status.no_goals"))
     if store is not None:
         recent = await store.recent(5)
         if recent:
-            lines.append("\nÚltimas iniciativas:")
+            lines.append("\n" + t("initiatives.status.recent"))
             lines += [f"- {format_local(r.at, tz, '%d/%m %H:%M')} {r.kind}: {(r.topic or r.message)[:70]}" for r in recent]
-    lines.append("\n/proativo agora → manda uma iniciativa já (respeita só o orçamento)")
+    lines.append("\n" + t("initiatives.status.now_hint"))
     return "\n".join(lines)
 
 
 def reply_for(message: str | None, status: str) -> Reply:
     if message:
         return Reply(message)
-    labels = {
-        "nothing": "Olhei tudo e não achei nada que valesse te interromper agora.",
-        "budget": "Sem orçamento proativo hoje (PROACTIVE_DAILY_BUDGET_USD).",
-        "error": "Deu ruim ao pensar numa iniciativa (veja /log erros).",
-        "disabled": "Iniciativas indisponíveis (sem LLM ou Mongo).",
-    }
-    return Reply(labels.get(status, status))
+    if status in ("nothing", "budget", "error", "disabled"):
+        return Reply(t(f"initiatives.reply.{status}"))
+    return Reply(status)

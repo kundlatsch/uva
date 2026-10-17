@@ -16,6 +16,7 @@ from telegram.ext import (
 
 from uva.bootstrap import build_services, setup_storage
 from uva.config import Settings, get_settings
+from uva.i18n import t
 from uva.logging import configure_logging, get_logger
 from uva.router import Router
 from uva.security import install_guard
@@ -28,8 +29,12 @@ from uva.telegram_io import keyboard, respond, send_reply, send_text
 
 log = get_logger(__name__)
 
-# Short toast shown the moment a button is pressed.
-BUTTON_ACK = {"confirm": "👍 Bora", "deny": "Ok", "shok": "⚙️ Rodando…", "shno": "Ok, não rodo"}
+# Short toast shown the moment a button is pressed (texts in main.button_ack).
+BUTTON_ACK = ("confirm", "deny", "shok", "shno")
+
+
+def button_ack(verb: str) -> str | None:
+    return t(f"main.button_ack.{verb}") if verb in BUTTON_ACK else None
 
 
 def build_application(settings: Settings, services: Services) -> Application:
@@ -80,7 +85,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             return
         document = message.document
         if (document.file_size or 0) > TELEGRAM_DOWNLOAD_LIMIT:
-            text = f"{services.say('erro_generico')}\n(o arquivo passa de 20 MB, o limite do Telegram para bots)"
+            text = t("main.file_too_big", phrase=services.say("erro_generico"))
             await send_reply(context.bot, message.chat_id, Reply(text))
             return
         user_id = update.effective_user.id if update.effective_user else None
@@ -98,7 +103,7 @@ def build_application(settings: Settings, services: Services) -> Application:
         if message is None or media is None:
             return
         if (media.file_size or 0) > TELEGRAM_DOWNLOAD_LIMIT:
-            text = f"{services.say('erro_generico')}\n(o áudio passa de 20 MB, o limite do Telegram para bots)"
+            text = t("main.audio_too_big", phrase=services.say("erro_generico"))
             await send_reply(context.bot, message.chat_id, Reply(text))
             return
         user_id = update.effective_user.id if update.effective_user else None
@@ -130,7 +135,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             return
         # Answer the button at once (Telegram shows a spinner until then).
         verb = query.data.split(":", 1)[0]
-        await query.answer(BUTTON_ACK.get(verb))
+        await query.answer(button_ack(verb))
         user_id = update.effective_user.id if update.effective_user else None
         if verb == "pg":
             reply = await router.handle_callback(query.data, user_id=user_id)

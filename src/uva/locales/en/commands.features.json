@@ -1,0 +1,16 @@
+{
+  "not_configured": "Self-coding is not configured (it needs a repository, an LLM and the worker).",
+  "over_budget": "Not now: {reason}.",
+  "busy": "(feature {id} is still being built; see /features)",
+  "requested": "🛠️ Sure, I'll build that (feature {id}). I'll write the plugin, run every test and let you know when it's live. Follow along in /features.",
+  "feature": {
+    "description": "Asks me to code a new command for myself",
+    "usage_arg": "<description>",
+    "usage": "Usage: /feature <description>, e.g. /feature /dice rolls a 6-sided die"
+  },
+  "features": {
+    "description": "Features I've coded (or tried to)",
+    "none": "I haven't coded anything yet. Ask with /feature <description>.",
+    "header": "Features:"
+  }
+}

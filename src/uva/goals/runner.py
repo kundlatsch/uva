@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from uva.actions.registry import ActionContext, ActionResult, InvalidActionError
 from uva.clock import format_local, utcnow
 from uva.goals.store import MAX_RESULTS_KEPT, Goal, GoalKind, GoalResult, GoalStatus
+from uva.i18n import t
 from uva.llm.agent import execute_action
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
@@ -57,7 +58,7 @@ class GoalRun:
 
     @property
     def summary(self) -> str:
-        return " ".join(s for s in self.summaries if s).strip() or (self.error or "Sem progresso.")
+        return " ".join(s for s in self.summaries if s).strip() or (self.error or t("goals.runner.no_progress"))
 
 
 async def proactive_tick(
@@ -86,14 +87,16 @@ async def proactive_tick(
         spacing = timedelta(minutes=services.settings.proactive_interval_minutes)
         last = max((g.last_run_at for g in await services.goals.list() if g.last_run_at), default=None)
         if last is not None and now - last < spacing:
-            await _attempted(services, goal, now, "pulado: intervalo entre execuções")
+            await _attempted(services, goal, now, t("goals.runner.skipped_interval"))
             return "interval"
 
         if services.busy is not None:
             reasons = await services.busy.reasons()
             if reasons:
                 await _skipped(goal, "busy", busy=reasons)
-                await _attempted(services, goal, now, f"pulado: ocupado ({', '.join(reasons)})")
+                await _attempted(
+                    services, goal, now, t("goals.runner.skipped_busy", reasons=", ".join(reasons))
+                )
                 return "busy"
 
         if services.budget is not None:
@@ -103,7 +106,7 @@ async def proactive_tick(
                     EventType.BUDGET, scope=Scope.PROACTIVE.value, blocked=True, reason=budget.reason
                 )
                 await _skipped(goal, "budget")
-                await _attempted(services, goal, now, f"pulado: {budget.reason}")
+                await _attempted(services, goal, now, t("goals.runner.skipped_budget", reason=budget.reason))
                 return "budget"
 
         busy_key = f"goal:{goal.id}"
@@ -113,8 +116,7 @@ async def proactive_tick(
             run = await run_goal(services, goal)
             if run.needs_feature:
                 request = await _request_feature(services, goal, run.needs_feature)
-                run.feature_id, run.feature_note, run.feature_later = request
-                run.feature_ready = run.feature_note.endswith("(pronta)")
+                run.feature_id, run.feature_note, run.feature_later, run.feature_ready = request
             note = _write_note(services, run, now)
             await _reschedule(services, run, note, now)
         finally:
@@ -145,31 +147,30 @@ async def proactive_tick(
 
 
 def describe_run(run: GoalRun, status: str, note: str | None) -> str:
+    title = run.goal.title
     if run.feature_ready:
-        return f"🎯 Objetivo \"{run.goal.title}\" concluído ✅ ({run.feature_note})"
+        return t("goals.runner.report.ready", title=title, note=run.feature_note)
     if run.feature_id:
         lines = [
-            f"🎯 Objetivo \"{run.goal.title}\" precisava de um comando novo, então pedi:",
-            f"🛠️ feature {run.feature_id}: {run.needs_feature}",
-            "Te aviso quando ficar pronta (ou se der ruim). /features acompanha.",
+            t("goals.runner.report.requested", title=title, id=run.feature_id, feature=run.needs_feature)
         ]
         if note:
             lines.append(f"📝 {note}")
         return "\n".join(lines)
     if run.needs_feature:
         lines = [
-            f"🎯 Objetivo \"{run.goal.title}\" precisa de um comando novo, e isso eu não faço sozinha.",
-            f"Se quiser, manda: /feature {run.needs_feature}",
+            t("goals.runner.report.needs_feature", title=title, feature=run.needs_feature),
             f"({run.feature_note})" if run.feature_note else "",
-            f"Pausei o objetivo; /retomar {run.goal.id} reativa." if _pauses(run) else "",
+            t("goals.runner.report.paused", id=run.goal.id) if _pauses(run) else "",
         ]
         lines = [line for line in lines if line]
         if note:
             lines.append(f"📝 {note}")
         return "\n".join(lines)
-    label = {"done": "rodou", "concluido": "concluído ✅", "failed": "falhou ⚠️"}.get(status, status)
+    labels = ("done", "concluido", "failed")
+    label = t(f"goals.runner.report.status.{status}") if status in labels else status
     summary = run.summary if len(run.summary) <= 400 else run.summary[:399] + "…"
-    lines = [f"🎯 Objetivo \"{run.goal.title}\" {label}", summary]
+    lines = [t("goals.runner.report.head", title=title, label=label), summary]
     if note:
         lines.append(f"📝 {note}")
     return "\n".join(lines)
@@ -197,7 +198,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
     with metered() as meter:
         while run.steps < settings.proactive_max_steps:
             if meter.total >= settings.proactive_max_tokens_per_run:
-                run.error = "limite de tokens da execução atingido"
+                run.error = t("goals.runner.token_limit")
                 break
             run.steps += 1
             try:
@@ -215,7 +216,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
                     for c in plan.actions
                 ]
             except LLMError as exc:
-                run.ok, run.error = False, f"LLM indisponível: {exc}"
+                run.ok, run.error = False, t("goals.runner.llm_unavailable", error=exc)
                 break
             except (PlanError, InvalidActionError) as exc:
                 await emit(
@@ -225,7 +226,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
                     error=str(exc),
                     raw=response.text,
                 )
-                run.ok, run.error = False, f"resposta inválida da LLM: {exc}"
+                run.ok, run.error = False, t("goals.runner.invalid_reply", error=exc)
                 break
 
             run.summaries.append(plan.reply.strip())
@@ -233,7 +234,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
             if plan.needs_feature:
                 feature = plan.needs_feature.strip().removeprefix("/feature").strip()
                 run.needs_feature, run.done = feature, True
-                run.summaries.append(f"Precisa de um comando novo: /feature {feature}")
+                run.summaries.append(t("goals.runner.needs_feature_summary", feature=feature))
                 break
             results: list[ActionResult] = [await execute_action(a, p, ctx) for a, p in calls]
             run.outputs.extend(r.text for r in results if r.text)
@@ -268,9 +269,12 @@ async def complete_goal_for_feature(services: Services, goal_id: str, command: s
     goal = await services.goals.get(goal_id)
     if goal is None or goal.status is GoalStatus.CONCLUIDO:
         return None
-    label = f"/{command} pronto" if command else "feature pronta"
+    label = t("goals.runner.command_ready", command=command) if command else t("goals.runner.feature_ready")
     await services.goals.update(
-        goal_id, status=GoalStatus.CONCLUIDO, last_attempt=f"concluído: {label}", last_attempt_at=utcnow()
+        goal_id,
+        status=GoalStatus.CONCLUIDO,
+        last_attempt=t("goals.runner.attempt.done", note=label),
+        last_attempt_at=utcnow(),
     )
     await emit(EventType.GOAL_RUN, goal_id=goal_id, title=goal.title, status="concluido", reason=label)
     return goal
@@ -294,33 +298,34 @@ def _pauses(run: GoalRun) -> bool:
 
 async def _request_feature(
     services: Services, goal: Goal, description: str
-) -> tuple[str | None, str, bool]:
+) -> tuple[str | None, str, bool, bool]:
     """At most one self-code request per run, never twice for the same thing.
 
-    Returns (feature id, note, retry_later).
+    Returns (feature id, note, retry_later, already_merged).
     """
     settings = services.settings
     features = services.features
     if not settings.proactive_allow_selfcode:
-        return None, "auto-código por objetivos está desligado (PROACTIVE_ALLOW_SELFCODE)", False
+        return None, t("goals.runner.feature.disabled"), False, False
     if features is None or services.repo is None:
-        return None, "auto-código não está configurado", False
+        return None, t("goals.runner.feature.not_configured"), False, False
     wanted = normalize(description)
     for record in await features.store.recent(50):
         same = record.goal_id == goal.id or normalize(record.description) == wanted
         if same and record.status in (FeatureStatus.QUEUED, FeatureStatus.RUNNING, FeatureStatus.MERGED):
-            state = "pronta" if record.status is FeatureStatus.MERGED else "em construção"
-            return None, f"já existe a feature {record.id} para isso ({state})", True
+            merged = record.status is FeatureStatus.MERGED
+            state = t("goals.runner.feature.ready" if merged else "goals.runner.feature.building")
+            return None, t("goals.runner.feature.exists", id=record.id, state=state), True, merged
         if record.status in (FeatureStatus.QUEUED, FeatureStatus.RUNNING):
-            return None, f"outra feature ({record.id}) está em construção; tento de novo depois", True
+            return None, t("goals.runner.feature.other_building", id=record.id), True, False
     if services.budget is not None:
         status = await services.budget.check(Scope.SELFCODE)
         if not status.allowed:
-            return None, f"orçamento de auto-código: {status.reason}", True
+            return None, t("goals.runner.feature.budget", reason=status.reason), True, False
     record = await features.request(description, current_trace_id(), goal_id=goal.id)
     await emit(EventType.SELFCODE, op="requested", feature_id=record.id, goal_id=goal.id, description=description)
     await remember_ref(services, "feature", record.id, f"feature: {description[:60]}", "na fila")
-    return record.id, "", False
+    return record.id, "", False, False
 
 
 def _completes(run: GoalRun) -> bool:
@@ -334,16 +339,16 @@ def _write_note(services: Services, run: GoalRun, now: datetime) -> str | None:
         return None
     title = f"Objetivo - {run.goal.title}"
     when = format_local(now, services.tz, "%d/%m/%Y %H:%M")
-    body = [f"**Execução {run.goal.run_count + 1}** ({when}): {run.summary}"]
+    body = [t("goals.runner.note.run", n=run.goal.run_count + 1, when=when, summary=run.summary)]
     body += [f"\n{output}" for output in run.outputs]
     text = "\n".join(body)
     try:
         note = vault.append(title, text, now=now)
     except LookupError:
-        intro = run.goal.description or "Objetivo acompanhado pela UVA."
+        intro = run.goal.description or t("goals.runner.note.intro")
         note = vault.create_note(title, intro, folder="projetos", tags=["objetivo"], now=now)
         note = vault.append(note.path, text, now=now)
-    vault.append_daily(f"Objetivo trabalhado: {note.link}", now=now)
+    vault.append_daily(t("goals.runner.note.daily", link=note.link), now=now)
     return note.path
 
 
@@ -357,16 +362,16 @@ async def _reschedule(services: Services, run: GoalRun, note: str | None, now: d
         "run_count": goal.run_count + 1,
         "results": results[-MAX_RESULTS_KEPT:],
         "last_attempt_at": now,
-        "last_attempt": "ok" if run.ok else f"falhou: {run.error}",
+        "last_attempt": "ok" if run.ok else t("goals.runner.attempt.failed", error=run.error),
         "needs_feature": run.needs_feature,
     }
     if run.feature_ready:
         fields["status"] = GoalStatus.CONCLUIDO
-        fields["last_attempt"] = f"concluído: {run.feature_note}"
+        fields["last_attempt"] = t("goals.runner.attempt.done", note=run.feature_note)
     elif run.feature_id:
-        fields["last_attempt"] = f"pediu a feature {run.feature_id}"
+        fields["last_attempt"] = t("goals.runner.attempt.requested", id=run.feature_id)
     elif run.needs_feature:
-        fields["last_attempt"] = f"precisa de /feature {run.needs_feature}"
+        fields["last_attempt"] = t("goals.runner.attempt.needs_feature", feature=run.needs_feature)
         if _pauses(run):
             # Don't come back every day to say the same thing.
             fields["status"] = GoalStatus.PAUSADO

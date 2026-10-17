@@ -298,3 +298,36 @@ async def test_goal_feature_disabled_pauses_with_suggestion(services, goals, fea
     assert "Se quiser, manda: /feature /painel mostra memória e objetivos" in inbox.texts[0]
     assert goals.goals[g.id].status is GoalStatus.PAUSADO
     assert goals.goals[g.id].needs_feature == "/painel mostra memória e objetivos"
+
+
+async def test_goal_commands_in_english(services, goals):
+    from uva import i18n
+
+    i18n.set_language("en")
+    router = Router(services)
+    assert (await router.handle_text("/goals")).text.startswith("No goals yet.")
+    await goals.add(goal(title="Solar news", priority=4, min_interval_hours=168))
+    goal_id = next(iter(goals.goals))
+    listing = (await router.handle_text("/goals")).text
+    assert listing.startswith("Goals:")
+    assert "▶️ active · priority 4" in listing and "every 168h" in listing
+    assert "last attempt: never" in listing and "(overdue; runs as soon as possible)" in listing
+    assert (await router.handle_text(f"/pause {goal_id}")).text.endswith("⏸ paused.")
+    assert "(overdue" not in (await router.handle_text("/goals")).text  # paused goals have no next run
+    assert (await router.handle_text("/pause")).text == "Usage: /pause <id> (ids in /goals)"
+    assert "removed" in (await router.handle_text(f"/remove {goal_id}")).text
+
+
+def test_goal_reports_in_english():
+    from uva import i18n
+    from uva.goals.runner import GoalRun, describe_run
+
+    i18n.set_language("en")
+    run = GoalRun(Goal(id="g1", title="Read more"), summaries=["Found 3 books."])
+    assert describe_run(run, "done", "01-projetos/x.md") == (
+        '🎯 Goal "Read more" ran\nFound 3 books.\n📝 01-projetos/x.md'
+    )
+    stuck = GoalRun(Goal(id="g1", title="Read more"), needs_feature="list my books")
+    text = describe_run(stuck, "needs_feature", None)
+    assert "needs a new command" in text and "If you want it, send: /feature list my books" in text
+    assert "/resume g1" in text

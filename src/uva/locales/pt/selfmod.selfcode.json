@@ -1,0 +1,25 @@
+{
+  "goal_done": "🎯 Objetivo \"{title}\" concluído ✅",
+  "errors": {
+    "missing": "feature {id} não existe",
+    "not_configured": "preciso do repositório (git) e da LLM configurados",
+    "budget_ran_out": "orçamento de auto-código acabou no meio das tentativas",
+    "not_green": "não ficou verde em {attempts} tentativas. Último problema: {problem}",
+    "load_failed": "não carregou no bot: {error}",
+    "no_reload": "o bot não respondeu ao reload; o comando aparece quando ele reiniciar",
+    "llm": "a LLM falhou: {error}",
+    "branch": "o repositório está no branch {branch}, não na main",
+    "merge": "não consegui fazer o merge na main: {error}"
+  },
+  "report": {
+    "merged": [
+      "🛠️ Pronto! Criei /{command}: {summary}",
+      "Uso: {usage}",
+      "Testes: {tests} · tentativas: {attempts} · custo ≈ {cost}",
+      "Commit {commit} na main (/reverter desfaz)."
+    ],
+    "note": "Obs.: {error}",
+    "reverted": "😬 Construí /{command}, mas ele não carregou no bot e eu reverti. {error}",
+    "failed": "😵 Não consegui construir \"{description}\" ({attempts} tentativa(s), custo ≈ {cost}).\nMotivo: {error}"
+  }
+}

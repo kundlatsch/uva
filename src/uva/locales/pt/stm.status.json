@@ -1,0 +1,8 @@
+{
+  "cancelled": "cancelada",
+  "never_ran": "ainda não rodou",
+  "goal": "{status}; última execução: {last}",
+  "done": "{subject} terminou{tail}",
+  "failed": "{subject} falhou{why} (dá pra pedir de novo)",
+  "in_progress": "{subject} está {status}."
+}

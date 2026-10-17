@@ -26,6 +26,7 @@ from pydantic import BaseModel, SecretStr
 from uva.bootstrap import build_services, setup_storage
 from uva.clock import format_local, start_of_day, start_of_month, utcnow
 from uva.config import Settings, get_settings
+from uva.i18n import t
 from uva.llm.client import debug_calls
 from uva.logging import events
 from uva.logging.events import Event, EventQuery, EventType
@@ -64,11 +65,11 @@ def mask_settings(settings: Settings) -> list[dict[str, Any]]:
         value = getattr(settings, name)
         secret = isinstance(value, SecretStr) or bool(SECRET_NAME.search(name))
         if isinstance(value, SecretStr):
-            shown = "•••••• (definido)" if value.get_secret_value() else "(vazio)"
+            shown = t("dashboard.app.secret_set") if value.get_secret_value() else t("dashboard.app.empty")
         elif value is None:
-            shown = "(não definido)"
+            shown = t("dashboard.app.unset")
         elif secret:
-            shown = "•••••• (definido)" if str(value) else "(vazio)"
+            shown = t("dashboard.app.secret_set") if str(value) else t("dashboard.app.empty")
         else:
             shown = URI_PASSWORD.sub(r"\g<scheme>\g<user>:••••••@", str(value))
         rows.append({"name": name.upper(), "value": shown, "secret": secret})
@@ -165,7 +166,7 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
 
     def current():
         if "services" not in state:
-            raise HTTPException(503, "iniciando")
+            raise HTTPException(503, t("dashboard.app.starting"))
         return state["services"]
 
     @app.get("/")
@@ -194,11 +195,13 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
             by_type[e.type.value] = by_type.get(e.type.value, 0) + 1
         counts: dict[str, Any] = {}
         try:
-            counts["memórias"] = len(await s.memory.store.all()) if s.memory else None
-            counts["objetivos ativos"] = len(await s.goals.list(_ativo())) if s.goals else None
-            counts["notas no brain"] = sum(1 for _ in s.vault.iter_notes()) if s.vault else None
-            counts["figurinhas"] = len(await s.stickers.all()) if s.stickers else None
-            counts["projetos"] = len(await s.projects.store.recent(500)) if s.projects else None
+            counts[t("dashboard.app.counts.memories")] = len(await s.memory.store.all()) if s.memory else None
+            counts[t("dashboard.app.counts.goals")] = len(await s.goals.list(_ativo())) if s.goals else None
+            counts[t("dashboard.app.counts.notes")] = sum(1 for _ in s.vault.iter_notes()) if s.vault else None
+            counts[t("dashboard.app.counts.stickers")] = len(await s.stickers.all()) if s.stickers else None
+            counts[t("dashboard.app.counts.projects")] = (
+                len(await s.projects.store.recent(500)) if s.projects else None
+            )
         except Exception:
             pass
         errors = [event_json(e, s.tz) for e in recent if e.type is EventType.ERROR][-10:]
@@ -266,10 +269,10 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
     async def liberar(body: dict) -> dict[str, Any]:
         s = current()
         if s.budget is None:
-            raise HTTPException(400, "sem orçamento configurado")
+            raise HTTPException(400, t("dashboard.app.no_budget"))
         amount = float(body.get("amount") or 0)
         if not 0 < amount <= 50:
-            raise HTTPException(400, "valor entre 0 e 50")
+            raise HTTPException(400, t("dashboard.app.amount_range"))
         total = await s.budget.grant_extra(amount)
         return {"extra_today": total}
 
@@ -354,7 +357,7 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
     async def chat(body: ChatIn) -> StreamingResponse:
         text = body.text.strip()
         if not text:
-            raise HTTPException(400, "mensagem vazia")
+            raise HTTPException(400, t("dashboard.app.empty_message"))
         router: Router = state["router"]
         user = settings.allowed_telegram_user_id
         return await _stream(

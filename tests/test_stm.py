@@ -275,3 +275,36 @@ async def test_notices_keep_more_text(stm):
     await stm.add_turn("user", "y" * 1500)
     turns = (await stm.session()).turns
     assert len(turns[0].text) == 1500 and len(turns[1].text) == 500
+
+
+@pytest.mark.parametrize(
+    ("text", "kind"),
+    [
+        ("how is that research going?", "pesquisa"),
+        ("how's the task?", "tarefa"),
+        ("did it work?", None),
+        ("is it done?", None),
+        ("what about that?", None),
+    ],
+)
+def test_status_questions_in_english(text, kind):
+    question = status_question(text)
+    assert question is not None and question.kind == kind
+
+
+async def test_status_reply_and_context_in_english(services, stm):
+    from uva import i18n
+    from uva.stm.service import describe_ref
+
+    i18n.set_language("en")
+    record = await services.tasks.enqueue("search", {"query": "Formula 1"}, None)
+    await stm.add_ref("pesquisa", record.id, "research: Formula 1", "na fila")
+    with_llm(services)
+
+    reply = (await Router(services).handle_text("how is that research going?")).text
+
+    assert reply.endswith(f"research: Formula 1 (t1, id {record.id}) is queued.")
+    session = await stm.session()
+    line = describe_ref(session.refs[-1], services.tz, focus=True)
+    assert "[research]" in line and "⏳ queued" in line and line.endswith("← in focus")
+    assert session.refs[-1].status == "na fila"  # stored value unchanged

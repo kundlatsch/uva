@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fakes import InMemoryMemoryStore, make_settings, with_llm
 
+from uva import i18n
 from uva.memory import MemoryCategory, MemoryItem, MemoryService, normalize_key, score
 from uva.router import Router
 
@@ -95,6 +96,17 @@ async def test_memory_commands(services, memory):
     assert "Florianópolis" in (await router.handle_text("/memoria cidade")).text
     assert "Esqueci" in (await router.handle_text("/esquecer cidade")).text
     assert "Não achei" in (await router.handle_text("/esquecer cidade")).text
+
+
+async def test_memory_commands_in_english(services, memory):
+    i18n.set_language("en")
+    services.memory = memory
+    router = Router(services)
+    assert (await router.handle_text("/remember city")).text.startswith("Usage: /remember")
+    assert "I'll remember: city = Florianópolis" in (await router.handle_text("/remember city Florianópolis")).text
+    assert "(★ = working memory)" in (await router.handle_text("/memory")).text
+    assert "Forgot 'city'" in (await router.handle_text("/forget city")).text
+    assert "couldn't find 'city'" in (await router.handle_text("/forget city")).text
 
 
 async def test_llm_saves_memory_and_sees_it_next_time(services, memory):

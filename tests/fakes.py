@@ -25,6 +25,8 @@ def make_settings(**overrides: Any) -> Settings:
     values: dict[str, Any] = {
         "telegram_bot_token": "123:abc",
         "allowed_telegram_user_id": 1001,
+        # Most assertions check the Portuguese texts (see conftest.py).
+        "bot_language": "pt",
         # No quiet hours by default, so tests don't depend on the clock.
         "proactive_quiet_start_hour": 0,
         "proactive_quiet_end_hour": 0,

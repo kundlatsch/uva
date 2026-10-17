@@ -1,4 +1,4 @@
-"""System prompts (in Portuguese, since the user talks to the bot in Portuguese)."""
+"""System prompts. They are in English; the LLM writes to the user in BOT_LANGUAGE."""
 
 from __future__ import annotations
 
@@ -10,16 +10,19 @@ from typing import Any
 from uva.actions.registry import Action
 from uva.clock import format_local, utcnow
 from uva.commands.registry import CommandRegistry
+from uva.i18n import language_name
 
 WEEKDAYS = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")
 
 # Everything internal is in English (cheaper, and technical work stays in its
-# own language); only what the user reads is in Portuguese.
-LANGUAGE_RULE = (
-    "Work in English internally. Write to the user in Brazilian Portuguese, direct and "
-    "friendly, keeping technical terms (commands, code, file names, tools) in English. "
-    "Never translate documents, READMEs, code or commits."
-)
+# own language); only what the user reads is in the bot language (BOT_LANGUAGE).
+def language_rule() -> str:
+    return (
+        f"Work in English internally. Write to the user in {language_name()}, direct and "
+        "friendly, keeping technical terms (commands, code, file names, tools) in English. "
+        "Never translate documents, READMEs, code or commits. The user may write in English "
+        "or Portuguese; answer in the language above either way."
+    )
 
 PLAN_FORMAT = '{"actions": [{"type": "<nome da ação>", "params": {...}}], "reply": "<texto>"}'
 
@@ -78,7 +81,7 @@ def assistant_system_prompt(
             f"expenses):\n{recalled}\n"
         )
     return f"""You are UVA, the personal assistant of a single user, talking over Telegram.
-{LANGUAGE_RULE}
+{language_rule()}
 
 ALWAYS answer with ONLY a JSON object in this format:
 {PLAN_FORMAT}
@@ -187,7 +190,7 @@ Available actions (only these):
 
 Rules:
 - Move the goal forward with few useful actions; don't repeat searches already done.
-- "reply" is this round's progress summary, in Brazilian Portuguese (technical terms in
+- "reply" is this round's progress summary, in {language_name()} (technical terms in
   English), short: it is what the user reads.
 - Set "done": true when there is nothing more useful to do now.
 - You don't write code. If the goal needs a new bot command or feature, fill "needs_feature"
@@ -202,7 +205,7 @@ Now: {now}."""
 def summary_system_prompt() -> str:
     return (
         "You summarize search results for a personal assistant. Write a clear, objective "
-        "summary (up to ~200 words) in Brazilian Portuguese, keeping technical terms in "
+        f"summary (up to ~200 words) in {language_name()}, keeping technical terms in "
         "English, using only the information in the results. Don't list the sources in the "
         "text; they are attached separately. If the results don't answer the question, say so."
     )

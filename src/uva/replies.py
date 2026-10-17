@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from uva.i18n import t
+
 # Telegram rejects messages longer than this.
 TELEGRAM_TEXT_LIMIT = 4096
 # One page of a paginated reply (room left for the "página X/Y" footer).
@@ -61,7 +63,7 @@ class Reply:
         if self.document is not None or len(self.text) <= TELEGRAM_TEXT_LIMIT:
             return self
         return Reply(
-            text="A resposta ficou longa, segue em arquivo.",
+            text=t("replies.too_long"),
             buttons=self.buttons,
             document=self.text.encode("utf-8"),
             filename=self.filename,

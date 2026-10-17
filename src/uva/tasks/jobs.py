@@ -11,6 +11,7 @@ import random
 from uva.actions.registry import RetryableActionError
 from uva import initiatives
 from uva.goals import runner as goals_runner
+from uva.i18n import t
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
 from uva.phrases import Phrases
@@ -35,7 +36,8 @@ def _notify_failure(what: str, exc: BaseException, task_id: str | None = None) -
     """Best effort: a broken Telegram must not hide the original error."""
     phrase = Phrases(settings.phrases_file).pick("tarefa_falhou", **({"id": task_id} if task_id else {}))
     try:
-        runtime.run(lambda: runtime.notify(Reply(f"⚠️ {phrase}\n({what} falhou: {exc})")))
+        text = t("tasks.jobs.failed", phrase=phrase, what=what, error=exc)
+        runtime.run(lambda: runtime.notify(Reply(text)))
     except Exception as notify_exc:
         log.warning("notify_failed", error=str(notify_exc))
 
@@ -61,7 +63,7 @@ def run_action(self, task_id: str, action: str, params: dict, trace_id: str | No
     except RetryableActionError as exc:
         raise self.retry(exc=exc, countdown=backoff_seconds(self.request.retries)) from exc
     except Exception as exc:
-        _notify_failure(f"A tarefa {task_id} ({action})", exc, task_id)
+        _notify_failure(t("tasks.jobs.what.task", id=task_id, action=action), exc, task_id)
         raise
 
 
@@ -77,7 +79,7 @@ def memory_maintenance() -> dict:
     try:
         return runtime.run(job)
     except Exception as exc:
-        _notify_failure("A limpeza diária da memória", exc)
+        _notify_failure(t("tasks.jobs.what.memory"), exc)
         raise
 
 
@@ -91,7 +93,7 @@ def proactive_tick() -> str:
         return runtime.run(job)
     except Exception as exc:
         if settings.proactive_notify:
-            _notify_failure("O loop proativo", exc)
+            _notify_failure(t("tasks.jobs.what.proactive"), exc)
         raise
 
 
@@ -112,7 +114,7 @@ def selfcode(feature_id: str) -> str:
     try:
         return runtime.run(job)
     except Exception as exc:
-        _notify_failure(f"O auto-código da feature {feature_id}", exc)
+        _notify_failure(t("tasks.jobs.what.selfcode", id=feature_id), exc)
         raise
 
 
@@ -129,7 +131,7 @@ def project_build(project_id: str) -> str:
     try:
         return runtime.run(job)
     except Exception as exc:
-        _notify_failure(f"O projeto {project_id}", exc)
+        _notify_failure(t("tasks.jobs.what.project", id=project_id), exc)
         raise
 
 
@@ -143,7 +145,7 @@ def routines_tick() -> list[str]:
     try:
         return runtime.run(job)
     except Exception as exc:
-        _notify_failure("As rotinas", exc)
+        _notify_failure(t("tasks.jobs.what.routines"), exc)
         raise
 
 

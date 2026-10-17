@@ -16,6 +16,7 @@ from dataclasses import dataclass
 import openai
 
 from uva.config import Settings
+from uva.i18n import t
 from uva.llm.budget import Scope, UsageRecord, UsageStore
 from uva.llm.openai_keys import OPENAI_BASE_URL, resolve_openai_key
 from uva.logging import get_logger
@@ -59,14 +60,15 @@ async def to_mp3(data: bytes, timeout: float = 120) -> bytes:
             stderr=asyncio.subprocess.PIPE,
         )
     except FileNotFoundError as exc:
-        raise TranscriptionError("ffmpeg não está instalado") from exc
+        raise TranscriptionError(t("audio.ffmpeg_missing")) from exc
     try:
         out, err = await asyncio.wait_for(process.communicate(data), timeout)
     except TimeoutError as exc:
         process.kill()
-        raise TranscriptionError("a conversão do áudio demorou demais") from exc
+        raise TranscriptionError(t("audio.conversion_timeout")) from exc
     if process.returncode != 0 or not out:
-        raise TranscriptionError(f"não consegui converter o áudio: {err.decode(errors='replace')[-300:]}")
+        error = err.decode(errors="replace")[-300:]
+        raise TranscriptionError(t("audio.conversion_failed", error=error))
     return out
 
 

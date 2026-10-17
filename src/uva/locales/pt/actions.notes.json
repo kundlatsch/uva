@@ -1,0 +1,15 @@
+{
+  "no_vault": "O second brain não está configurado.",
+  "create_failed": "Não criei a nota: {error}",
+  "created": "📝 Nota salva: {path}",
+  "folder_failed": "Não criei a pasta: {error}",
+  "folder_exists": "📁 A pasta {folder} já existia (não mexi em nada).",
+  "folder_created": "📁 Pasta criada: {folder} (com a nota vazia {placeholder})",
+  "not_found": "Não achei a nota '{note}'.",
+  "not_changed": "Não alterei a nota: {error}",
+  "appended": "📝 Texto acrescentado em {path}",
+  "updated": "✏️ Nota atualizada: {path} (versão anterior em {backup})",
+  "no_hits": "{phrase}\n(nenhuma nota com '{term}')",
+  "hits": "Notas com '{term}':",
+  "recall_none": "Nada encontrado para '{query}'."
+}

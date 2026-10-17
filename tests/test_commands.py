@@ -99,3 +99,24 @@ async def test_catalog_lists_commands_and_actions(router):
     assert "- search [proativa, tarefa]" in text
     assert "params: query: string, title_pt: string, source: string?" in text
     assert "- run_command:" in text
+
+
+async def test_help_and_catalog_in_english():
+    from fakes import make_services
+
+    from uva import i18n
+
+    i18n.set_language("en")
+    router = Router(make_services())  # descriptions are read when commands register
+    help_text = await text_of(router, "/help")
+    assert help_text.startswith("Available commands:")
+    assert "/ping - Checks whether the bot is alive" in help_text
+    assert "(also: ajuda)" in help_text
+    assert (await text_of(router, "/start")).startswith("Hi! I'm UVA")
+
+    reply = await router.handle_text("/commands")
+    text = reply.document.decode() if reply.document else reply.text
+    assert text.startswith("# Commands")
+    assert "aliases: ajuda" in text and "# LLM actions" in text
+    assert "- search [proactive, task]" in text
+    assert reply.filename in (None, "commands.md")

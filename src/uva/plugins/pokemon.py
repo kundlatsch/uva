@@ -15,14 +15,25 @@ POKEAPI_BASE = "https://pokeapi.co/api/v2"
 MAX_VARIETIES_SHOWN = 10
 
 STAT_NAMES = {
-    "hp": "HP",
-    "attack": "Ataque",
-    "defense": "Defesa",
-    "special-attack": "Atq. esp.",
-    "special-defense": "Def. esp.",
-    "speed": "Velocidade",
+    "en": {
+        "hp": "HP",
+        "attack": "Attack",
+        "defense": "Defense",
+        "special-attack": "Sp. Atk",
+        "special-defense": "Sp. Def",
+        "speed": "Speed",
+    },
+    "pt": {
+        "hp": "HP",
+        "attack": "Ataque",
+        "defense": "Defesa",
+        "special-attack": "Atq. esp.",
+        "special-defense": "Def. esp.",
+        "speed": "Velocidade",
+    },
 }
 
+# Portuguese type names; in English the PokeAPI names are used as they are.
 TYPE_NAMES = {
     "normal": "normal",
     "fire": "fogo",
@@ -44,7 +55,58 @@ TYPE_NAMES = {
     "fairy": "fada",
 }
 
-USAGE = "Uso: /pokemon <nome|id> [forma]. Ex.: /pokemon pikachu, /pokemon 150, /pokemon ninetales alola."
+TEXTS = {
+    "en": {
+        "usage": "Usage: /pokemon <name|id> [form]. E.g.: /pokemon pikachu, /pokemon 150, /pokemon ninetales alola.",
+        "unavailable": "not available",
+        "hidden": "hidden",
+        "no_varieties": "Forms/varieties: no varieties listed.",
+        "varieties": "Forms/varieties: {labels}.",
+        "and_more": "{labels} and {remaining} more",
+        "unknown": "unknown",
+        "not_informed": "not provided",
+        "types": "Types",
+        "abilities": "Abilities",
+        "stats": "Base stats",
+        "size": "Height/weight",
+        "sprite": "Sprite",
+        "http_error": "Couldn't reach the PokeAPI right now. Try again in a moment.",
+        "api_error": "The PokeAPI answered with an error. Try again in a moment.",
+        "not_found": (
+            "Couldn't find that Pokémon or form: {target}.\n"
+            "Tip: for regional forms, try something like /pokemon ninetales alola, "
+            "/pokemon meowth galar or /pokemon mewtwo mega x."
+        ),
+    },
+    "pt": {
+        "usage": "Uso: /pokemon <nome|id> [forma]. Ex.: /pokemon pikachu, /pokemon 150, /pokemon ninetales alola.",
+        "unavailable": "não disponível",
+        "hidden": "oculta",
+        "no_varieties": "Formas/variações: nenhuma variação listada.",
+        "varieties": "Formas/variações: {labels}.",
+        "and_more": "{labels} e mais {remaining}",
+        "unknown": "desconhecido",
+        "not_informed": "não informado",
+        "types": "Tipos",
+        "abilities": "Habilidades",
+        "stats": "Stats base",
+        "size": "Altura/peso",
+        "sprite": "Sprite",
+        "http_error": "Não consegui consultar a PokeAPI agora. Tente novamente em instantes.",
+        "api_error": "A PokeAPI respondeu com erro. Tente novamente em instantes.",
+        "not_found": (
+            "Não encontrei esse Pokémon ou forma: {target}.\n"
+            "Dica: para formas regionais, tente algo como /pokemon ninetales alola, "
+            "/pokemon meowth galar ou /pokemon mewtwo mega x."
+        ),
+    },
+}
+
+USAGE = TEXTS["pt"]["usage"]
+
+
+def texts_for(lang: str) -> dict[str, str]:
+    return TEXTS.get(lang, TEXTS["en"])
 
 
 class PokemonApiError(Exception):
@@ -96,33 +158,41 @@ def display_name(name: str) -> str:
     return " ".join(words)
 
 
-def type_name(name: str) -> str:
-    return TYPE_NAMES.get(name, name)
+def type_name(name: str, lang: str = "pt") -> str:
+    if lang == "pt":
+        return TYPE_NAMES.get(name, name)
+    return name
 
 
-def stat_name(name: str) -> str:
-    return STAT_NAMES.get(name, name.replace("-", " "))
+def stat_name(name: str, lang: str = "pt") -> str:
+    names = STAT_NAMES.get(lang, STAT_NAMES["en"])
+    return names.get(name, name.replace("-", " "))
 
 
-def extract_sprite(data: dict[str, Any]) -> str:
+def extract_sprite(data: dict[str, Any], lang: str = "pt") -> str:
     sprites = data.get("sprites") or {}
     other = sprites.get("other") or {}
     artwork = other.get("official-artwork") or {}
-    return artwork.get("front_default") or sprites.get("front_default") or "não disponível"
+    return (
+        artwork.get("front_default")
+        or sprites.get("front_default")
+        or texts_for(lang)["unavailable"]
+    )
 
 
-def extract_types(data: dict[str, Any]) -> list[str]:
+def extract_types(data: dict[str, Any], lang: str = "pt") -> list[str]:
     entries = sorted(data.get("types") or [], key=lambda item: item.get("slot", 0))
     names = []
     for entry in entries:
         type_data = entry.get("type") or {}
         name = type_data.get("name")
         if name:
-            names.append(type_name(name))
+            names.append(type_name(name, lang))
     return names
 
 
-def extract_abilities(data: dict[str, Any]) -> list[str]:
+def extract_abilities(data: dict[str, Any], lang: str = "pt") -> list[str]:
+    hidden = texts_for(lang)["hidden"]
     entries = sorted(data.get("abilities") or [], key=lambda item: item.get("slot", 0))
     names = []
     for entry in entries:
@@ -131,23 +201,24 @@ def extract_abilities(data: dict[str, Any]) -> list[str]:
         if name:
             label = display_name(name)
             if entry.get("is_hidden"):
-                label = f"{label} (oculta)"
+                label = f"{label} ({hidden})"
             names.append(label)
     return names
 
 
-def extract_stats(data: dict[str, Any]) -> list[str]:
+def extract_stats(data: dict[str, Any], lang: str = "pt") -> list[str]:
     stats = []
     for entry in data.get("stats") or []:
         stat = entry.get("stat") or {}
         name = stat.get("name")
         value = entry.get("base_stat")
         if name and value is not None:
-            stats.append(f"{stat_name(name)} {value}")
+            stats.append(f"{stat_name(name, lang)} {value}")
     return stats
 
 
-def format_varieties(varieties: list[str], current_name: str) -> str:
+def format_varieties(varieties: list[str], current_name: str, lang: str = "pt") -> str:
+    texts = texts_for(lang)
     unique = []
     for name in varieties:
         if name not in unique:
@@ -155,38 +226,40 @@ def format_varieties(varieties: list[str], current_name: str) -> str:
 
     alternatives = [name for name in unique if name != current_name]
     if not alternatives:
-        return "Formas/variações: nenhuma variação listada."
+        return texts["no_varieties"]
 
     shown = alternatives[:MAX_VARIETIES_SHOWN]
     labels = ", ".join(display_name(name) for name in shown)
     remaining = len(alternatives) - len(shown)
     if remaining > 0:
-        labels = f"{labels} e mais {remaining}"
-    return f"Formas/variações: {labels}."
+        labels = texts["and_more"].format(labels=labels, remaining=remaining)
+    return texts["varieties"].format(labels=labels)
 
 
-def format_pokemon(data: dict[str, Any], varieties: list[str]) -> str:
-    name = data.get("name") or "desconhecido"
+def format_pokemon(data: dict[str, Any], varieties: list[str], lang: str = "pt") -> str:
+    texts = texts_for(lang)
+    name = data.get("name") or texts["unknown"]
     dex_id = data.get("id") or "?"
     height = data.get("height")
     weight = data.get("weight")
 
-    types = extract_types(data)
-    abilities = extract_abilities(data)
-    stats = extract_stats(data)
-    sprite = extract_sprite(data)
+    types = extract_types(data, lang)
+    abilities = extract_abilities(data, lang)
+    stats = extract_stats(data, lang)
+    sprite = extract_sprite(data, lang)
 
     height_text = f"{height / 10:g} m" if isinstance(height, int) else "?"
     weight_text = f"{weight / 10:g} kg" if isinstance(weight, int) else "?"
+    missing = texts["not_informed"]
 
     lines = [
         f"#{dex_id} — {display_name(name)}",
-        f"Tipos: {', '.join(types) if types else 'não informado'}",
-        f"Habilidades: {', '.join(abilities) if abilities else 'não informado'}",
-        f"Stats base: {', '.join(stats) if stats else 'não informado'}",
-        f"Altura/peso: {height_text} / {weight_text}",
-        f"Sprite: {sprite}",
-        format_varieties(varieties, name),
+        f"{texts['types']}: {', '.join(types) if types else missing}",
+        f"{texts['abilities']}: {', '.join(abilities) if abilities else missing}",
+        f"{texts['stats']}: {', '.join(stats) if stats else missing}",
+        f"{texts['size']}: {height_text} / {weight_text}",
+        f"{texts['sprite']}: {sprite}",
+        format_varieties(varieties, name, lang),
     ]
     return "\n".join(lines)
 
@@ -221,28 +294,28 @@ async def fetch_pokemon(target: str) -> tuple[dict[str, Any] | None, list[str]]:
 
 @command(
     "pokemon",
-    "Busca dados de um Pokémon na PokeAPI, incluindo formas e variações",
+    {
+        "en": "Looks up a Pokémon on the PokeAPI, including forms and varieties",
+        "pt": "Busca dados de um Pokémon na PokeAPI, incluindo formas e variações",
+    },
     aliases=("poke", "pokedex"),
     usage="<nome|id> [forma]",
     examples=("/pokemon pikachu", "/pokemon mewtwo", "/pokemon ninetales alola", "/pokemon 25"),
 )
 async def pokemon(ctx: PluginContext) -> str:
+    texts = texts_for(ctx.lang)
     target = build_target(ctx.args)
     if target is None or target == "":
-        return USAGE
+        return texts["usage"]
 
     try:
         data, varieties = await fetch_pokemon(target)
     except httpx.HTTPError:
-        return "Não consegui consultar a PokeAPI agora. Tente novamente em instantes."
+        return texts["http_error"]
     except PokemonApiError:
-        return "A PokeAPI respondeu com erro. Tente novamente em instantes."
+        return texts["api_error"]
 
     if data is None:
-        return (
-            f"Não encontrei esse Pokémon ou forma: {target}.\n"
-            "Dica: para formas regionais, tente algo como /pokemon ninetales alola, "
-            "/pokemon meowth galar ou /pokemon mewtwo mega x."
-        )
+        return texts["not_found"].format(target=target)
 
-    return format_pokemon(data, varieties)
+    return format_pokemon(data, varieties, ctx.lang)

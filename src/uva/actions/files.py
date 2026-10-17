@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.i18n import t
 from uva.logging.events import EventType, emit
 from uva.selfmod.files import FileAccessError
 
@@ -31,7 +32,8 @@ class FileAppendParams(BaseModel):
     reason: str = Field(default="", description="Por que a mudança")
 
 
-NOT_CONFIGURED = ActionResult(text="Edição de arquivos não está configurada.")
+def not_configured() -> ActionResult:
+    return ActionResult(text=t("actions.files.not_configured"))
 
 
 def register(registry: ActionRegistry) -> None:
@@ -43,11 +45,11 @@ def register(registry: ActionRegistry) -> None:
     async def file_read(params: FileReadParams, ctx: ActionContext) -> ActionResult:
         files = ctx.services.files
         if files is None:
-            return NOT_CONFIGURED
+            return not_configured()
         try:
             text = files.read(params.path)
         except (FileAccessError, FileNotFoundError) as exc:
-            return ActionResult(text=f"Não consegui ler {params.path}: {exc}", data={"ok": False})
+            return ActionResult(text=t("actions.files.read_failed", path=params.path, error=exc), data={"ok": False})
         shown = text if len(text) <= READ_LIMIT else text[:READ_LIMIT] + "…"
         return ActionResult(text=f"{params.path}:\n\n{shown}", data={"ok": True, "chars": len(text)})
 
@@ -71,15 +73,15 @@ def register(registry: ActionRegistry) -> None:
 async def _change(ctx: ActionContext, op: str, path: str, content: str, reason: str) -> ActionResult:
     files = ctx.services.files
     if files is None:
-        return NOT_CONFIGURED
+        return not_configured()
     try:
         change = await (files.write if op == "write" else files.append)(path, content, reason)
     except (FileAccessError, OSError) as exc:
         await emit(EventType.SELF_EDIT, op=op, path=path, ok=False, error=str(exc))
-        return ActionResult(text=f"Não mexi em {path}: {exc}", data={"ok": False})
+        return ActionResult(text=t("actions.files.change_failed", path=path, error=exc), data={"ok": False})
     await emit(EventType.SELF_EDIT, op=op, path=change.target.display, ok=True, commit=change.commit)
-    commit = f" (commit {change.commit[:7]}; /reverter desfaz)" if change.commit else ""
+    commit = t("actions.files.commit", commit=change.commit[:7]) if change.commit else ""
     return ActionResult(
-        text=f"✏️ {change.target.display} atualizado{commit}.",
+        text=t("actions.files.updated", path=change.target.display, commit=commit),
         data={"ok": True, "commit": change.commit},
     )

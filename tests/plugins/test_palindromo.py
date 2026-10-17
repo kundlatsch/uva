@@ -40,3 +40,12 @@ def test_rejects_text_without_letters_or_numbers():
 
 def test_normalize_text_helper():
     assert normalize_text("Áé Í! 123") == "aei123"
+
+
+def test_english_replies():
+    assert run(check_palindrome, "racecar", lang="en") == "✅ It's a palindrome: “racecar”."
+    assert run(check_palindrome, "banana", lang="en") == "❌ Not a palindrome: “banana”."
+    reply = run(check_palindrome, "--normalized", "Never", "odd", "or", "even", lang="en")
+    assert reply.endswith("Normalized: neveroddoreven")
+    assert run(check_palindrome, lang="en").startswith("Usage: /palindrome")
+    assert run(check_palindrome, "!!!", lang="en").startswith("Use at least")

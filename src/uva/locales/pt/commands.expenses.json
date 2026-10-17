@@ -1,0 +1,25 @@
+{
+  "no_db": "O banco SQLite não está configurado.",
+  "period": {
+    "hoje": "hoje",
+    "semana": "nesta semana",
+    "mes": "neste mês",
+    "ano": "neste ano",
+    "tudo": "desde sempre"
+  },
+  "gasto": {
+    "description": "Registra um gasto",
+    "usage_arg": "<valor> <categoria> [descrição]",
+    "usage": "Uso: /gasto <valor> <categoria> [descrição] (ex.: /gasto 25,90 mercado pão e leite)",
+    "bad_amount": "Não entendi o valor '{value}'. Use algo como 25 ou 25,90.",
+    "saved": "💸 {amount} em {category} registrado (#{id})."
+  },
+  "gastos": {
+    "description": "Soma dos gastos por categoria",
+    "usage_arg": "[hoje|semana|mes|ano|tudo]",
+    "usage": "Uso: /gastos [hoje|semana|mes|ano|tudo] (ou today|week|month|year|all)",
+    "none": "Nenhum gasto {period}.",
+    "total": "Gastos {period}: {total}",
+    "recent": "\nÚltimos:"
+  }
+}

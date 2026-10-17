@@ -1,0 +1,12 @@
+{
+  "no_queue": "a fila de tarefas não está configurada",
+  "status": {
+    "queued": "⏳ na fila",
+    "running": "🔨 construindo",
+    "merged": "✅ pronta",
+    "failed": "❌ falhou",
+    "reverted": "↩️ revertida"
+  },
+  "attempts": "{n} tentativa(s)",
+  "reason": "   motivo: {error}"
+}

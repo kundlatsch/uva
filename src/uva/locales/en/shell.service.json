@@ -1,0 +1,22 @@
+{
+  "unavailable": "the shell container didn't answer ({error})",
+  "overwrites": "overwrites {path}",
+  "disabled": "/uva is off (SHELL_ENABLED=false).",
+  "confirm": "⚠️ This may delete or overwrite files in /uva ({reasons}):\n{prompt} {code}\n\nRun it anyway? (I take a snapshot first; /sh undo brings it back)",
+  "yes": "Yes, run it",
+  "no": "No",
+  "expired": "That request expired; send the command again.",
+  "denied": "Ok, I didn't run anything.",
+  "undo_empty": "nothing to undo",
+  "nothing_to_undo": "Nothing to undo ({error}).",
+  "restored": "↩️ /uva is back to before: {label}",
+  "undone": "Undone:",
+  "no_history": "No commands yet.",
+  "history": "Snapshots of /uva (newest first):",
+  "usage": "Usage:\n/sh <command> — runs a Linux command in /uva\n/py <code> — runs Python in /uva\n/sh undo — puts /uva back to before the last command\n/sh history — snapshots",
+  "no_output": "(no output)",
+  "truncated": "… (output cut)",
+  "timed_out": "⏱️ stopped after {seconds}s (SHELL_TIMEOUT_SECONDS)",
+  "exit_code": "❌ exited with code {code}",
+  "changed_files": " · changed files (snapshot {snapshot}; /sh undo)"
+}

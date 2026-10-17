@@ -1,0 +1,25 @@
+{
+  "no_db": "The SQLite database is not configured.",
+  "period": {
+    "hoje": "today",
+    "semana": "this week",
+    "mes": "this month",
+    "ano": "this year",
+    "tudo": "so far"
+  },
+  "gasto": {
+    "description": "Records an expense",
+    "usage_arg": "<amount> <category> [description]",
+    "usage": "Usage: /expense <amount> <category> [description] (e.g. /expense 25,90 groceries bread and milk)",
+    "bad_amount": "I didn't get the amount '{value}'. Use something like 25 or 25,90.",
+    "saved": "💸 {amount} on {category} recorded (#{id})."
+  },
+  "gastos": {
+    "description": "Expenses summed by category",
+    "usage_arg": "[today|week|month|year|all]",
+    "usage": "Usage: /expenses [today|week|month|year|all] (or hoje|semana|mes|ano|tudo)",
+    "none": "No expenses {period}.",
+    "total": "Expenses {period}: {total}",
+    "recent": "\nLatest:"
+  }
+}

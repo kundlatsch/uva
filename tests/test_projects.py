@@ -212,3 +212,23 @@ def test_git_cannot_fetch_code():
     allowed = runner.ALLOWED_TOOLS
     assert "Bash(git commit *)" in allowed
     assert not any(t.startswith(("Bash(git clone", "Bash(git fetch", "Bash(git pull", "Bash(git submodule", "Bash(git remote", "Bash(git *")) for t in allowed)
+
+
+def test_project_announcements_in_english():
+    from uva import i18n
+    from uva.projects.runner import announce
+    from uva.projects.store import ProjectRecord
+
+    i18n.set_language("en")
+    done = ProjectRecord(
+        id="p1", description="x", slug="site", status=ProjectStatus.DONE, summary="Built it.",
+        turns=3, cost_usd=0.5, commits=2,
+    )
+    assert announce(done, "/projects/site", 4) == (
+        "🚀 Project site ready (p1)\n📁 /projects/site\n4 min · 3 turns · US$ 0.50 · 2 commit(s)\n\nBuilt it."
+    )
+    cancelled = done.model_copy(update={"status": ProjectStatus.CANCELLED})
+    assert announce(cancelled, "/projects/site", 1).startswith("🚫 Project site cancelled (p1).")
+    assert "Final answer: at most 8 short lines in English" in runner.PROMPT.format(
+        description="x", language=i18n.language_name()
+    )

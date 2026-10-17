@@ -1,0 +1,13 @@
+{
+  "commands_header": "# Comandos",
+  "aliases": "  apelidos: {aliases}",
+  "examples": "  exemplos: {examples}",
+  "actions_header": "# Ações da LLM",
+  "flag_proactive": "proativa",
+  "flag_task": "tarefa",
+  "no_params": "(nenhum)",
+  "comandos": {
+    "description": "Lista todos os comandos e ações da LLM (debug)",
+    "filename": "comandos.md"
+  }
+}

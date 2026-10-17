@@ -10,6 +10,7 @@ from typing import Any
 
 from uva.config import LLMProvider as ProviderName
 from uva.config import Settings
+from uva.i18n import t
 from uva.llm.base import LLMError, LLMMessage, LLMProvider, LLMResponse
 from uva.llm.budget import Scope, UsageRecord, UsageStore
 from uva.llm.pricing import WEB_SEARCH_COST_USD, PriceTable
@@ -145,7 +146,7 @@ class LLMClient:
     async def web_search(self, query: str, *, system: str, scope: Scope) -> LLMResponse:
         """Provider-side web search (Anthropic only)."""
         if not self.supports_web_search:
-            raise LLMError(f"{self.provider_name} não tem busca na web própria")
+            raise LLMError(t("llm.client.no_web_search", provider=self.provider_name))
         if self.soul is not None:
             system = self.soul.apply(system) or system
         started = time.perf_counter()

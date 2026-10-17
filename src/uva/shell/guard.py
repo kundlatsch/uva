@@ -9,6 +9,8 @@ from __future__ import annotations
 import re
 import shlex
 
+from uva.i18n import t
+
 # Always destructive.
 DELETERS = frozenset({"rm", "rmdir", "unlink", "shred", "truncate", "dd", "srm", "wipe"})
 # Destructive when the target exists (checked in the sandbox).
@@ -16,20 +18,21 @@ OVERWRITERS = frozenset({"mv", "cp", "install", "ln", "rsync", "tee"})
 SEPARATORS = re.compile(r"\|\||&&|[;|&\n]")
 REDIRECT = re.compile(r"(?<![<>&\d])>(?!>|&)\s*([^\s;|&<>]+)")  # "> file", not ">>" nor "2>&1"
 PYTHON_C = re.compile(r"""\bpython3?\s+-c\s+(['"])(.*?)\1""", re.DOTALL)
+# Labels are keys of locales/<lang>/shell.guard.json (shown in the confirmation).
 SH_PATTERNS = (
-    (re.compile(r"\bfind\b.*\s-(delete|exec\s+rm)\b"), "find -delete"),
-    (re.compile(r"\bgit\s+(clean|reset\s+--hard|checkout\s+--|restore)\b"), "git apagando mudanças"),
-    (re.compile(r"\bsed\b[^|;&]*\s-i"), "sed -i (edita no lugar)"),
-    (re.compile(r"\bxargs\b[^|;&]*\brm\b"), "xargs rm"),
+    (re.compile(r"\bfind\b.*\s-(delete|exec\s+rm)\b"), "find_delete"),
+    (re.compile(r"\bgit\s+(clean|reset\s+--hard|checkout\s+--|restore)\b"), "git_discard"),
+    (re.compile(r"\bsed\b[^|;&]*\s-i"), "sed_in_place"),
+    (re.compile(r"\bxargs\b[^|;&]*\brm\b"), "xargs_rm"),
 )
 PY_PATTERNS = (
-    (re.compile(r"\b(os|shutil|pathlib|Path)\b.*\b(remove|unlink|rmdir|rmtree|removedirs|truncate)\b"), "apaga arquivos"),
-    (re.compile(r"\.(unlink|rmdir|rmtree)\s*\("), "apaga arquivos"),
-    (re.compile(r"\bos\.(rename|replace)\s*\("), "renomeia/sobrescreve"),
-    (re.compile(r"\bshutil\.(move|copy\w*)\s*\("), "move/copia (pode sobrescrever)"),
-    (re.compile(r"""open\s*\([^)]*['"][wx]b?\+?['"]"""), "abre arquivo para escrita (sobrescreve)"),
-    (re.compile(r"\.write_(text|bytes)\s*\("), "escreve arquivo (sobrescreve)"),
-    (re.compile(r"\bsubprocess\b|\bos\.system\b"), "roda comandos do sistema"),
+    (re.compile(r"\b(os|shutil|pathlib|Path)\b.*\b(remove|unlink|rmdir|rmtree|removedirs|truncate)\b"), "deletes"),
+    (re.compile(r"\.(unlink|rmdir|rmtree)\s*\("), "deletes"),
+    (re.compile(r"\bos\.(rename|replace)\s*\("), "renames"),
+    (re.compile(r"\bshutil\.(move|copy\w*)\s*\("), "moves"),
+    (re.compile(r"""open\s*\([^)]*['"][wx]b?\+?['"]"""), "opens_for_writing"),
+    (re.compile(r"\.write_(text|bytes)\s*\("), "writes"),
+    (re.compile(r"\bsubprocess\b|\bos\.system\b"), "runs_commands"),
 )
 
 
@@ -46,7 +49,7 @@ def shell_risks(command: str) -> tuple[list[str], list[str]]:
     maybe: list[str] = []
     for label_re, label in SH_PATTERNS:
         if label_re.search(command):
-            reasons.append(label)
+            reasons.append(t(f"shell.guard.{label}"))
     for _, code in PYTHON_C.findall(command):  # before splitting: the code may contain ";"
         reasons.extend(python_risks(code))
     for target in REDIRECT.findall(command):
@@ -71,7 +74,7 @@ def shell_risks(command: str) -> tuple[list[str], list[str]]:
 
 
 def python_risks(code: str) -> list[str]:
-    return _unique([label for pattern, label in PY_PATTERNS if pattern.search(code)])
+    return _unique([t(f"shell.guard.{label}") for pattern, label in PY_PATTERNS if pattern.search(code)])
 
 
 def _unique(items: list[str]) -> list[str]:

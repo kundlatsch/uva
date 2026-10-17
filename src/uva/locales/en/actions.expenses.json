@@ -1,0 +1,4 @@
+{
+  "not_configured": "The SQLite database isn't configured.",
+  "recorded": "💸 {amount} on {category} recorded (#{id})."
+}

@@ -7,6 +7,23 @@ from uva.plugins.api import PluginContext, command
 
 NORMALIZED_FLAGS = ("--normalizado", "--normalizada", "--normalized", "-n")
 
+TEXTS = {
+    "en": {
+        "usage": "Usage: /palindrome [--normalized] <text>. E.g.: /palindrome racecar",
+        "no_letters": "Use at least one letter or number to check for a palindrome.",
+        "yes": "✅ It's a palindrome: “{text}”.",
+        "no": "❌ Not a palindrome: “{text}”.",
+        "normalized": "Normalized: {normalized}",
+    },
+    "pt": {
+        "usage": "Uso: /palindromo [--normalizado] <texto>. Ex.: /palindromo reviver",
+        "no_letters": "Use pelo menos uma letra ou número para checar um palíndromo.",
+        "yes": "✅ É palíndromo: “{text}”.",
+        "no": "❌ Não é palíndromo: “{text}”.",
+        "normalized": "Normalizado: {normalized}",
+    },
+}
+
 
 def normalize_text(text: str) -> str:
     """Remove acentos, pontuação e espaços; deixa só letras/números em minúsculas."""
@@ -31,7 +48,7 @@ def parse_text(args: list[str]) -> tuple[str, bool]:
 
 @command(
     "palindromo",
-    "Checa se um texto é palíndromo",
+    {"en": "Checks whether a text is a palindrome", "pt": "Checa se um texto é palíndromo"},
     aliases=("palíndromo", "palindrome"),
     usage="[--normalizado] <texto>",
     examples=(
@@ -41,20 +58,18 @@ def parse_text(args: list[str]) -> tuple[str, bool]:
     ),
 )
 def check_palindrome(ctx: PluginContext) -> str:
+    texts = TEXTS.get(ctx.lang, TEXTS["en"])
     text, show_normalized = parse_text(ctx.args)
     if not text:
-        return "Uso: /palindromo [--normalizado] <texto>. Ex.: /palindromo reviver"
+        return texts["usage"]
 
     normalized = normalize_text(text)
     if not normalized:
-        return "Use pelo menos uma letra ou número para checar um palíndromo."
+        return texts["no_letters"]
 
     is_palindrome = normalized == normalized[::-1]
-    if is_palindrome:
-        reply = f"✅ É palíndromo: “{text}”."
-    else:
-        reply = f"❌ Não é palíndromo: “{text}”."
+    reply = texts["yes" if is_palindrome else "no"].format(text=text)
 
     if show_normalized:
-        reply += f"\nNormalizado: {normalized}"
+        reply += "\n" + texts["normalized"].format(normalized=normalized)
     return reply

@@ -29,3 +29,8 @@ def test_invalid_sides_show_usage():
     assert run(roll, "1").startswith("Uso:")
     assert run(roll, "1001").startswith("Uso:")
     assert run(roll, "6", "extra").startswith("Uso:")
+
+
+def test_english_usage():
+    assert run(roll, "abc", lang="en") == "Usage: /dice [sides], with sides between 2 and 1000."
+    assert parse_reply(run(roll, "20", lang="en"))[1] == 20

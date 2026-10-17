@@ -7,9 +7,10 @@ sticker's Telegram file_unique_id):
   and the next message becomes the meaning. From then on, sending it is
   understood as "[figurinha 😂: <meaning>]", with the conversation context and
   no image interpretation;
-* action: "toda vez que eu mandar essa figurinha, <faça X>" ties a request to
-  the sticker; every time it is sent, the request goes through the normal
-  router (same budget and safeguards as if it had been typed).
+* action: "toda vez que eu mandar essa figurinha, <faça X>" (or "every time I
+  send this sticker, <do X>") ties a request to the sticker; every time it is
+  sent, the request goes through the normal router (same budget and safeguards as
+  if it had been typed).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from uva.clock import utcnow
+from uva.i18n import t
 from uva.storage.stickers import Sticker
 
 QUESTION_TTL = timedelta(minutes=30)
@@ -29,12 +31,21 @@ ACTION_RE = re.compile(
     r"(?:essa|esta|a|aquela|ess[ae]\s+)?\s*figurinha\s*[,:]?\s*(?P<action>.+)$",
     re.IGNORECASE | re.DOTALL,
 )
-SKIP = ("/cancelar", "/pular", "deixa", "deixa pra la", "deixa pra lá", "esquece", "nada")
+# The same in English: "every time I send this sticker, tell me a joke".
+ACTION_RE_EN = re.compile(
+    r"^\s*(?:and\s+)?(?:every\s*time|whenever|when)\s+(?:i\s+)?(?:send|post)\s+(?:you\s+)?"
+    r"(?:this|that|the)?\s*sticker\s*[,:]?\s*(?P<action>.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+SKIP = (
+    "/cancelar", "/pular", "deixa", "deixa pra la", "deixa pra lá", "esquece", "nada",
+    "/cancel", "/skip", "skip", "never mind", "nevermind", "forget it", "nothing",
+)
 
 
 def action_request(text: str) -> str | None:
     """'toda vez que eu mandar essa figurinha, me manda a previsão' -> 'me manda a previsão'."""
-    match = ACTION_RE.match(text)
+    match = ACTION_RE.match(text) or ACTION_RE_EN.match(text)
     if not match:
         return None
     action = match.group("action").strip().rstrip(".")
@@ -69,8 +80,12 @@ def action_message(sticker: Sticker) -> str:
 
 
 def describe(sticker: Sticker) -> str:
-    lines = [f"{sticker.label} · usada {sticker.uses}x" + (f" · pacote {sticker.set_name}" if sticker.set_name else "")]
-    lines.append(f"   significado: {sticker.meaning or '(nenhum)'}")
+    header = t("stickers.describe.header", label=sticker.label, uses=sticker.uses)
+    if sticker.set_name:
+        header += t("stickers.describe.set", name=sticker.set_name)
+    lines = [header]
+    meaning = sticker.meaning or t("stickers.describe.no_meaning")
+    lines.append(t("stickers.describe.meaning", meaning=meaning))
     if sticker.action:
-        lines.append(f"   ação: {sticker.action}")
+        lines.append(t("stickers.describe.action", action=sticker.action))
     return "\n".join(lines)

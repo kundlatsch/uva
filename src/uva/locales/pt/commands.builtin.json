@@ -1,0 +1,17 @@
+{
+  "start": {
+    "description": "Apresentação do bot",
+    "reply": [
+      "Olá! Eu sou a UVA, sua assistente pessoal.",
+      "Envie /help para ver os comandos, ou simplesmente me escreva."
+    ]
+  },
+  "help": {
+    "description": "Lista os comandos disponíveis",
+    "header": "Comandos disponíveis:",
+    "aliases": " (também: {aliases})"
+  },
+  "ping": {
+    "description": "Verifica se o bot está vivo"
+  }
+}

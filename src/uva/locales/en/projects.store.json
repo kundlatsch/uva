@@ -1,0 +1,10 @@
+{
+  "status": {
+    "queued": "⏳ queued",
+    "running": "🔨 building",
+    "cancelling": "🛑 cancelling",
+    "done": "✅ ready",
+    "failed": "❌ failed",
+    "cancelled": "🚫 cancelled"
+  }
+}

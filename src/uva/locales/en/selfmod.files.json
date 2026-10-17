@@ -1,0 +1,11 @@
+{
+  "bad_path": "path not allowed: {path}",
+  "hidden": "hidden files are not allowed: {path}",
+  "roots": "I can only touch {allowed} (asked for: {path})",
+  "suffix": "only .md or .txt files (or .json in data/) (asked for: {path})",
+  "no_overwrite": "second brain notes are never overwritten; use file_append",
+  "no_json_append": "JSON files can't be appended to; use file_write with the full content",
+  "bad_json": "invalid JSON: {error}",
+  "bad_phrases": "invalid phrases file: {error}",
+  "too_big": "file too big (limit {limit} KB)"
+}

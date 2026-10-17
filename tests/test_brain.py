@@ -181,3 +181,18 @@ async def test_rename_existing_notes_and_links_then_revert(services, tmp_path):
     assert old.exists() and book.exists()
     log = subprocess.run(["git", "-C", str(root), "log", "--format=%s"], capture_output=True, text=True, encoding="utf-8").stdout
     assert "Renomeia 2 nota(s)" in log
+
+
+async def test_note_actions_in_english(services, vault):
+    from uva import i18n
+    from uva.actions import ActionContext
+
+    i18n.set_language("en")
+    ctx = ActionContext(services)
+    read = services.actions.get("note_read")
+    assert (await read.handler(read.params_model(note="x"), ctx)).text == "The second brain isn't configured."
+    services.vault = vault
+    result = await read.handler(read.params_model(note="nada aqui"), ctx)
+    assert result.text == "Couldn't find the note 'nada aqui'."
+    found = Research("F1", "web", "web", "Summary.", [SearchResult("F1", "https://f1")])
+    assert "Sources:\n- F1: https://f1" in found.render()

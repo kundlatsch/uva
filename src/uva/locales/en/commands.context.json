@@ -1,0 +1,17 @@
+{
+  "role": {
+    "user": "you",
+    "bot": "me",
+    "notice": "me (notice)"
+  },
+  "contexto": {
+    "description": "What I remember of the current conversation (or 'clear')",
+    "usage_arg": "[clear]",
+    "unavailable": "Short-term memory unavailable (Redis).",
+    "cleared": "Context cleared. Starting from scratch.",
+    "empty": "Nothing in context right now.",
+    "header": "Recent context ({turns} turns, {refs} references)",
+    "refs": "\nReferences:",
+    "turns": "\nLast turns:"
+  }
+}

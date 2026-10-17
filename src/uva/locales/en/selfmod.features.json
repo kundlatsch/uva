@@ -1,0 +1,12 @@
+{
+  "no_queue": "the task queue is not configured",
+  "status": {
+    "queued": "⏳ queued",
+    "running": "🔨 building",
+    "merged": "✅ ready",
+    "failed": "❌ failed",
+    "reverted": "↩️ reverted"
+  },
+  "attempts": "{n} attempt(s)",
+  "reason": "   reason: {error}"
+}

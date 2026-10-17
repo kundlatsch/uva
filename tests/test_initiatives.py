@@ -197,3 +197,15 @@ async def test_long_silence_forbids_nothing(init_services):
     services.initiatives.records.append(InitiativeRecord(kind="message", at=NOON - timedelta(hours=5)))
     await initiative_tick(services, NOON)
     assert 'Do NOT choose "nothing"' in provider.calls[0]["messages"][0].content
+
+
+def test_initiative_replies_in_english():
+    from uva import i18n
+    from uva.initiatives import reply_for, system_prompt
+
+    i18n.set_language("en")
+    assert reply_for(None, "budget").text == "No proactive budget left today (PROACTIVE_DAILY_BUDGET_USD)."
+    assert reply_for("💬 hi", "sent").text == "💬 hi"
+    assert '"message" (what he reads) in English' in system_prompt()
+    i18n.set_language("pt")
+    assert '"message" (what he reads) in Brazilian Portuguese' in system_prompt()

@@ -1,0 +1,35 @@
+{
+  "opening": "Vi isso e lembrei de você:",
+  "status": {
+    "title": "🤖 Proatividade",
+    "enabled": "Iniciativas: {state} (/proativo on|off)",
+    "on": "ligadas",
+    "off": "desligadas",
+    "today": "Hoje: {count} de {cap} mensagens · intervalo mínimo {gap} min",
+    "quiet": "Silêncio: {start}h–{end}h",
+    "quiet_now": " (agora em silêncio)",
+    "poll": "Verificação a cada {poll} min · objetivos no máximo a cada {interval} min",
+    "next": "Próxima iniciativa: {reason}",
+    "next_ready": "pode sair no próximo ciclo",
+    "blocked": {
+      "off": "desligadas",
+      "quiet": "horário de silêncio",
+      "daily_cap": "limite do dia atingido",
+      "gap": "esperando o intervalo mínimo",
+      "busy": "você está conversando ou um objetivo está rodando",
+      "goal_due": "um objetivo vai rodar antes",
+      "disabled": "sem LLM",
+      "waiting": "pensei há pouco; penso de novo a cada {minutes} min"
+    },
+    "goals": "Objetivos ativos: {count} · próximo: \"{title}\" às {at}",
+    "no_goals": "Objetivos ativos: nenhum",
+    "recent": "Últimas iniciativas:",
+    "now_hint": "/proativo agora → manda uma iniciativa já (respeita só o orçamento)"
+  },
+  "reply": {
+    "nothing": "Olhei tudo e não achei nada que valesse te interromper agora.",
+    "budget": "Sem orçamento proativo hoje (PROACTIVE_DAILY_BUDGET_USD).",
+    "error": "Deu ruim ao pensar numa iniciativa (veja /log erros).",
+    "disabled": "Iniciativas indisponíveis (sem LLM ou Mongo)."
+  }
+}

@@ -7,14 +7,15 @@ import asyncio
 from uva.clock import format_duration, utcnow
 from uva.commands.llm import describe_spend
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.services import Services
 
 HEALTH_TIMEOUT_SECONDS = 5
 
 
 async def collect_status(services: Services) -> list[str]:
-    lines = ["Status da UVA"]
-    lines.append(f"No ar há {format_duration(utcnow() - services.started_at)}")
+    lines = [t("commands.status.title")]
+    lines.append(t("commands.status.uptime", duration=format_duration(utcnow() - services.started_at)))
 
     for name, check in services.health_checks.items():
         try:
@@ -26,9 +27,10 @@ async def collect_status(services: Services) -> list[str]:
     if services.tasks is not None:
         try:
             size = await services.tasks.queue_size()
-            lines.append(f"Fila de tarefas: {size if size is not None else 'n/d'}")
+            shown = size if size is not None else t("commands.status.queue_unknown")
+            lines.append(t("commands.status.queue", size=shown))
         except Exception:
-            lines.append("Fila de tarefas: indisponível")
+            lines.append(t("commands.status.queue_unavailable"))
 
     lines.extend(await describe_spend(services))
     return lines
@@ -37,7 +39,7 @@ async def collect_status(services: Services) -> list[str]:
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "status",
-        "Serviços, uptime, fila e gastos",
+        t("commands.status.status.description"),
         aliases=("estado",),
         examples=("status do sistema", "servicos no ar", "quanto gastei de api"),
     )

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.i18n import t
 from uva.logging.events import current_trace_id
 from uva.stm.status import refresh
 
@@ -18,11 +19,13 @@ class RefParams(BaseModel):
 async def _resolve(ctx: ActionContext, query: str | None):
     stm = ctx.services.stm
     if stm is None:
-        return None, ActionResult(text="Memória de curto prazo indisponível.")
+        return None, ActionResult(text=t("actions.context.no_stm"))
     session = await stm.session()
     ref = session.find(query)
     if ref is None:
-        return None, ActionResult(text=f"Não sei a que você se refere ({query or 'nada em foco'}).")
+        return None, ActionResult(
+            text=t("actions.context.unknown_ref", query=query or t("actions.context.nothing_in_focus"))
+        )
     return ref, None
 
 
@@ -51,23 +54,25 @@ def register(registry: ActionRegistry) -> None:
         ref, live = await refresh(ctx.services, ref)
         services = ctx.services
         if live.status != "falhou":
-            return ActionResult(text=f"{ref.rotulo} não falhou (está {live.status}); nada para repetir.")
+            return ActionResult(
+                text=t("actions.context.retry.not_failed", label=ref.rotulo, status=live.status)
+            )
         if ref.tipo in ("tarefa", "pesquisa") and services.tasks is not None:
             old = await services.tasks.store.get(ref.id)
             if old is None:
-                return ActionResult(text=f"Não achei mais o registro de {ref.rotulo}.")
+                return ActionResult(text=t("actions.context.retry.record_gone", label=ref.rotulo))
             new = await services.tasks.enqueue(old.action, old.params, current_trace_id())
             if services.stm is not None:
                 await services.stm.add_ref(ref.tipo, new.id, ref.rotulo, "na fila")
-            return ActionResult(text=f"🔁 Rodando de novo: {ref.rotulo} (tarefa {new.id}).")
+            return ActionResult(text=t("actions.context.retry.rerunning", label=ref.rotulo, id=new.id))
         if ref.tipo == "feature" and services.features is not None:
             old_feature = await services.features.store.get(ref.id)
             if old_feature is None:
-                return ActionResult(text="Não achei mais essa feature.")
+                return ActionResult(text=t("actions.context.retry.feature_gone"))
             from uva.commands.features import request_feature  # avoid an import cycle
 
             return ActionResult(text=await request_feature(services, old_feature.description))
-        return ActionResult(text=f"Não sei repetir {ref.tipo}.")
+        return ActionResult(text=t("actions.context.retry.unsupported", kind=ref.tipo))
 
     @registry.action("cancel", "Cancela uma tarefa/pesquisa que ainda está rodando", RefParams)
     async def cancel(params: RefParams, ctx: ActionContext) -> ActionResult:
@@ -77,12 +82,14 @@ def register(registry: ActionRegistry) -> None:
         services = ctx.services
         if ref.tipo == "projeto" and services.projects is not None:
             if await services.projects.cancel(ref.id) is None:
-                return ActionResult(text=f"{ref.rotulo} já tinha terminado.")
-            return ActionResult(text=f"🛑 Parando {ref.rotulo}. Te aviso quando parar.")
+                return ActionResult(text=t("actions.context.cancel.already_done", label=ref.rotulo))
+            return ActionResult(text=t("actions.context.cancel.stopping", label=ref.rotulo))
         if ref.tipo not in ("tarefa", "pesquisa") or services.tasks is None:
-            return ActionResult(text=f"Não dá para cancelar {ref.tipo}.")
+            return ActionResult(text=t("actions.context.cancel.unsupported", kind=ref.tipo))
         if not await services.tasks.cancel(ref.id):
-            return ActionResult(text=f"{ref.rotulo} já tinha terminado.")
+            return ActionResult(text=t("actions.context.cancel.already_done", label=ref.rotulo))
         if services.stm is not None:
             await services.stm.update_ref(ref.id, "falhou", "cancelada")
-        return ActionResult(text=f"{services.say('cancelado', id=ref.id)}\n({ref.rotulo} cancelada)")
+        return ActionResult(
+            text=t("actions.context.cancel.cancelled", phrase=services.say("cancelado", id=ref.id), label=ref.rotulo)
+        )

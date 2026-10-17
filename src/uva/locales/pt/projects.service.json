@@ -1,0 +1,10 @@
+{
+  "disabled": "Projetos estão desligados (PROJECTS_ENABLED=false).",
+  "no_queue": "A fila de tarefas não está configurada.",
+  "no_credential": "Falta a credencial do Claude Code no .env: CLAUDE_CODE_OAUTH_TOKEN (gere com `claude setup-token`) ou PROJECTS_ANTHROPIC_API_KEY.",
+  "third_party": "🚫 Isso é rodar código de terceiros, e o /projeto não faz isso: ele roda o Claude Code com o seu token, e um repositório alheio rodaria ao lado dele. Para clonar e rodar repositórios vai existir o /rodar, num container isolado sem token (ainda espera o seu ok). O /projeto é para projetos novos escritos do zero.",
+  "describe": "Descreva o projeto, ex.: /projeto um site estático de receitas com busca",
+  "already_running": "Já tem um projeto em construção ({id}); veja /projetos.",
+  "budget": "Orçamento diário de projetos esgotado (US$ {spent} de {limit}, PROJECT_DAILY_BUDGET_USD).",
+  "reason": "   motivo: {error}"
+}

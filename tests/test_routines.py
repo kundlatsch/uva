@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fakes import with_llm
 
+from uva import i18n
 from uva.router import Router
 from uva.routines import Every, Routine, next_run, parse, run_due
 
@@ -119,9 +120,28 @@ async def test_routine_ops_in_english(services, store):
     assert "removida" in (await router.handle_text(f"/rotina {rid} delete")).text
 
 
+async def test_routine_replies_in_english(services, store):
+    i18n.set_language("en")
+    router = Router(services)
+    created = (await router.handle_text("/routine a cada 6 horas confere o dólar")).text
+    assert "Routine" in created and "created" in created and "First run:" in created
+    rid = next(iter(store.items))
+    assert f"Routine {rid} paused." in (await router.handle_text(f"/routine {rid} pause")).text
+    assert "I couldn't find routine r999" in (await router.handle_text("/routine r999 pause")).text
+
+
 async def test_llm_creates_routines(services, store):
     plan = {"actions": [{"type": "routine_create", "params": {
         "schedule_and_request": "todo dia 08:00 pesquisa se a skin X saiu na loja do LoL"}}], "reply": ""}
     with_llm(services, json.dumps(plan))
     reply = (await Router(services).handle_text("todo dia às 8 da manhã vê se a skin X saiu na loja do LoL")).text
     assert "⏰ Rotina" in reply and len(store.items) == 1
+
+
+def test_routine_descriptions_in_english():
+    from uva.routines import describe_schedule
+
+    i18n.set_language("en")
+    assert describe_schedule(parse("todo dia 08:00 pesquisa X")) == "every day at 08:00"
+    assert describe_schedule(parse("toda segunda e quinta 9h faz Y")) == "Mon, Thu at 09:00"
+    assert describe_schedule(parse("a cada 6 horas Z")) == "every 6h"

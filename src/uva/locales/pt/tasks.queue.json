@@ -1,0 +1,10 @@
+{
+  "status": {
+    "queued": "na fila",
+    "running": "rodando",
+    "retrying": "tentando de novo",
+    "done": "concluída",
+    "failed": "falhou",
+    "cancelled": "cancelada"
+  }
+}

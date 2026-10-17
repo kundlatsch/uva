@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.i18n import t
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.memory.store import MemoryCategory
 
@@ -31,7 +32,8 @@ class MemoryForgetParams(BaseModel):
     key: str = Field(min_length=1)
 
 
-NO_MEMORY = ActionResult(text="A memória não está configurada.")
+def no_memory() -> ActionResult:
+    return ActionResult(text=t("actions.memory.not_configured"))
 
 
 def register(registry: ActionRegistry) -> None:
@@ -44,7 +46,7 @@ def register(registry: ActionRegistry) -> None:
     async def memory_save(params: MemorySaveParams, ctx: ActionContext) -> ActionResult:
         memory = ctx.services.memory
         if memory is None:
-            return NO_MEMORY
+            return no_memory()
         item = await memory.save(
             params.key,
             params.value,
@@ -66,7 +68,7 @@ def register(registry: ActionRegistry) -> None:
     async def memory_update(params: MemoryUpdateParams, ctx: ActionContext) -> ActionResult:
         memory = ctx.services.memory
         if memory is None:
-            return NO_MEMORY
+            return no_memory()
         item = await memory.update(params.key, value=params.value, relevance=params.relevance)
         await emit(EventType.MEMORY, op="update", key=params.key, found=item is not None)
         return ActionResult(data={"key": params.key, "found": item is not None})
@@ -75,7 +77,7 @@ def register(registry: ActionRegistry) -> None:
     async def memory_forget(params: MemoryForgetParams, ctx: ActionContext) -> ActionResult:
         memory = ctx.services.memory
         if memory is None:
-            return NO_MEMORY
+            return no_memory()
         removed = await memory.forget(params.key)
         await emit(EventType.MEMORY, op="forget", key=params.key, removed=removed)
         return ActionResult(data={"key": params.key, "removed": removed})

@@ -1,0 +1,30 @@
+{
+  "not_configured": "Routines need Mongo.",
+  "usage": [
+    "Usage (the schedule is written in Portuguese):",
+    "/routine todo dia 08:00 <request> (every day)",
+    "/routine segunda e quinta 9h <request> (Mondays and Thursdays)",
+    "/routine a cada 6 horas <request> (every 6 hours)",
+    "/routines — list",
+    "/routine <id> pause|resume|remove|now"
+  ],
+  "bad_time": "I didn't get the time: {error}.",
+  "created": [
+    "⏰ Routine {id} created: {schedule}",
+    "“{request}”",
+    "First run: {when}. If the PC is off at that time, I'll run it once when it turns on."
+  ],
+  "rotina": {
+    "description": "Creates a recurring task (todo dia 08:00 ..., segunda 9h ..., a cada 6 horas ...)",
+    "not_found": "I couldn't find routine {id} (/routines).",
+    "paused": "⏸️ Routine {id} paused.",
+    "resumed": "▶️ Routine {id} resumed.",
+    "removed": "🗑️ Routine {id} removed.",
+    "run_now": "⏰ Routine {id} will run in the next minute."
+  },
+  "rotinas": {
+    "description": "Scheduled recurring tasks",
+    "none": "No routines. Create one with /routine todo dia 08:00 <request>.",
+    "header": "⏰ Routines ({count})"
+  }
+}

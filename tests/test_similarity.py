@@ -116,3 +116,23 @@ async def test_confirmation_keeps_the_original_trace(router, services, event_sto
     first_trace = event_store.events[0].trace_id
     await router.handle_callback(reply.buttons[0].data)
     assert {e.trace_id for e in event_store.events} == {first_trace}
+
+
+async def test_confirmation_in_english(router, services):
+    from uva import i18n
+
+    i18n.set_language("en")
+    services.settings.similarity_execute_threshold = 101
+    reply = await router.handle_text("ping")
+    assert reply.text == "Did you mean /ping?"
+    assert [b.text for b in reply.buttons] == ["Yes", "No"]
+    assert (await router.handle_callback(reply.buttons[0].data)).text == "pong"
+    assert "expired" in (await router.handle_callback(reply.buttons[0].data)).text
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [("errors in the last 2 hours", "2h"), ("last 30 minutes", "30m"), ("past day", "1d"), ("an hour", "1h")],
+)
+def test_extract_duration_in_english(text, expected):
+    assert extract_duration(normalize(text))[1] == expected

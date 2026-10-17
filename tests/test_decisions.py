@@ -199,6 +199,17 @@ def test_parse_usage_errors():
     assert questions[0].type == "score" and evidence == ""
 
 
+def test_parse_in_english():
+    from uva import i18n
+
+    i18n.set_language("en")
+    with pytest.raises(ValueError, match="Usage:") as exc:
+        parse("")
+    assert "/decide score <criterion>" in str(exc.value)
+    _, questions = parse("score urgency | low, high :: the server is down")
+    assert questions[0].type == "score" and [lv.label for lv in questions[0].levels] == ["low", "high"]
+
+
 def test_prompt_shows_nested_question_schema():
     from uva.actions import build_action_registry
     from uva.llm.prompts import describe_actions

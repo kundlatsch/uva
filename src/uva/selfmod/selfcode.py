@@ -24,6 +24,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError
 
 from uva.clock import utcnow
+from uva.i18n import language_name, t
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.client import metered
@@ -80,7 +81,7 @@ async def build_feature(
     store = services.features.store  # type: ignore[union-attr]
     record = await store.get(feature_id)
     if record is None:
-        raise SelfCodeError(f"feature {feature_id} não existe")
+        raise SelfCodeError(t("selfmod.selfcode.errors.missing", id=feature_id))
     run_tests = run_tests or _default_runner(services)
 
     with trace(record.trace_id):
@@ -124,7 +125,7 @@ async def build_feature(
         )
         announcement = _announcement(final)
         if completed_goal is not None:
-            announcement += f"\n🎯 Objetivo \"{completed_goal.title}\" concluído ✅"
+            announcement += "\n" + t("selfmod.selfcode.goal_done", title=completed_goal.title)
         await notify(Reply(announcement))
         return final
 
@@ -144,7 +145,7 @@ async def _build(
     settings = services.settings
     repo = services.repo
     if repo is None or services.llm is None:
-        raise SelfCodeError("preciso do repositório (git) e da LLM configurados")
+        raise SelfCodeError(t("selfmod.selfcode.errors.not_configured"))
     if services.budget is not None:
         status = await services.budget.check(Scope.SELFCODE)
         if not status.allowed:
@@ -178,12 +179,12 @@ async def _build(
             if not attempt.feedback:
                 break
             if services.budget is not None and not (await services.budget.check(Scope.SELFCODE)).allowed:
-                raise SelfCodeError("orçamento de auto-código acabou no meio das tentativas")
+                raise SelfCodeError(t("selfmod.selfcode.errors.budget_ran_out"))
         else:
-            raise SelfCodeError(
-                f"não ficou verde em {settings.selfcode_max_attempts} tentativas. "
-                f"Último problema: {attempt.feedback[-600:]}"
-            )
+            raise SelfCodeError(t(
+                "selfmod.selfcode.errors.not_green", attempts=settings.selfcode_max_attempts,
+                problem=attempt.feedback[-600:],
+            ))
 
         plugin = attempt.plugin
         assert plugin is not None and attempt.tests is not None
@@ -201,9 +202,9 @@ async def _build(
         if report is not None and plugin.name in report.get("errors", {}):
             error = report["errors"][plugin.name]
             await _revert(repo, sha, request_reload)
-            return {**fields, "status": FeatureStatus.REVERTED, "error": f"não carregou no bot: {error}"}
+            return {**fields, "status": FeatureStatus.REVERTED, "error": t("selfmod.selfcode.errors.load_failed", error=error)}
         if report is None:
-            fields["error"] = "o bot não respondeu ao reload; o comando aparece quando ele reiniciar"
+            fields["error"] = t("selfmod.selfcode.errors.no_reload")
         return {**fields, "status": FeatureStatus.MERGED}
     finally:
         await asyncio.to_thread(shutil.rmtree, workdir, True)
@@ -230,7 +231,7 @@ async def _attempt(
             use_soul=False,  # code must come out exact
         )
     except LLMError as exc:
-        raise SelfCodeError(f"a LLM falhou: {exc}") from exc
+        raise SelfCodeError(t("selfmod.selfcode.errors.llm", error=exc)) from exc
 
     try:
         plugin = GeneratedPlugin.model_validate_json(_strip_fence(response.text))
@@ -274,7 +275,7 @@ async def _commit_and_merge(
     try:
         current = (await repo.arun("rev-parse", "--abbrev-ref", "HEAD")).strip()
         if current != "main":
-            raise SelfCodeError(f"o repositório está no branch {current!r}, não na main")
+            raise SelfCodeError(t("selfmod.selfcode.errors.branch", branch=repr(current)))
         await repo.arun("fetch", "--quiet", str(work), f"{branch}:{branch}")
         try:
             await repo.arun("merge", "--ff-only", "--quiet", branch)
@@ -287,7 +288,7 @@ async def _commit_and_merge(
         await repo.arun("branch", "-q", "-D", branch, check=False)
     except GitError as exc:
         await repo.arun("merge", "--abort", check=False)
-        raise SelfCodeError(f"não consegui fazer o merge na main: {exc}") from exc
+        raise SelfCodeError(t("selfmod.selfcode.errors.merge", error=exc)) from exc
     return await repo.head()
 
 
@@ -302,20 +303,19 @@ async def _revert(repo: GitRepo, sha: str, request_reload: Reloader) -> None:
 def _announcement(record: FeatureRecord) -> str:
     cost = f"US$ {record.cost_usd:.3f}"
     if record.status is FeatureStatus.MERGED:
-        lines = [
-            f"🛠️ Pronto! Criei /{record.command}: {record.summary}",
-            f"Uso: {record.usage}",
-            f"Testes: {record.tests} · tentativas: {record.attempts} · custo ≈ {cost}",
-            f"Commit {record.commit[:7] if record.commit else '?'} na main (/reverter desfaz).",
-        ]
+        text = t(
+            "selfmod.selfcode.report.merged", command=record.command, summary=record.summary,
+            usage=record.usage, tests=record.tests, attempts=record.attempts, cost=cost,
+            commit=record.commit[:7] if record.commit else "?",
+        )
         if record.error:
-            lines.append(f"Obs.: {record.error}")
-        return "\n".join(lines)
+            text += "\n" + t("selfmod.selfcode.report.note", error=record.error)
+        return text
     if record.status is FeatureStatus.REVERTED:
-        return f"😬 Construí /{record.command}, mas ele não carregou no bot e eu reverti. {record.error}"
-    return (
-        f"😵 Não consegui construir \"{record.description[:80]}\" "
-        f"({record.attempts} tentativa(s), custo ≈ {cost}).\nMotivo: {record.error}"
+        return t("selfmod.selfcode.report.reverted", command=record.command, error=record.error)
+    return t(
+        "selfmod.selfcode.report.failed", description=record.description[:80],
+        attempts=record.attempts, cost=cost, error=record.error,
     )
 
 
@@ -372,7 +372,13 @@ tests/plugins/test_<name>.py. Responda SOMENTE com JSON no formato pedido.
   Não há como gravar dados. Nos testes, passe dados falsos com
   `run(handler, data=StaticData(goals=[...], working_memory=[...]))`
   (import: `from uva.plugins.testing import StaticData, run`).
-- Textos para o usuário em português do Brasil; identificadores em inglês.
+- O bot fala inglês e português: `ctx.lang` é "en" ou "pt" (o idioma do bot). Todo texto que o
+  usuário lê (respostas, mensagens de uso, erros) existe nos dois idiomas, em inglês e em
+  português do Brasil, dentro do próprio plugin (ex.: `TEXTS = {{"en": {{...}}, "pt": {{...}}}}`),
+  e a resposta segue ctx.lang (`TEXTS.get(ctx.lang, TEXTS["en"])`). Identificadores em inglês.
+- A descrição do @command vai como dicionário: `{{"en": "...", "pt": "..."}}`.
+- Nos testes, cubra os dois idiomas: `run(handler, ..., lang="en")` e `run(handler, ..., lang="pt")`.
+- O campo "summary" do JSON em {language_name()}.
 - Valide os argumentos e devolva uma mensagem de uso clara quando estiverem errados.
 - Os testes devem ser funções síncronas usando uva.plugins.testing.run, determinísticos
   (para aleatoriedade, teste propriedades/intervalos, não valores exatos) e sem rede.

@@ -1,0 +1,20 @@
+{
+  "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  "schedule": {
+    "day": "every day at {at}",
+    "weekdays": "{days} at {at}",
+    "hours": "every {hours}h"
+  },
+  "paused": " (paused)",
+  "never": "never",
+  "next_line": "   next: {next} · last: {last} · {runs} run(s)",
+  "failed": "failed: {error}",
+  "notice": {
+    "head": "⏰ Routine {id}: {request}",
+    "late": "(late: it was due at {when}; the PC was off)"
+  },
+  "errors": {
+    "no_days": "schedule without days",
+    "bad_time": "invalid time"
+  }
+}

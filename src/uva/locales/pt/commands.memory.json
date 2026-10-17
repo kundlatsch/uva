@@ -1,0 +1,22 @@
+{
+  "not_configured": "A memória não está configurada.",
+  "memoria": {
+    "description": "Mostra o que eu lembro (ou uma chave)",
+    "unknown_key": "Não lembro de nada com a chave '{key}'.",
+    "item": "{key} [{category}]: {value}\nRelevância {relevance:.2f}, usada {uses}x, último uso {last_used}",
+    "empty": "Ainda não guardei nada. Use /lembrar <chave> <valor>.",
+    "header": "Memória: {count} itens (★ = memória de trabalho)",
+    "line": "{star} {key}: {value} [{category}, nota {score:.2f}]"
+  },
+  "lembrar": {
+    "description": "Guarda uma memória",
+    "usage": "Uso: /lembrar <chave> <valor> (ex.: /lembrar cidade Florianópolis)",
+    "saved": "Ok, vou lembrar: {key} = {value}"
+  },
+  "esquecer": {
+    "description": "Apaga uma memória",
+    "usage": "Uso: /esquecer <chave> (veja as chaves em /memoria)",
+    "forgotten": "Esqueci '{key}'.",
+    "not_found": "Não achei '{key}' na memória."
+  }
+}

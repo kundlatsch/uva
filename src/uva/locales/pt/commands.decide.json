@@ -1,0 +1,17 @@
+{
+  "usage": [
+    "Uso:",
+    "/decidir <afirmação>[: texto] → chance de ser verdade",
+    "  ex.: /decidir esse email é spam: Ganhe um iPhone grátis clicando aqui",
+    "/decidir <pergunta> | op1, op2, op3 [:: texto] → escolhe uma opção",
+    "  ex.: /decidir o que jantar | pizza, sushi, salada :: tô sem grana e com pressa",
+    "/decidir nota <critério> | nível0, nível1, ... :: texto → nota de 0 a N",
+    "  ex.: /decidir nota urgência | baixa, média, alta :: o servidor caiu agora",
+    "Mande uma foto com a legenda /decidir ... para avaliar a imagem."
+  ],
+  "decidir": {
+    "description": "Probabilidade, escolha ou nota com a OpenAI Decisions",
+    "usage_arg": "<afirmação>[: texto] | <pergunta> | op1, op2 | nota <critério> | n0, n1 :: texto",
+    "not_configured": "A Decisions não está configurada (precisa de uma chave da OpenAI: DECISIONS_API_KEY)."
+  }
+}

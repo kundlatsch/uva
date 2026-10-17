@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from uva.clock import utcnow
+from uva.i18n import language_name, t
 from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
@@ -31,17 +32,18 @@ from uva.audio import TranscriptionError
 from uva.llm.budget import Scope
 from uva.stm.status import refresh, status_reply
 
-CONFIRM_EXPIRED = "Essa pergunta expirou. Pode mandar de novo?"
-
 CONFIRM_TTL = timedelta(minutes=10)
 PAGES_TTL = timedelta(hours=1)
 PAGES_KEPT = 20
-PAGES_EXPIRED = "Essa paginação expirou. Rode o comando de novo."
 HEARD_CHARS = 800
-DESCRIBE_PROMPT = (
-    "Descreva esta imagem em português do Brasil, em 1 a 3 frases objetivas. Se houver "
-    "texto legível, transcreva-o entre aspas (no idioma original)."
-)
+
+
+def describe_prompt() -> str:
+    # The description is shown to the user: written in the configured language.
+    return (
+        f"Descreva esta imagem em {language_name()}, em 1 a 3 frases objetivas. Se houver "
+        "texto legível, transcreva-o entre aspas (no idioma original)."
+    )
 
 
 def _clip(text: str, limit: int) -> str:
@@ -123,7 +125,7 @@ class Router:
     ) -> tuple[Reply, str]:
         repo = self.services.stickers
         if repo is None:
-            return Reply(f"{emoji or '🙂'} (sem o SQLite não consigo aprender figurinhas)"), f"[figurinha {emoji}]"
+            return Reply(t("router.sticker.no_storage", emoji=emoji or "🙂")), f"[figurinha {emoji}]"
         try:
             sticker = await repo.get(unique_id)
             if sticker is None:
@@ -142,10 +144,7 @@ class Router:
             reply = await self._safely(self.agent.handle(as_message(sticker)))
             return reply, as_message(sticker)
         await emit(EventType.ROUTE, tier="sticker_new", sticker=sticker.id)
-        reply = Reply(
-            f"🤔 Essa figurinha {sticker.emoji} é nova pra mim. O que ela significa?\n"
-            "(sua próxima mensagem vira o significado; /pular para deixar sem)"
-        )
+        reply = Reply(t("router.sticker.new", emoji=sticker.emoji))
         return reply, f"[figurinha nova {sticker.emoji}]"
 
     async def _try_sticker_text(self, text: str) -> Reply | None:
@@ -159,36 +158,32 @@ class Router:
             sticker = await repo.upsert(focus.unique_id, action=action)
             self._sticker = None
             await emit(EventType.ROUTE, tier="sticker_learn", sticker=sticker.id, field="action")
-            return Reply(
-                f"✅ Combinado: toda vez que você mandar {sticker.emoji}, eu faço: {action}\n"
-                f"(/figurinha {sticker.id} sem-acao para desfazer)"
-            )
+            return Reply(t("router.sticker.action_set", emoji=sticker.emoji, action=action, id=sticker.id))
         if not focus.asking:
             return None
         self._sticker = None
         if text.strip().lower() in SKIP or text.startswith("/"):
             if text.startswith("/") and text.strip().lower() not in SKIP:
                 return None  # another command: just forget the question
-            return Reply("Ok, ela fica sem significado. Se quiser, depois: /figurinhas")
+            return Reply(t("router.sticker.skipped"))
         sticker = await repo.upsert(focus.unique_id, meaning=text.strip())
         await emit(EventType.ROUTE, tier="sticker_learn", sticker=sticker.id, field="meaning")
-        return Reply(
-            f"✅ Anotado: {sticker.emoji} = “{sticker.meaning}”. Da próxima vez eu já sei.\n"
-            "(para ela fazer algo sempre: “toda vez que eu mandar essa figurinha, ...”)"
-        )
+        return Reply(t("router.sticker.learned", emoji=sticker.emoji, meaning=sticker.meaning))
 
     async def _describe_photo(self, photo: str) -> Reply:
         services = self.services
         llm = services.llm
         if llm is None:
-            return Reply("📷 Guardei a foto. Manda /decidir ... ou pergunta algo sobre ela.")
+            return Reply(t("router.photo.kept_no_llm"))
         if services.budget is not None:
             status = await services.budget.check(Scope.INTERACTIVE)
             if not status.allowed:
-                return Reply(f"📷 Guardei a foto, mas não posso olhar agora.\n{services.say('sem_credito')}\n({status.reason})")
+                return Reply(
+                    t("router.photo.kept_no_budget", phrase=services.say("sem_credito"), reason=status.reason)
+                )
         try:
             response = await llm.complete(
-                [LLMMessage("user", DESCRIBE_PROMPT, images=(photo,))],
+                [LLMMessage("user", describe_prompt(), images=(photo,))],
                 purpose="vision_describe",
                 scope=Scope.INTERACTIVE,
                 model=llm.vision_model,
@@ -196,11 +191,11 @@ class Router:
                 use_soul=False,  # a factual description; the follow-ups get the personality
             )
         except LLMError:
-            return Reply(f"📷 Guardei a foto, mas não consegui olhar.\n{services.say('llm_erro')}")
-        description = response.text.strip() or "(não consegui descrever)"
+            return Reply(t("router.photo.kept_llm_error", phrase=services.say("llm_erro")))
+        description = response.text.strip() or t("router.photo.no_description")
         await emit(EventType.ROUTE, tier="vision_describe", chars=len(description))
         await remember_ref(services, "imagem", utcnow().strftime("%H%M%S"), f"imagem: {_clip(description, 80)}")
-        return Reply(f"📷 {description}\n\n(Pergunta o que quiser sobre ela, ou pede para eu salvar.)")
+        return Reply(t("router.photo.described", description=description))
 
     async def _followup_image(self, text: str) -> str | None:
         """The last picture, when this message seems to be about it."""
@@ -228,8 +223,7 @@ class Router:
         with trace():
             await emit(EventType.MESSAGE_RECEIVED, text="[áudio]", kind="voice", seconds=seconds)
             if services.transcriber is None:
-                text = "Ainda não sei ouvir áudio: falta uma chave da OpenAI (TRANSCRIBE_API_KEY)."
-                return [Reply(text)]
+                return [Reply(t("router.audio.no_transcriber"))]
             if services.budget is not None:
                 status = await services.budget.check(Scope.INTERACTIVE)
                 if not status.allowed:
@@ -237,15 +231,16 @@ class Router:
             try:
                 transcript = await services.transcriber.transcribe(data, seconds=seconds)
             except TranscriptionError as exc:
-                return [Reply(f"{services.say('llm_erro')}\n(transcrição: {exc})")]
+                phrase = services.say("llm_erro")
+                return [Reply(t("router.audio.transcription_failed", phrase=phrase, error=exc))]
             if not transcript.text:
-                return [Reply(f"{services.say('nao_entendi')}\n(não consegui ouvir nada no áudio)")]
+                return [Reply(t("router.audio.nothing_heard", phrase=services.say("nao_entendi")))]
 
             await emit(EventType.ROUTE, tier="voice", chars=len(transcript.text), model=transcript.model)
-            heard = Reply(f"🎙️ entendi: {_clip(transcript.text, HEARD_CHARS)}")
+            heard = Reply(t("router.audio.heard", text=_clip(transcript.text, HEARD_CHARS)))
             reply = await self._safely(self._route(transcript.text.strip(), user_id))
             if services.budget is not None and not (await services.budget.check(Scope.INTERACTIVE)).allowed:
-                reply.text += "\n(guardei a transcrição inteira; depois do /liberar é só pedir de novo)"
+                reply.text += "\n" + t("router.audio.kept_transcript")
             await self._remember(f"[voz] {transcript.text}", reply)
             return [heard, reply]
 
@@ -264,7 +259,7 @@ class Router:
             return reply
         now = utcnow()
         self._pages = {
-            t: v for t, v in self._pages.items() if now - v[1] < PAGES_TTL
+            key: v for key, v in self._pages.items() if now - v[1] < PAGES_TTL
         }
         while len(self._pages) >= PAGES_KEPT:
             self._pages.pop(next(iter(self._pages)))
@@ -275,15 +270,15 @@ class Router:
     def _page(self, token: str, index: int) -> Reply:
         stored = self._pages.get(token)
         if stored is None:
-            return Reply(PAGES_EXPIRED, edit=True)
+            return Reply(t("router.pages_expired"), edit=True)
         pages = stored[0]
         index = max(0, min(index, len(pages) - 1))
         buttons = []
         if index > 0:
-            buttons.append(Button("◀ Anterior", f"pg:{token}:{index - 1}"))
+            buttons.append(Button(t("router.button.previous"), f"pg:{token}:{index - 1}"))
         if index < len(pages) - 1:
-            buttons.append(Button("Próxima ▶", f"pg:{token}:{index + 1}"))
-        text = f"{pages[index]}\n\n— página {index + 1}/{len(pages)} —"
+            buttons.append(Button(t("router.button.next"), f"pg:{token}:{index + 1}"))
+        text = f"{pages[index]}\n\n" + t("router.page_footer", page=index + 1, total=len(pages))
         return Reply(text=text, buttons=buttons, edit=True)
 
     async def handle_callback(self, data: str, user_id: int | None = None) -> Reply:
@@ -316,7 +311,7 @@ class Router:
             reply = await coro
         except Exception as exc:
             await emit(EventType.ERROR, where="router", error=repr(exc))
-            reply = Reply(f"{self.services.say('erro_generico')}\n(registrado em /log erros)")
+            reply = Reply(t("router.error_logged", phrase=self.services.say("erro_generico")))
         await emit(EventType.REPLY, length=len(reply.text), file=reply.document is not None)
         return reply
 
@@ -414,8 +409,11 @@ class Router:
         self._pending[token] = PendingCommand(name, args, trace_id)
         suggestion = " ".join([f"/{name}", *args])
         return Reply(
-            text=f"Você quis dizer {suggestion}?",
-            buttons=[Button("Sim", f"confirm:{token}"), Button("Não", f"deny:{token}")],
+            text=t("router.did_you_mean", suggestion=suggestion),
+            buttons=[
+                Button(t("router.button.yes"), f"confirm:{token}"),
+                Button(t("router.button.no"), f"deny:{token}"),
+            ],
         )
 
     async def _resolve_confirmation(
@@ -423,7 +421,7 @@ class Router:
     ) -> Reply:
         if pending is None or pending.expires_at < utcnow():
             await emit(EventType.ROUTE, tier="confirm_expired")
-            return Reply(CONFIRM_EXPIRED)
+            return Reply(t("router.confirm_expired"))
         if verb != "confirm":
             await emit(EventType.ROUTE, tier="confirm_denied", command=pending.name)
             return Reply(self.services.say("cancelado"))
@@ -432,7 +430,7 @@ class Router:
 
     def _expire_pending(self) -> None:
         now = utcnow()
-        for token in [t for t, p in self._pending.items() if p.expires_at < now]:
+        for token in [key for key, p in self._pending.items() if p.expires_at < now]:
             del self._pending[token]
 
     async def _run_command_for_llm(self, name: str, args: list[str]) -> Reply:

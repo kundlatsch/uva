@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from uva.i18n import t
 from uva.services import Services
+from uva.stm.service import status_label
 from uva.stm.session import Ref, RefStatus
 from uva.tasks.queue import TaskStatus
 
@@ -21,7 +23,7 @@ _TASK_STATUS: dict[TaskStatus, RefStatus] = {
 @dataclass(frozen=True, slots=True)
 class LiveStatus:
     status: RefStatus
-    detail: str  # plain text, e.g. "cancelada" or the error
+    detail: str  # plain text shown to the user, e.g. "cancelada" or the error
 
 
 async def live_status(services: Services, ref: Ref) -> LiveStatus:
@@ -29,7 +31,8 @@ async def live_status(services: Services, ref: Ref) -> LiveStatus:
     if ref.tipo in ("tarefa", "pesquisa") and services.tasks is not None:
         record = await services.tasks.store.get(ref.id)
         if record is not None:
-            detail = "cancelada" if record.status is TaskStatus.CANCELLED else (record.error or "")
+            cancelled = record.status is TaskStatus.CANCELLED
+            detail = t("stm.status.cancelled") if cancelled else (record.error or "")
             return LiveStatus(_TASK_STATUS[record.status], detail)
     if ref.tipo == "feature" and services.features is not None:
         record = await services.features.store.get(ref.id)
@@ -42,8 +45,8 @@ async def live_status(services: Services, ref: Ref) -> LiveStatus:
     if ref.tipo == "objetivo" and services.goals is not None:
         goal = await services.goals.get(ref.id)
         if goal is not None:
-            last = goal.results[-1].summary if goal.results else "ainda não rodou"
-            return LiveStatus("ok", f"{goal.status.value}; última execução: {last[:150]}")
+            last = goal.results[-1].summary if goal.results else t("stm.status.never_ran")
+            return LiveStatus("ok", t("stm.status.goal", status=goal.status.value, last=last[:150]))
     return LiveStatus(ref.status, ref.erro or "")
 
 
@@ -63,8 +66,10 @@ def status_reply(services: Services, ref: Ref, live: LiveStatus) -> str:
     subject = f"{ref.rotulo} ({ref.ref}, id {ref.id})"
     if live.status == "ok":
         tail = f": {live.detail}" if live.detail else "."
-        return f"{services.say('tarefa_ok', id=ref.id)}\n{subject} terminou{tail}"
+        return f"{services.say('tarefa_ok', id=ref.id)}\n" + t("stm.status.done", subject=subject, tail=tail)
     if live.status == "falhou":
         why = f": {live.detail}" if live.detail else "."
-        return f"{services.say('tarefa_falhou', id=ref.id)}\n{subject} falhou{why} (dá pra pedir de novo)"
-    return f"{services.say('ocupado')}\n{subject} está {live.status}."
+        phrase = services.say("tarefa_falhou", id=ref.id)
+        return f"{phrase}\n" + t("stm.status.failed", subject=subject, why=why)
+    status = status_label(live.status)
+    return f"{services.say('ocupado')}\n" + t("stm.status.in_progress", subject=subject, status=status)

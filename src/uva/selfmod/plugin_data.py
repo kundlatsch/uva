@@ -12,6 +12,7 @@ import asyncio
 from typing import Any
 
 from uva.clock import format_local, start_of_day, start_of_month, start_of_week, start_of_year
+from uva.i18n import t
 from uva.plugins.api import DataView
 from uva.services import Services
 from uva.storage.expenses import format_brl
@@ -34,7 +35,7 @@ def make_data_view(services: Services) -> DataView:
             "priority": goal.priority,
             "kind": goal.kind.value,
             "next_run": when(goal.next_run_at),
-            "last_attempt": goal.last_attempt or "nunca",
+            "last_attempt": goal.last_attempt or t("selfmod.plugin_data.never"),
             "last_attempt_at": when(goal.last_attempt_at),
             "run_count": goal.run_count,
         }

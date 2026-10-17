@@ -9,6 +9,7 @@ from pathlib import Path
 from redis.asyncio import Redis
 
 from uva.actions import build_action_registry
+from uva import i18n
 from uva.audio import build_transcriber
 from uva.brain.vault import Vault
 from uva.clock import utcnow
@@ -39,6 +40,7 @@ log = get_logger(__name__)
 
 
 def build_services(settings: Settings) -> Services:
+    i18n.set_language(settings.bot_language)
     client = mongo.connect(settings.mongo_uri)
     db = mongo.get_database(client)
 

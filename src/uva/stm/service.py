@@ -6,10 +6,25 @@ from datetime import datetime, timedelta
 
 from uva.clock import format_local, utcnow
 from uva.config import Settings
+from uva.i18n import t
 from uva.llm.base import LLMMessage
 from uva.stm.session import NOTICE_CHARS, TURN_CHARS, VOICE_CHARS, Ref, RefKind, RefStatus, Session, SessionBackend, Turn
 
 ICONS = {"na fila": "⏳", "rodando": "🔄", "ok": "✅", "falhou": "❌"}
+# Stored status (kept in Portuguese in Redis) -> key of its label in stm.service.status.
+STATUS_KEYS = {"na fila": "queued", "rodando": "running", "ok": "ok", "falhou": "failed"}
+
+
+def status_label(status: str) -> str:
+    """How a stored status is shown ("rodando" -> "running" in English)."""
+    key = STATUS_KEYS.get(status)
+    return t(f"stm.service.status.{key}") if key else status
+
+
+def kind_label(kind: str) -> str:
+    """How a stored reference kind is shown ("pesquisa" -> "research" in English)."""
+    label = t(f"stm.service.kind.{kind}")
+    return kind if label == f"stm.service.kind.{kind}" else label
 
 
 class ShortTermMemory:
@@ -130,9 +145,12 @@ class ShortTermMemory:
 
 def describe_ref(ref: Ref, tz, focus: bool = False) -> str:
     when = format_local(ref.quando, tz, "%H:%M")
-    error = f" — erro: {ref.erro}" if ref.erro else ""
-    mark = " ← em foco" if focus else ""
-    return f"- {ref.ref} [{ref.tipo}] {ref.rotulo} (id {ref.id}, {when}): {ICONS[ref.status]} {ref.status}{error}{mark}"
+    error = t("stm.service.error", error=ref.erro) if ref.erro else ""
+    mark = t("stm.service.focus") if focus else ""
+    return (
+        f"- {ref.ref} [{kind_label(ref.tipo)}] {ref.rotulo} (id {ref.id}, {when}): "
+        f"{ICONS[ref.status]} {status_label(ref.status)}{error}{mark}"
+    )
 
 
 def _clip(text: str, limit: int = TURN_CHARS) -> str:

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from uva.clock import utcnow
+from uva.i18n import language_name, t
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
 from uva.projects.store import ProjectRecord, ProjectStatus
@@ -52,7 +53,7 @@ Guidelines:
   mv, rm, restore, branch, checkout), python/python3, pip, node, npm, npx and pytest; other
   commands are refused: use your file tools instead (Read, Edit, Glob, Grep; writing a file
   creates its folders).
-- Final answer: at most 8 short lines in Brazilian Portuguese, technical terms in English:
+- Final answer: at most 8 short lines in {language}, technical terms in English:
   what you built, how to run it, test results. Plain text or simple Markdown (bold, `code`,
   "- " bullets); no headings, no tables."""
 
@@ -160,7 +161,7 @@ def parse_result(stdout: str) -> Outcome:
         except (json.JSONDecodeError, IndexError):
             continue
     if not isinstance(data, dict):
-        return Outcome(False, error=f"saída inesperada do Claude Code: {text[-300:] or '(vazia)'}")
+        return Outcome(False, error=t("projects.runner.unexpected_output", output=text[-300:] or t("projects.runner.empty")))
     cost = float(data.get("total_cost_usd") or 0)
     turns = int(data.get("num_turns") or 0)
     result = str(data.get("result") or "").strip()
@@ -173,7 +174,7 @@ def parse_result(stdout: str) -> Outcome:
 async def _run_claude(services: Services, record: ProjectRecord, cwd: Path, env, account) -> Outcome:
     s = services.settings
     store = services.projects.store  # type: ignore[union-attr]
-    prompt = PROMPT.format(description=record.description)
+    prompt = PROMPT.format(description=record.description, language=language_name())
     try:
         proc = await asyncio.create_subprocess_exec(
             *claude_command(services, prompt), cwd=cwd, env=env,
@@ -181,26 +182,27 @@ async def _run_claude(services: Services, record: ProjectRecord, cwd: Path, env,
             start_new_session=True, **_as(account),
         )
     except FileNotFoundError:
-        return Outcome(False, error=f"Claude Code não está instalado ({s.project_claude_bin})")
+        return Outcome(False, error=t("projects.runner.not_installed", bin=s.project_claude_bin))
     talk = asyncio.ensure_future(proc.communicate())
     deadline = time.monotonic() + s.project_timeout_minutes * 60
     stop_reason: str | None = None
+    cancelled = False
     while True:
         done, _ = await asyncio.wait({talk}, timeout=POLL_SECONDS)
         if done:
             break
         current = await store.get(record.id)
         if current is not None and current.status is ProjectStatus.CANCELLING:
-            stop_reason = "cancelado"
+            stop_reason, cancelled = t("projects.runner.cancelled"), True
         elif time.monotonic() > deadline:
-            stop_reason = f"passou de {s.project_timeout_minutes} min (PROJECT_TIMEOUT_MINUTES)"
+            stop_reason = t("projects.runner.timeout", minutes=s.project_timeout_minutes)
         if stop_reason:
             _kill(proc)
             await talk
             break
     out, err = talk.result()
     if stop_reason:
-        return Outcome(False, error=stop_reason, cancelled=stop_reason == "cancelado")
+        return Outcome(False, error=stop_reason, cancelled=cancelled)
     outcome = parse_result(out.decode(errors="replace"))
     if not outcome.ok and proc.returncode and not outcome.summary:
         tail = err.decode(errors="replace").strip()[-300:]
@@ -300,12 +302,21 @@ async def _count_commits(cwd: Path, env, account) -> int:
 
 
 def announce(record: ProjectRecord, host_path: str, minutes: float) -> str:
-    facts = f"{minutes:.0f} min · {record.turns} turnos · US$ {record.cost_usd:.2f} · {record.commits} commit(s)"
+    facts = t(
+        "projects.runner.facts", minutes=f"{minutes:.0f}", turns=record.turns,
+        cost=f"{record.cost_usd:.2f}", commits=record.commits,
+    )
     if record.status is ProjectStatus.DONE:
-        return f"🚀 Projeto {record.slug} pronto ({record.id})\n📁 {host_path}\n{facts}\n\n{record.summary}"
+        return t(
+            "projects.runner.done", slug=record.slug, id=record.id, path=host_path, facts=facts,
+            summary=record.summary,
+        )
     if record.status is ProjectStatus.CANCELLED:
-        return f"🚫 Projeto {record.slug} cancelado ({record.id}). O que já tinha ficou em {host_path}."
-    text = f"❌ Projeto {record.slug} falhou ({record.id}): {record.error}\n📁 {host_path}\n{facts}"
+        return t("projects.runner.cancelled_notice", slug=record.slug, id=record.id, path=host_path)
+    text = t(
+        "projects.runner.failed", slug=record.slug, id=record.id, error=record.error, path=host_path,
+        facts=facts,
+    )
     if record.summary:
         text += f"\n\n{record.summary}"
     return text

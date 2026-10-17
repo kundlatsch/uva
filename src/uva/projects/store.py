@@ -10,6 +10,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, Field
 
 from uva.clock import utcnow
+from uva.i18n import t
 
 
 class ProjectStatus(StrEnum):
@@ -52,11 +53,6 @@ class ProjectStore(Protocol):
     async def cost_since(self, since: datetime) -> float: ...
 
 
-STATUS_LABEL = {
-    ProjectStatus.QUEUED: "⏳ na fila",
-    ProjectStatus.RUNNING: "🔨 construindo",
-    ProjectStatus.CANCELLING: "🛑 cancelando",
-    ProjectStatus.DONE: "✅ pronto",
-    ProjectStatus.FAILED: "❌ falhou",
-    ProjectStatus.CANCELLED: "🚫 cancelado",
-}
+def status_label(status: ProjectStatus) -> str:
+    """'✅ pronto', in the bot's language."""
+    return t(f"projects.store.status.{status.value}")

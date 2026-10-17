@@ -1,0 +1,37 @@
+{
+  "not_configured": "Objetivos não estão configurados.",
+  "status": {
+    "ativo": "▶️ ativo",
+    "pausado": "⏸ pausado",
+    "concluido": "✅ concluído"
+  },
+  "describe": {
+    "head": "{id} {status} · prioridade {priority} · {kind} · a cada {hours}h",
+    "late": " (atrasada; roda assim que der)",
+    "next_run": "   próxima execução: {when}{late}",
+    "last_attempt": "   última tentativa: {when} ({attempt}) · execuções: {runs}",
+    "never": "   última tentativa: nunca · execuções: {runs}",
+    "needs_feature": "   precisa de: /feature {feature}",
+    "last_result": "   última ({when}): {summary}"
+  },
+  "objetivos": {
+    "description": "Lista os objetivos em que trabalho sozinha",
+    "none": "Nenhum objetivo ainda. Peça algo como: \"crie um objetivo de acompanhar notícias sobre energia solar toda semana\".",
+    "header": "Objetivos:"
+  },
+  "not_found": "Não achei o objetivo {id}.",
+  "status_changed": "Objetivo {id} ({title}): {status}.",
+  "pausar": {
+    "description": "Pausa um objetivo",
+    "usage": "Uso: /pausar <id> (ids em /objetivos)"
+  },
+  "retomar": {
+    "description": "Retoma um objetivo pausado",
+    "usage": "Uso: /retomar <id> (ids em /objetivos)"
+  },
+  "remover": {
+    "description": "Remove um objetivo (as notas ficam)",
+    "removed": "Objetivo {id} removido. As notas dele continuam no second brain.",
+    "usage": "Uso: /remover <id> (ids em /objetivos)"
+  }
+}

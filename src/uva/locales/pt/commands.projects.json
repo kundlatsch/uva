@@ -1,0 +1,16 @@
+{
+  "not_configured": "Projetos não estão configurados (precisa de Mongo e do worker de projetos).",
+  "requested": [
+    "🏗️ Beleza, vou criar o projeto {slug} ({id}) com o Claude Code, numa pasta nova: {path}",
+    "Limites: {minutes} min, US$ {budget:.2f}. Te aviso quando terminar. Acompanhe em /projetos; para parar, /cancelar {id}."
+  ],
+  "projeto": {
+    "description": "Cria um projeto NOVO (fora do bot) com o Claude Code e avisa quando terminar",
+    "usage": "Uso: /projeto <descrição>, ex.: /projeto um site estático de receitas com busca"
+  },
+  "projetos": {
+    "description": "Projetos que o Claude Code criou (ou está criando)",
+    "none": "Nenhum projeto ainda. Peça com /projeto <descrição>.",
+    "header": "Projetos:"
+  }
+}

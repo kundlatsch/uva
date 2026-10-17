@@ -136,3 +136,14 @@ async def test_ffmpeg_converts_ogg_opus_to_mp3(tmp_path):
     )
     mp3 = await to_mp3(ogg.read_bytes())
     assert mp3[:3] == b"ID3" or mp3[0] == 0xFF  # MP3 header
+
+
+async def test_voice_echo_in_english(audio_services):
+    from uva import i18n
+
+    i18n.set_language("en")
+    services, usage = audio_services
+    services.transcriber = transcriber(FakeTranscriptions(text="/ping"), usage)
+    heard, reply = await Router(services).handle_audio(b"ogg-bytes", seconds=3)
+    assert heard.text == "🎙️ heard: /ping"
+    assert reply.text == "pong"

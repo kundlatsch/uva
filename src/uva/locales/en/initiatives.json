@@ -1,0 +1,35 @@
+{
+  "opening": "Saw this and thought of you:",
+  "status": {
+    "title": "🤖 Proactivity",
+    "enabled": "Initiatives: {state} (/proactive on|off)",
+    "on": "on",
+    "off": "off",
+    "today": "Today: {count} of {cap} messages · minimum gap {gap} min",
+    "quiet": "Quiet hours: {start}h–{end}h",
+    "quiet_now": " (quiet right now)",
+    "poll": "Checking every {poll} min · goals at most every {interval} min",
+    "next": "Next initiative: {reason}",
+    "next_ready": "may go out in the next cycle",
+    "blocked": {
+      "off": "off",
+      "quiet": "quiet hours",
+      "daily_cap": "daily limit reached",
+      "gap": "waiting for the minimum gap",
+      "busy": "you're chatting or a goal is running",
+      "goal_due": "a goal will run first",
+      "disabled": "no LLM",
+      "waiting": "I thought about it a moment ago; I think again every {minutes} min"
+    },
+    "goals": "Active goals: {count} · next: \"{title}\" at {at}",
+    "no_goals": "Active goals: none",
+    "recent": "Latest initiatives:",
+    "now_hint": "/proactive now → sends an initiative right away (only the budget applies)"
+  },
+  "reply": {
+    "nothing": "I looked at everything and found nothing worth interrupting you for right now.",
+    "budget": "No proactive budget left today (PROACTIVE_DAILY_BUDGET_USD).",
+    "error": "Something went wrong while thinking of an initiative (see /log errors).",
+    "disabled": "Initiatives unavailable (no LLM or Mongo)."
+  }
+}

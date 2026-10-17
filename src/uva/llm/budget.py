@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from uva.clock import start_of_day, start_of_month, utcnow
 from uva.config import Settings
+from uva.i18n import t
 
 
 class Scope(StrEnum):
@@ -87,7 +88,7 @@ class Budget:
     async def grant_extra(self, amount: float, now: datetime | None = None) -> float:
         """Allow ``amount`` USD more today (the monthly budget still applies)."""
         if self.extras is None:
-            raise RuntimeError("liberação de orçamento não está configurada")
+            raise RuntimeError(t("llm.budget.no_extras"))
         return await self.extras.add(self.day_key(now), amount)
 
     async def spend(self, now: datetime | None = None) -> Spend:
@@ -107,29 +108,25 @@ class Budget:
             spend = await self.spend(now)
         except Exception:
             # Without knowing the spend we can't promise to stay in budget.
-            return BudgetStatus(False, "não consegui verificar o gasto com a API (Mongo fora?)")
+            return BudgetStatus(False, t("llm.budget.unknown_spend"))
 
         if spend.month >= s.llm_monthly_budget_usd:
-            return BudgetStatus(
-                False,
-                f"orçamento mensal de LLM atingido (US$ {spend.month:.2f} de "
-                f"{s.llm_monthly_budget_usd:.2f}); volta no próximo mês",
-            )
+            return BudgetStatus(False, t(
+                "llm.budget.monthly", spent=f"{spend.month:.2f}", limit=f"{s.llm_monthly_budget_usd:.2f}"
+            ))
         if scope is Scope.SELFCODE:
             if spend.selfcode_today >= s.selfcode_daily_budget_usd:
-                return BudgetStatus(
-                    False,
-                    f"orçamento diário de auto-código atingido (US$ {spend.selfcode_today:.2f} de "
-                    f"{s.selfcode_daily_budget_usd:.2f}); volta amanhã",
-                )
+                return BudgetStatus(False, t(
+                    "llm.budget.selfcode", spent=f"{spend.selfcode_today:.2f}",
+                    limit=f"{s.selfcode_daily_budget_usd:.2f}",
+                ))
             return BudgetStatus(True)
         if spend.today >= spend.daily_limit(s):
-            extra = f", com US$ {spend.extra_today:.2f} liberados" if spend.extra_today else ""
-            return BudgetStatus(
-                False,
-                f"orçamento diário de LLM atingido (US$ {spend.today:.2f} de "
-                f"{spend.daily_limit(s):.2f}{extra}); volta amanhã ou use /liberar",
-            )
+            extra = t("llm.budget.extra", extra=f"{spend.extra_today:.2f}") if spend.extra_today else ""
+            return BudgetStatus(False, t(
+                "llm.budget.daily", spent=f"{spend.today:.2f}", limit=f"{spend.daily_limit(s):.2f}",
+                extra=extra,
+            ))
         if scope is Scope.PROACTIVE and spend.proactive_today >= s.proactive_daily_budget_usd:
-            return BudgetStatus(False, "orçamento diário do modo proativo atingido")
+            return BudgetStatus(False, t("llm.budget.proactive"))
         return BudgetStatus(True)

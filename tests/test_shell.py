@@ -150,3 +150,16 @@ def test_executor_runs_as_user_snapshots_changes_and_undoes(tmp_path, monkeypatc
     undone = executor.undo()
     assert undone["restored"] == "cria" and not (tmp_path / "uva" / "a.txt").exists()
     assert executor.exists(["a.txt", "../etc/passwd", "/etc/passwd"]) == []
+
+
+def test_shell_texts_in_english():
+    from uva import i18n
+    from uva.shell.service import USAGE, render_result, usage
+
+    i18n.set_language("en")
+    assert usage().startswith("Usage:\n/sh <command>")
+    assert USAGE.startswith("Uso:")  # the constant stays Portuguese for old importers
+    reply = render_result("sh", "ls", {"output": "", "exit": 1, "seconds": 0.1, "snapshot": "abc"}, 60)
+    assert "(no output)" in reply.text and "❌ exited with code 1" in reply.text
+    assert "changed files (snapshot abc; /sh undo)" in reply.text
+    assert python_risks("import os\nos.remove('a')") == ["deletes files"]

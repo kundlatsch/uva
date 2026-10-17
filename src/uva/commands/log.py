@@ -10,15 +10,15 @@ from datetime import datetime, timedelta, tzinfo
 
 from uva.clock import format_local, start_of_day, utcnow
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.logging.events import Event, EventQuery, EventType
 from uva.replies import Reply
 from uva.text import extract_duration, extract_keywords
 
-USAGE = (
-    "Uso: /log [período] [tipo]  ou  /log trace <id>\n"
-    "Período: 30m, 6h, 2d, hoje/today, ontem/yesterday (padrão: 1h)\n"
-    "Tipo: llm, goals, erros, tarefas, memoria, acoes, selfcode"
-)
+
+def usage() -> str:
+    return t("commands.log.usage")
+
 
 FILTERS: dict[str, set[EventType]] = {
     "llm": {EventType.LLM_CALL},
@@ -61,10 +61,10 @@ def parse_log_args(args: list[str], tz: tzinfo, now: datetime | None = None) -> 
 
     if words and words[0] == "trace":
         if len(words) != 2:
-            raise LogArgsError(USAGE)
+            raise LogArgsError(usage())
         return LogRequest(EventQuery(trace_id=words[1]), f"trace {words[1]}", detail=True)
 
-    since, until, period = now - timedelta(hours=1), None, "última hora"
+    since, until, period = now - timedelta(hours=1), None, t("commands.log.period.last_hour")
     types: set[EventType] | None = None
     filter_name = ""
 
@@ -73,14 +73,15 @@ def parse_log_args(args: list[str], tz: tzinfo, now: datetime | None = None) -> 
             amount, unit = int(match[1]), match[2]
             since, until, period = now - timedelta(**{_UNITS[unit]: amount}), None, word
         elif word in ("hoje", "today"):
-            since, until, period = start_of_day(tz, now), None, "hoje"
+            since, until, period = start_of_day(tz, now), None, t("commands.log.period.today")
         elif word in ("ontem", "yesterday"):
             today = start_of_day(tz, now)
-            since, until, period = today - timedelta(days=1), today, "ontem"
+            since, until = today - timedelta(days=1), today
+            period = t("commands.log.period.yesterday")
         elif word in FILTERS:
             types, filter_name = FILTERS[word], word
         else:
-            raise LogArgsError(f"Não entendi '{word}'.\n{USAGE}")
+            raise LogArgsError(t("commands.log.unknown_arg", word=word, usage=usage()))
 
     label = period + (f", {filter_name}" if filter_name else "")
     return LogRequest(EventQuery(since=since, until=until, types=types), label)
@@ -115,16 +116,16 @@ def extract_log_args(normalized: str) -> tuple[str, list[str]]:
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "log",
-        "Mostra o que aconteceu (eventos)",
+        t("commands.log.log.description"),
         aliases=("logs", "eventos"),
-        usage="[período] [tipo] | trace <id>",
+        usage=t("commands.log.log.usage_arg"),
         examples=("o que aconteceu", "historico de eventos", "ultimos eventos"),
         extract_args=extract_log_args,
     )
     async def log_command(ctx: CommandContext) -> str | Reply:
         store = ctx.services.events
         if store is None:
-            return "O log de eventos não está disponível (Mongo não configurado)."
+            return t("commands.log.log.unavailable")
         try:
             request = parse_log_args(ctx.args, ctx.services.tz)
         except LogArgsError as exc:
@@ -133,7 +134,7 @@ def register(registry: CommandRegistry) -> None:
         events = await store.find(request.query)
         tz = ctx.services.tz
         if not events:
-            return f"Nenhum evento ({request.label})."
+            return t("commands.log.log.none", label=request.label)
         if request.detail:
             text = format_trace(events, tz)
         elif request.query.types:
@@ -152,10 +153,10 @@ def format_summary(events: list[Event], tz: tzinfo, label: str) -> str:
     for event in events:
         traces.setdefault(event.trace_id, []).append(event)
 
-    lines = [f"Log ({label}): {len(traces)} rastros, {len(events)} eventos"]
+    lines = [t("commands.log.summary.header", label=label, traces=len(traces), events=len(events))]
     for trace_id, group in traces.items():
         lines.append(_summarize_trace(trace_id, group, tz))
-    lines.append("\nDetalhes: /log trace <id>")
+    lines.append(t("commands.log.summary.details"))
     return "\n".join(lines)
 
 
@@ -178,19 +179,27 @@ def _summarize_trace(trace_id: str, group: list[Event], tz: tzinfo) -> str:
                 llm_calls += 1
                 llm_cost += float(data.get("cost_usd") or 0)
             case EventType.TASK_ENQUEUED:
-                parts.append(f"tarefa {data.get('action')} enfileirada")
+                parts.append(t("commands.log.summary.task_enqueued", action=data.get("action")))
             case EventType.TASK_FINISHED:
-                parts.append(f"tarefa {data.get('status')}")
+                parts.append(t("commands.log.summary.task_finished", status=data.get("status")))
             case EventType.GOAL_RUN:
                 reason = f", {data['reason']}" if data.get("reason") else ""
                 if data.get("needs_feature"):
-                    reason = f", precisa de /feature {data['needs_feature'][:40]}"
-                parts.append(f"objetivo '{data.get('title')}' ({data.get('status')}{reason})")
+                    reason = t("commands.log.summary.needs_feature", feature=data["needs_feature"][:40])
+                parts.append(
+                    t(
+                        "commands.log.summary.goal",
+                        title=data.get("title"),
+                        status=data.get("status"),
+                        reason=reason,
+                    )
+                )
             case EventType.ERROR:
-                parts.append(f"ERRO: {_preview(str(data.get('error', '')), 60)}")
+                error = _preview(str(data.get("error", "")), 60)
+                parts.append(t("commands.log.summary.error", error=error))
 
     if actions:
-        parts.append("ações: " + ", ".join(actions))
+        parts.append(t("commands.log.summary.actions", actions=", ".join(actions)))
     if llm_calls:
         parts.append(f"llm: {llm_calls}x ${llm_cost:.4f}")
     return f"{head} " + (" → ".join(parts) if parts else group[0].type.value)
@@ -199,38 +208,24 @@ def _summarize_trace(trace_id: str, group: list[Event], tz: tzinfo) -> str:
 def _describe_route(data: dict) -> str:
     tier = data.get("tier")
     command = data.get("command")
+    score = f"{data.get('score', 0):.0f}"
     match tier:
-        case "command":
-            return f"comando /{command}"
-        case "similarity":
-            return f"similaridade /{command} ({data.get('score', 0):.0f})"
-        case "confirm":
-            return f"confirmação /{command}? ({data.get('score', 0):.0f})"
         case "llm":
             actions = [a.get("type") for a in data.get("plan", {}).get("actions", [])]
             return "LLM" + (f" ({', '.join(actions)})" if actions else "")
         case "small_talk":
-            return f"conversa ({data.get('category')})"
-        case "llm_disabled":
-            return "LLM desligada"
-        case "similarity_miss":
-            return f"sem comando parecido (melhor: /{command} {data.get('score', 0):.0f})"
-        case "confirmed":
-            return f"confirmado /{command}"
-        case "confirm_denied":
-            return f"recusado /{command}"
-        case "confirm_expired":
-            return "confirmação expirada"
-        case "none":
-            return "não entendido"
-        case "unknown_command":
-            return f"comando desconhecido /{command}"
+            return t("commands.log.route.small_talk", category=data.get("category"))
+        case (
+            "command" | "similarity" | "confirm" | "llm_disabled" | "similarity_miss"
+            | "confirmed" | "confirm_denied" | "confirm_expired" | "none" | "unknown_command"
+        ):
+            return t(f"commands.log.route.{tier}", command=command, score=score)
         case _:
             return str(tier)
 
 
 def format_event_list(events: list[Event], tz: tzinfo, label: str) -> str:
-    lines = [f"Log ({label}): {len(events)} eventos"]
+    lines = [t("commands.log.event_list", label=label, events=len(events))]
     for event in events:
         details = " ".join(f"{k}={_preview(str(v), 80)}" for k, v in event.data.items())
         when = format_local(event.ts, tz, "%d/%m %H:%M:%S")
@@ -239,7 +234,7 @@ def format_event_list(events: list[Event], tz: tzinfo, label: str) -> str:
 
 
 def format_trace(events: list[Event], tz: tzinfo) -> str:
-    lines = [f"Trace {events[0].trace_id}: {len(events)} eventos"]
+    lines = [t("commands.log.trace", id=events[0].trace_id, events=len(events))]
     for event in events:
         when = format_local(event.ts, tz, "%d/%m %H:%M:%S")
         lines.append(f"\n{when} {event.type.value}")

@@ -4,16 +4,15 @@ from __future__ import annotations
 
 from uva.clock import format_local
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.memory.store import MemoryCategory
-
-NO_MEMORY = "A memória não está configurada."
 
 
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "memoria",
-        "Mostra o que eu lembro (ou uma chave)",
+        t("commands.memory.memoria.description"),
         aliases=("memória", "memorias", "memory"),
         usage="[chave]",
         examples=("o que voce sabe sobre mim", "o que voce lembra de mim"),
@@ -21,56 +20,73 @@ def register(registry: CommandRegistry) -> None:
     async def memory(ctx: CommandContext) -> str:
         service = ctx.services.memory
         if service is None:
-            return NO_MEMORY
+            return t("commands.memory.not_configured")
         tz = ctx.services.tz
         if ctx.args:
             item = await service.get(" ".join(ctx.args))
             if item is None:
-                return f"Não lembro de nada com a chave '{' '.join(ctx.args)}'."
-            return (
-                f"{item.key} [{item.category.value}]: {item.value}\n"
-                f"Relevância {item.relevance:.2f}, usada {item.use_count}x, "
-                f"último uso {format_local(item.last_used_at, tz, '%d/%m/%Y')}"
+                return t("commands.memory.memoria.unknown_key", key=" ".join(ctx.args))
+            return t(
+                "commands.memory.memoria.item",
+                key=item.key,
+                category=item.category.value,
+                value=item.value,
+                relevance=item.relevance,
+                uses=item.use_count,
+                last_used=format_local(item.last_used_at, tz, "%d/%m/%Y"),
             )
 
         ranked = await service.ranked()
         if not ranked:
-            return "Ainda não guardei nada. Use /lembrar <chave> <valor>."
+            return t("commands.memory.memoria.empty")
         working = {i.key for i in await service.working_memory()}
-        lines = [f"Memória: {len(ranked)} itens (★ = memória de trabalho)"]
+        lines = [t("commands.memory.memoria.header", count=len(ranked))]
         for item, value in ranked[:30]:
             star = "★" if item.key in working else " "
-            lines.append(f"{star} {item.key}: {item.value} [{item.category.value}, nota {value:.2f}]")
+            lines.append(
+                t(
+                    "commands.memory.memoria.line",
+                    star=star,
+                    key=item.key,
+                    value=item.value,
+                    category=item.category.value,
+                    score=value,
+                )
+            )
         return "\n".join(lines)
 
     @registry.command(
         "lembrar",
-        "Guarda uma memória",
+        t("commands.memory.lembrar.description"),
         aliases=("lembra", "remember"),
         usage="<chave> <valor>",
     )
     async def remember(ctx: CommandContext) -> str:
         service = ctx.services.memory
         if service is None:
-            return NO_MEMORY
+            return t("commands.memory.not_configured")
         if len(ctx.args) < 2:
-            return "Uso: /lembrar <chave> <valor> (ex.: /lembrar cidade Florianópolis)"
+            return t("commands.memory.lembrar.usage")
         key, value = ctx.args[0], " ".join(ctx.args[1:])
         # Explicit requests from the user are important by definition.
         item = await service.save(
             key, value, category=MemoryCategory.FATO, relevance=0.8, source=current_trace_id()
         )
         await emit(EventType.MEMORY, op="save", key=item.key, value=item.value, by="user")
-        return f"Ok, vou lembrar: {item.key} = {item.value}"
+        return t("commands.memory.lembrar.saved", key=item.key, value=item.value)
 
-    @registry.command("esquecer", "Apaga uma memória", aliases=("forget",), usage="<chave>")
+    @registry.command(
+        "esquecer", t("commands.memory.esquecer.description"), aliases=("forget",), usage="<chave>"
+    )
     async def forget(ctx: CommandContext) -> str:
         service = ctx.services.memory
         if service is None:
-            return NO_MEMORY
+            return t("commands.memory.not_configured")
         if not ctx.args:
-            return "Uso: /esquecer <chave> (veja as chaves em /memoria)"
+            return t("commands.memory.esquecer.usage")
         key = " ".join(ctx.args)
         removed = await service.forget(key)
         await emit(EventType.MEMORY, op="forget", key=key, removed=removed, by="user")
-        return f"Esqueci '{key}'." if removed else f"Não achei '{key}' na memória."
+        if removed:
+            return t("commands.memory.esquecer.forgotten", key=key)
+        return t("commands.memory.esquecer.not_found", key=key)

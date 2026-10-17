@@ -1,0 +1,6 @@
+{
+  "not_configured": "Decisions isn't configured (the OpenAI key is missing).",
+  "no_photo": "I don't have a recent photo (send it again).",
+  "nothing_to_evaluate": "I need some text or a photo to evaluate.",
+  "failed": "Decisions failed: {error}"
+}

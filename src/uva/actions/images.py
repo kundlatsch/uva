@@ -10,6 +10,7 @@ from uva.brain.naming import portuguese_title, require_title_pt
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
 from uva.brain.vault import title_from_text
 from uva.clock import format_local, utcnow
+from uva.i18n import t
 from uva.media import EXTENSIONS, data_url_bytes
 from uva.stm.refs import remember_ref
 
@@ -38,10 +39,10 @@ def register(registry: ActionRegistry) -> None:
     async def image_save(params: ImageSaveParams, ctx: ActionContext) -> ActionResult:
         services = ctx.services
         if services.vault is None:
-            return ActionResult(text="O second brain não está configurado.")
+            return ActionResult(text=t("actions.images.no_vault"))
         photo = services.last_photo.get()
         if photo is None:
-            return ActionResult(text="Não tenho imagem recente para salvar (manda de novo).")
+            return ActionResult(text=t("actions.images.no_photo"))
         mime, data = data_url_bytes(photo)
         when = format_local(utcnow(), services.tz, "%Y-%m-%d %H%M")
         title = (params.title_pt or params.title).strip()
@@ -59,6 +60,6 @@ def register(registry: ActionRegistry) -> None:
         vault.append_daily(f"Imagem salva: {note.link}")
         await remember_ref(services, "nota", note.path, f"nota: {note.title}")
         return ActionResult(
-            text=f"🖼️ Imagem salva em {attachment}\n📝 Nota: {note.path}",
+            text=t("actions.images.saved", attachment=attachment, note=note.path),
             data={"attachment": attachment, "note": note.path},
         )

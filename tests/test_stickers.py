@@ -3,6 +3,7 @@ import json
 import pytest
 from fakes import with_llm
 
+from uva import i18n
 from uva.router import Router
 from uva.stickers import action_request
 from uva.storage.sqlite import Database
@@ -88,3 +89,28 @@ async def test_commands_list_edit_and_remove(router, services):
     assert (await services.stickers.get("u1")).meaning == "chorando de rir"
     assert "Esqueci" in (await router.handle_text(f"/figurinha {s.id} remover")).text
     assert await services.stickers.get("u1") is None
+
+
+async def test_commands_in_english(router, services):
+    i18n.set_language("en")
+    s = await services.stickers.upsert("u1", emoji="😂", meaning="rindo")
+    assert "/sticker <n> meaning <text>" in (await router.handle_text("/stickers")).text
+    assert "now means: crying laughing" in (await router.handle_text(f"/sticker {s.id} meaning crying laughing")).text
+    assert "I'll do: tell me a joke" in (await router.handle_text(f"/sticker {s.id} action tell me a joke")).text
+    assert "I don't know sticker #999" in (await router.handle_text("/sticker 999 remove")).text
+
+
+def test_action_request_in_english():
+    assert action_request("every time I send this sticker, tell me a joke.") == "tell me a joke"
+    assert action_request("whenever I send you this sticker give me a compliment") == "give me a compliment"
+    assert action_request("this sticker is funny") is None
+
+
+async def test_new_sticker_in_english(router, services):
+    i18n.set_language("en")
+    with_llm(services)
+    reply = await router.handle_sticker("u1", **LAUGH)
+    assert "is new to me. What does it mean?" in reply.text
+    learned = await router.handle_text("laughing hard")
+    assert learned.text.startswith("✅ Got it: 😂 = “laughing hard”")
+    assert "meaning: laughing hard" in (await router.handle_text("/stickers")).text

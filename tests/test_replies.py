@@ -17,3 +17,12 @@ def test_pages_respect_size_lines_and_header():
 def test_huge_single_line_is_wrapped():
     pages = paginate("y" * (PAGE_CHARS * 2 + 10))
     assert len(pages) == 3 and "".join(pages) == "y" * (PAGE_CHARS * 2 + 10)
+
+
+def test_long_reply_becomes_a_file_in_english():
+    from uva import i18n
+
+    i18n.set_language("en")
+    fitted = Reply(text="z" * 5000).fit_for_telegram()
+    assert fitted.text == "The reply got long, here it is as a file."
+    assert fitted.document == ("z" * 5000).encode()

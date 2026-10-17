@@ -1,0 +1,17 @@
+{
+  "role": {
+    "user": "você",
+    "bot": "eu",
+    "notice": "eu (aviso)"
+  },
+  "contexto": {
+    "description": "O que eu lembro da conversa de agora (ou 'limpar')",
+    "usage_arg": "[limpar]",
+    "unavailable": "Memória de curto prazo indisponível (Redis).",
+    "cleared": "Contexto apagado. Começando do zero.",
+    "empty": "Nada no contexto agora.",
+    "header": "Contexto recente ({turns} turnos, {refs} referências)",
+    "refs": "\nReferências:",
+    "turns": "\nÚltimos turnos:"
+  }
+}

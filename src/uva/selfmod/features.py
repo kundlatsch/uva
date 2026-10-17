@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, Field
 
 from uva.clock import utcnow
+from uva.i18n import t
 
 
 class FeatureStatus(StrEnum):
@@ -62,30 +63,26 @@ class FeatureService:
         self, description: str, trace_id: str | None, goal_id: str | None = None
     ) -> FeatureRecord:
         if self.enqueue is None:
-            raise RuntimeError("a fila de tarefas não está configurada")
+            raise RuntimeError(t("selfmod.features.no_queue"))
         record = FeatureRecord(description=description.strip(), trace_id=trace_id, goal_id=goal_id)
         await self.store.add(record)
         await self.enqueue(record.id)
         return record
 
 
-STATUS_LABEL = {
-    FeatureStatus.QUEUED: "⏳ na fila",
-    FeatureStatus.RUNNING: "🔨 construindo",
-    FeatureStatus.MERGED: "✅ pronta",
-    FeatureStatus.FAILED: "❌ falhou",
-    FeatureStatus.REVERTED: "↩️ revertida",
-}
+def status_label(status: FeatureStatus) -> str:
+    """'✅ pronta', in the bot's language."""
+    return t(f"selfmod.features.status.{status.value}")
 
 
 def describe_feature(record: FeatureRecord) -> str:
-    head = f"{record.id} {STATUS_LABEL[record.status]}"
+    head = f"{record.id} {status_label(record.status)}"
     if record.command:
         head += f" /{record.command}"
     lines = [head, f"   {record.description[:120]}"]
     details = []
     if record.attempts:
-        details.append(f"{record.attempts} tentativa(s)")
+        details.append(t("selfmod.features.attempts", n=record.attempts))
     if record.cost_usd:
         details.append(f"US$ {record.cost_usd:.3f}")
     if record.commit:
@@ -93,5 +90,5 @@ def describe_feature(record: FeatureRecord) -> str:
     if details:
         lines.append("   " + " · ".join(details))
     if record.error and record.status is not FeatureStatus.MERGED:
-        lines.append(f"   motivo: {record.error[:200]}")
+        lines.append(t("selfmod.features.reason", error=record.error[:200]))
     return "\n".join(lines)

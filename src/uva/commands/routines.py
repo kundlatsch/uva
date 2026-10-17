@@ -4,14 +4,10 @@ from __future__ import annotations
 
 from uva.clock import format_local
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.replies import Reply
 from uva.routines import describe, describe_schedule, parse, schedule
 
-NOT_CONFIGURED = "Rotinas precisam do Mongo."
-USAGE = (
-    "Uso:\n/rotina todo dia 08:00 <pedido>\n/rotina segunda e quinta 9h <pedido>\n"
-    "/rotina a cada 6 horas <pedido>\n/rotinas — lista\n/rotina <id> pausar|retomar|remover|agora"
-)
 # "/rotina <id> <op>": Portuguese and English words -> canonical operation.
 ROUTINE_OPS = {
     "pausar": "pausar", "pause": "pausar",
@@ -24,71 +20,77 @@ ROUTINE_OPS = {
 async def create_routine(services, text: str) -> str:
     """Shared by /rotina and the routine_create action."""
     if services.routines is None:
-        return NOT_CONFIGURED
+        return t("commands.routines.not_configured")
     try:
         routine = parse(text)
     except ValueError as exc:
-        return f"Não entendi o horário: {exc}."
+        return t("commands.routines.bad_time", error=exc)
     if routine is None or len(routine.request) < 3:
-        return USAGE
+        return t("commands.routines.usage")
     routine = await schedule(services.routines, routine, services.tz)
     when = format_local(routine.next_run_at, services.tz, "%d/%m %H:%M")
-    return (
-        f"⏰ Rotina {routine.id} criada: {describe_schedule(routine)}\n“{routine.request}”\n"
-        f"Primeira vez: {when}. Se o PC estiver desligado na hora, rodo uma vez quando ele ligar."
+    return t(
+        "commands.routines.created",
+        id=routine.id,
+        schedule=describe_schedule(routine),
+        request=routine.request,
+        when=when,
     )
 
 
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "rotina",
-        "Cria uma tarefa recorrente (todo dia 08:00 ..., segunda 9h ..., a cada 6 horas ...)",
+        t("commands.routines.rotina.description"),
         aliases=("agendar", "routine", "schedule"),
         usage="<quando> <pedido> | <id> pausar|retomar|remover|agora",
     )
     async def routine(ctx: CommandContext) -> Reply | str:
         store = ctx.services.routines
         if store is None:
-            return NOT_CONFIGURED
+            return t("commands.routines.not_configured")
         args = ctx.args
         op = ROUTINE_OPS.get(args[1].lower()) if len(args) >= 2 else None
         if op is not None and args[0].startswith("r"):
             current = await store.get(args[0])
             if current is None:
-                return f"Não achei a rotina {args[0]} (/rotinas)."
+                return t("commands.routines.rotina.not_found", id=args[0])
             if op == "pausar":
                 await store.update(current.id, enabled=False)
-                return f"⏸️ Rotina {current.id} pausada."
+                return t("commands.routines.rotina.paused", id=current.id)
             if op == "retomar":
                 from uva.routines import next_run
 
                 await store.update(current.id, enabled=True, next_run_at=next_run(current, _now(), ctx.services.tz))
-                return f"▶️ Rotina {current.id} retomada."
+                return t("commands.routines.rotina.resumed", id=current.id)
             if op == "remover":
                 await store.delete(current.id)
-                return f"🗑️ Rotina {current.id} removida."
+                return t("commands.routines.rotina.removed", id=current.id)
             await store.update(current.id, next_run_at=_now())
-            return f"⏰ Rotina {current.id} vai rodar no próximo minuto."
+            return t("commands.routines.rotina.run_now", id=current.id)
         text = (ctx.raw_args or " ".join(args)).strip()
         if not text:
-            return USAGE
+            return t("commands.routines.usage")
         return await create_routine(ctx.services, text)
 
     @registry.command(
         "rotinas",
-        "Tarefas recorrentes agendadas",
+        t("commands.routines.rotinas.description"),
         aliases=("routines",),
         examples=("minhas rotinas", "o que voce faz todo dia"),
     )
     async def routines(ctx: CommandContext) -> Reply | str:
         store = ctx.services.routines
         if store is None:
-            return NOT_CONFIGURED
+            return t("commands.routines.not_configured")
         items = await store.all()
         if not items:
-            return "Nenhuma rotina. Crie com /rotina todo dia 08:00 <pedido>."
+            return t("commands.routines.rotinas.none")
         body = "\n".join(describe(r, ctx.services.tz) for r in items)
-        return Reply.paginated(f"{body}\n\n{USAGE}", header=f"⏰ Rotinas ({len(items)})")
+        return Reply.paginated(
+            f"{body}\n\n{t('commands.routines.usage')}",
+            header=t("commands.routines.rotinas.header", count=len(items)),
+        )
 
 
 def _now():

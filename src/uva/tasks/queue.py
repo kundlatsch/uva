@@ -10,6 +10,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, Field
 
 from uva.clock import utcnow
+from uva.i18n import t
 
 
 class TaskStatus(StrEnum):
@@ -58,14 +59,7 @@ class TaskQueue(Protocol):
 
 
 def describe_task(record: TaskRecord) -> str:
-    label = {
-        TaskStatus.QUEUED: "na fila",
-        TaskStatus.RUNNING: "rodando",
-        TaskStatus.RETRYING: "tentando de novo",
-        TaskStatus.DONE: "concluída",
-        TaskStatus.FAILED: "falhou",
-        TaskStatus.CANCELLED: "cancelada",
-    }[record.status]
+    label = t(f"tasks.queue.status.{record.status.value}")
     subject = record.params.get("query") or record.params.get("title") or ""
     subject = f' "{subject}"' if subject else ""
     return f"{record.id} {record.action}{subject}: {label}"

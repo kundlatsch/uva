@@ -13,6 +13,7 @@ from uva.actions.registry import (
     InvalidActionError,
     RetryableActionError,
 )
+from uva.i18n import t
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
@@ -26,7 +27,8 @@ from uva.replies import Reply
 from uva.services import Services
 from uva.stm.refs import remember_ref, task_label
 
-LLM_DISABLED = "(a LLM não está configurada: falta LLM_API_KEY no .env)"
+# The Portuguese text, kept as a constant for importers; replies use llm_disabled().
+LLM_DISABLED = t("llm.agent.disabled", lang="pt")
 QUOTA_MARKERS = ("429", "402", "quota", "insufficient", "credit", "billing", "rate limit")
 HISTORY_CHARS = 2000
 # Actions that take a while (sandbox, external APIs): phrase category shown meanwhile.
@@ -39,6 +41,11 @@ MAX_LOOKUP_ROUNDS = 2
 LOOKUP_CHARS = 8000
 
 log = get_logger(__name__)
+
+
+def llm_disabled() -> str:
+    """'(the LLM is not configured: ...)' in the bot's language."""
+    return t("llm.agent.disabled")
 
 # Budget scope of every call made from a conversation.
 INTERACTIVE = Scope.INTERACTIVE
@@ -55,7 +62,7 @@ class Agent:
         services = self.services
         if services.llm is None or services.actions is None:
             await emit(EventType.ROUTE, tier="llm_disabled")
-            return Reply(f"{services.say('nao_entendi')}\n{LLM_DISABLED}")
+            return Reply(f"{services.say('nao_entendi')}\n{llm_disabled()}")
 
         if services.budget is not None:
             status = await services.budget.check(INTERACTIVE)
@@ -91,7 +98,7 @@ class Agent:
                 )
             except LLMError as exc:
                 if is_quota_error(exc):
-                    return Reply(f"{services.say('sem_credito')}\n(o provedor recusou por limite/crédito)")
+                    return Reply(f"{services.say('sem_credito')}\n{t('llm.agent.quota')}")
                 return Reply(services.say("llm_erro"))
 
             try:
@@ -188,7 +195,7 @@ class Agent:
                 if action.progress_phrase:
                     progress = self.services.say(action.progress_phrase, **record.params)
                 return ActionResult(
-                    text=f"{progress} (tarefa {record.id}; /cancelar {record.id})",
+                    text=t("llm.agent.queued", progress=progress, id=record.id),
                     data={"task_id": record.id},
                 )
         return await execute_action(action, params, ctx)
@@ -222,7 +229,7 @@ async def execute_action(action: Action, params, ctx: ActionContext) -> ActionRe
         )
         raise
     except Exception as exc:
-        result = ActionResult(text=f"Não consegui executar {action.name}.")
+        result = ActionResult(text=t("llm.agent.action_failed", action=action.name))
         ok, error = False, repr(exc)
     await emit(
         EventType.ACTION,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.i18n import t
 
 
 class ShellRunParams(BaseModel):
@@ -19,7 +20,7 @@ def register(registry: ActionRegistry) -> None:
     async def run(kind: str, code: str, ctx: ActionContext) -> ActionResult:
         shell = ctx.services.shell
         if shell is None:
-            return ActionResult(text="O /uva não está configurado (container shell).")
+            return ActionResult(text=t("actions.shell.not_configured"))
         reply = await shell.request(kind, code)
         text = reply.pages and "\n\n".join(reply.pages) or reply.text
         return ActionResult(text=text, buttons=list(reply.buttons))

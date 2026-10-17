@@ -1,0 +1,21 @@
+{
+  "spend": {
+    "unavailable": "Spend: unavailable",
+    "mongo_down": "Spend: unavailable (Mongo down?)",
+    "extra": " (includes US$ {amount} unlocked today)",
+    "today": "Spent today: US$ {spent} of {limit}{extra}",
+    "month": "Spent this month: US$ {spent} of {limit}",
+    "proactive": "Proactive today: US$ {spent} of {limit}",
+    "selfcode": "Self-coding today: US$ {spent} of {limit}"
+  },
+  "llm": {
+    "description": "LLM provider, models and spend",
+    "provider": "Provider: {provider}",
+    "disabled": "LLM off (LLM_API_KEY or LLM_MODEL_ROUTER missing in .env)",
+    "router_model": "Fast model (routing): {model}",
+    "heavy_model": "Heavy model (summaries, goals): {model}",
+    "no_price": "⚠️ No price configured for {models}; using US$ {input}/{output} per 1M tokens (set LLM_PRICES)",
+    "search": "Search: {search}",
+    "no_search": "none"
+  }
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from uva.commands.registry import CommandContext, CommandRegistry
+from uva.i18n import t
 from uva.logging.events import EventType, emit
 from uva.replies import Reply
 
@@ -10,7 +11,7 @@ from uva.replies import Reply
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "proativo",
-        "Proatividade: status, ligar/desligar as iniciativas ou mandar uma agora",
+        t("commands.proactive.proativo.description"),
         aliases=("proatividade", "iniciativas", "proactive"),
         usage="[on|off|agora]",
         examples=("o que voce faz sozinha", "status da proatividade"),
@@ -23,19 +24,19 @@ def register(registry: CommandRegistry) -> None:
         arg = (ctx.args[0].lower() if ctx.args else "")
         if arg in ("on", "ligar", "liga"):
             if services.initiatives is None:
-                return "Iniciativas indisponíveis (Mongo)."
+                return t("commands.proactive.proativo.unavailable")
             await services.initiatives.set_enabled(True)
             await emit(EventType.INITIATIVE, status="enabled")
-            return "✅ Iniciativas ligadas. Vou aparecer de vez em quando (respeitando o silêncio e o limite do dia)."
+            return t("commands.proactive.proativo.enabled")
         if arg in ("off", "desligar", "desliga"):
             if services.initiatives is None:
-                return "Iniciativas indisponíveis (Mongo)."
+                return t("commands.proactive.proativo.unavailable")
             await services.initiatives.set_enabled(False)
             await emit(EventType.INITIATIVE, status="disabled")
-            return "🔕 Iniciativas desligadas. Objetivos continuam rodando e avisando."
+            return t("commands.proactive.proativo.disabled")
         if arg in ("agora", "now", "ja", "já"):
             status, message = await initiative_tick(services, force=True)
             return reply_for(message, status)
         if arg:
-            return "Uso: /proativo [on|off|agora]"
+            return t("commands.proactive.proativo.usage")
         return Reply.paginated(await describe_status(services))

@@ -1,0 +1,10 @@
+{
+  "title": "UVA status",
+  "uptime": "Up for {duration}",
+  "queue": "Task queue: {size}",
+  "queue_unknown": "n/a",
+  "queue_unavailable": "Task queue: unavailable",
+  "status": {
+    "description": "Services, uptime, queue and spending"
+  }
+}

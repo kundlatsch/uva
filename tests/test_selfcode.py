@@ -251,3 +251,22 @@ async def test_feature_of_a_goal_completes_it(services, setup, repo):
     await build_feature(services, record.id, inbox, request_reload=reload_ok, run_tests=runner(True))
     assert services.goals.goals["g9"].status is GoalStatus.CONCLUIDO
     assert 'Objetivo "Ter um dado" concluído ✅' in inbox.texts[0]
+
+
+def test_selfcode_report_in_english():
+    from uva import i18n
+    from uva.selfmod.features import describe_feature
+    from uva.selfmod.selfcode import _announcement
+
+    i18n.set_language("en")
+    record = FeatureRecord(
+        id="f1", description="a die", status=FeatureStatus.MERGED, command="dado", summary="Rolls a die",
+        usage="/dado 20", tests="3 passed", attempts=1, commit="abcdef123", cost_usd=0.01,
+    )
+    assert _announcement(record) == (
+        "🛠️ Done! I made /dado: Rolls a die\nUsage: /dado 20\n"
+        "Tests: 3 passed · attempts: 1 · cost ≈ US$ 0.010\nCommit abcdef1 on main (/undo reverts it)."
+    )
+    failed = record.model_copy(update={"status": FeatureStatus.FAILED, "error": "boom"})
+    assert _announcement(failed).endswith("(1 attempt(s), cost ≈ US$ 0.010).\nReason: boom")
+    assert describe_feature(failed).startswith("f1 ❌ failed /dado")

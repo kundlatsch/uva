@@ -1,0 +1,5 @@
+{
+  "ffmpeg_missing": "ffmpeg não está instalado",
+  "conversion_timeout": "a conversão do áudio demorou demais",
+  "conversion_failed": "não consegui converter o áudio: {error}"
+}

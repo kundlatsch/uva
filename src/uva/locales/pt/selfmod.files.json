@@ -1,0 +1,11 @@
+{
+  "bad_path": "caminho não permitido: {path}",
+  "hidden": "arquivos ocultos não são permitidos: {path}",
+  "roots": "só posso mexer em {allowed} (pedido: {path})",
+  "suffix": "só arquivos .md ou .txt (ou .json em data/) (pedido: {path})",
+  "no_overwrite": "notas do second brain não são sobrescritas; use file_append",
+  "no_json_append": "arquivos JSON não aceitam append; use file_write com o conteúdo completo",
+  "bad_json": "JSON inválido: {error}",
+  "bad_phrases": "arquivo de frases inválido: {error}",
+  "too_big": "arquivo grande demais (limite {limit} KB)"
+}

@@ -13,7 +13,16 @@ os.environ.setdefault("ALLOWED_TELEGRAM_USER_ID", "1")
 
 from fakes import InMemoryEventStore, make_services  # noqa: E402
 
+from uva import i18n  # noqa: E402
 from uva.logging import events  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def portuguese():
+    """Most tests assert the Portuguese texts; English has its own tests."""
+    i18n.set_language("pt")
+    yield
+    i18n.set_language(i18n.DEFAULT)
 
 
 @pytest.fixture

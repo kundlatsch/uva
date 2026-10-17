@@ -11,10 +11,13 @@ from uva.commands.registry import Command, CommandRegistry
 from uva.text import normalize
 
 # Polite/filler words dropped before comparing, so "me mostra o log por favor"
-# compares as "log". Only words that never carry the meaning of a request.
+# (or "show me the log please") compares as "log". Only words that never carry
+# the meaning of a request. Portuguese first, then English.
 FILLER_WORDS = frozenset(
     "por favor pf pfv me mostra mostre mostrar exibe exiba ver veja quero queria "
-    "o a os as um uma de do da dos das pra para uva manda mande".split()
+    "o a os as um uma de do da dos das pra para uva manda mande "
+    "please pls plz show display view see want wanna can could you i the an of to my "
+    "give send".split()
 )
 
 
@@ -24,14 +27,24 @@ SMALL_TALK: dict[str, tuple[str, ...]] = {
         "oi", "ola", "oie", "opa", "e ai", "eai", "fala", "salve", "bom dia", "boa tarde",
         "boa noite", "hey", "hello", "oi uva", "ola uva", "fala uva", "e ai uva", "tudo bem",
         "tudo bom", "beleza", "suave",
+        # English
+        "hi", "hiya", "hi uva", "hello uva", "hey uva", "hey there", "yo", "good morning",
+        "good afternoon", "good evening", "how are you", "how are you doing", "whats up",
+        "what s up", "sup",
     ),
     "agradecimento": (
         "valeu", "vlw", "obrigado", "obrigada", "brigado", "brigada", "obg", "thanks",
         "muito obrigado", "valeu uva", "obrigado uva", "show", "massa", "top",
+        # English
+        "thank you", "thanks uva", "thank you uva", "thank you so much", "thanks a lot",
+        "thx", "ty", "cheers", "awesome", "great", "nice", "cool",
     ),
     "despedida": (
         "tchau", "falou", "flw", "ate mais", "ate logo", "ate amanha", "fui", "bye",
         "tchau uva", "falou uva", "boa noite uva", "ate",
+        # English
+        "goodbye", "good bye", "bye uva", "bye bye", "see you", "see ya", "see you later",
+        "see you tomorrow", "later", "cya", "good night", "good night uva", "gotta go",
     ),
 }
 SMALL_TALK_MAX_WORDS = 4
@@ -53,23 +66,34 @@ def small_talk(text: str) -> str | None:
     return best[1] if best[0] >= 90 else None
 
 
-# "como tá a tarefa?", "e a pesquisa?", "deu certo?"
+# "como tá a tarefa?", "e a pesquisa?", "deu certo?" (and "how is the task?",
+# "did it work?"). The values are the reference kinds stored in the session.
 STATUS_KINDS = {
     "tarefa": "tarefa", "tarefas": "tarefa", "task": "tarefa",
     "pesquisa": "pesquisa", "busca": "pesquisa", "pesquisas": "pesquisa",
     "feature": "feature", "funcionalidade": "feature", "comando": "feature",
     "objetivo": "objetivo", "meta": "objetivo",
+    # English ("search" is left out: "search X" is a request, not a question)
+    "tasks": "tarefa", "job": "tarefa", "research": "pesquisa", "features": "feature",
+    "command": "feature", "goal": "objetivo",
 }
 STATUS_CUES = (
     "como ta", "como esta", "como anda", "como foi", "e a", "e o", "deu certo", "terminou",
     "acabou", "ja foi", "status", "andamento", "ficou pronta", "ficou pronto", "ta pronta",
     "ta pronto", "funcionou", "rodou", "e ai", "noticia",
+    # English
+    "how is", "how s", "hows", "how was", "how did", "how about", "what about", "and the",
+    "did it work", "did it finish", "is it done", "done yet", "finished", "is it ready",
+    "ready yet", "progress", "worked", "any news", "news",
 )
 STATUS_EXACT = {
     "deu certo", "terminou", "acabou", "ja foi", "funcionou", "rodou", "e ai deu certo",
     "ja terminou", "ja acabou", "ficou pronto", "ficou pronta", "e entao", "e ai como ta",
+    # English
+    "did it work", "did it finish", "is it done", "is it finished", "done yet", "finished",
+    "is it ready", "any news", "and then", "did it run", "it worked",
 }
-REFERENTS = {"aquela", "aquele", "ela", "ele", "isso", "essa", "esse"}
+REFERENTS = {"aquela", "aquele", "ela", "ele", "isso", "essa", "esse", "it", "that", "this"}
 STATUS_MAX_WORDS = 9
 
 

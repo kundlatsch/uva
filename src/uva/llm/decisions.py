@@ -20,6 +20,7 @@ import openai
 from pydantic import BaseModel, Field, model_validator
 
 from uva.config import LLMProvider, Settings
+from uva.i18n import t
 from uva.llm.budget import Scope, UsageRecord, UsageStore
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
@@ -55,9 +56,9 @@ class Question(BaseModel):
     @model_validator(mode="after")
     def _shape(self) -> Question:
         if self.type == "choice" and (not self.choices or len(self.choices) < 2):
-            raise ValueError("choice precisa de pelo menos 2 opções")
+            raise ValueError(t("llm.decisions.errors.choices"))
         if self.type == "score" and (not self.levels or len(self.levels) < 2):
-            raise ValueError("score precisa de pelo menos 2 níveis")
+            raise ValueError(t("llm.decisions.errors.levels"))
         return self
 
     def to_api(self) -> dict[str, Any]:
@@ -71,12 +72,12 @@ class Question(BaseModel):
 
 def validate_questions(questions: list[Question]) -> None:
     if not questions:
-        raise ValueError("nenhuma pergunta")
+        raise ValueError(t("llm.decisions.errors.none"))
     if len(questions) > MAX_QUESTIONS:
-        raise ValueError(f"no máximo {MAX_QUESTIONS} perguntas por vez")
+        raise ValueError(t("llm.decisions.errors.too_many", max=MAX_QUESTIONS))
     names = [q.name for q in questions]
     if len(set(names)) != len(names):
-        raise ValueError("os nomes das perguntas precisam ser únicos")
+        raise ValueError(t("llm.decisions.errors.unique"))
 
 
 # --- answers -----------------------------------------------------------------------------
@@ -263,11 +264,11 @@ def pct(value: float | None) -> str:
 def format_answer(answer: Answer, question: Question | None) -> str:
     title = question.instructions if question else answer.name
     if answer.type == "refusal":
-        return f"🙅 {title}: o modelo se recusou a responder."
+        return t("llm.decisions.refusal", title=title)
     if answer.type == "predicate":
-        return f"📊 {title}\n{pct(answer.probability)} de chance de ser verdade"
+        return t("llm.decisions.predicate", title=title, pct=pct(answer.probability))
     if answer.type == "choice":
-        lines = [f"🎯 {title}", f"Escolha: {answer.choice} (confiança {pct(answer.confidence)})"]
+        lines = [f"🎯 {title}", t("llm.decisions.choice", choice=answer.choice, confidence=pct(answer.confidence))]
         lines += [f"- {label}: {pct(p)}" for label, p in answer.probabilities[:5]]
         return "\n".join(lines)
     if answer.type == "score":
@@ -277,13 +278,13 @@ def format_answer(answer: Answer, question: Question | None) -> str:
         score = f"{answer.score:.2f}".replace(".", ",") if answer.score is not None else "?"
         lines = [
             f"📏 {title}",
-            f"Nota {score} numa escala de 0 a {top} (≈ {nearest}, confiança {pct(answer.confidence)})",
+            t("llm.decisions.score", score=score, top=top, nearest=nearest, confidence=pct(answer.confidence)),
         ]
         lines += [f"- {label}: {pct(p)}" for label, p in answer.probabilities[:5]]
         return "\n".join(lines)
-    return f"{title}: resposta de tipo desconhecido ({answer.type})"
+    return t("llm.decisions.unknown", title=title, type=answer.type)
 
 
 def format_answers(answers: list[Answer], questions: list[Question]) -> str:
     by_name = {q.name: q for q in questions}
-    return "\n\n".join(format_answer(a, by_name.get(a.name)) for a in answers) or "Sem respostas."
+    return "\n\n".join(format_answer(a, by_name.get(a.name)) for a in answers) or t("llm.decisions.no_answers")

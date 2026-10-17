@@ -1,0 +1,11 @@
+{
+  "run_command": {
+    "unavailable": "I can't run commands right now.",
+    "unknown": "Unknown command: /{command}"
+  },
+  "search": {
+    "progress": "🔎 Searching…",
+    "failed": "Couldn't search: {error}",
+    "saved": "📝 Saved to {path}"
+  }
+}

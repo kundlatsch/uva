@@ -1,0 +1,18 @@
+{
+  "no_stm": "Memória de curto prazo indisponível.",
+  "unknown_ref": "Não sei a que você se refere ({query}).",
+  "nothing_in_focus": "nada em foco",
+  "retry": {
+    "not_failed": "{label} não falhou (está {status}); nada para repetir.",
+    "record_gone": "Não achei mais o registro de {label}.",
+    "rerunning": "🔁 Rodando de novo: {label} (tarefa {id}).",
+    "feature_gone": "Não achei mais essa feature.",
+    "unsupported": "Não sei repetir {kind}."
+  },
+  "cancel": {
+    "already_done": "{label} já tinha terminado.",
+    "stopping": "🛑 Parando {label}. Te aviso quando parar.",
+    "unsupported": "Não dá para cancelar {kind}.",
+    "cancelled": "{phrase}\n({label} cancelada)"
+  }
+}

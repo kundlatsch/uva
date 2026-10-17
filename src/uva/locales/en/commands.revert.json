@@ -1,0 +1,12 @@
+{
+  "reverter": {
+    "description": "Undoes the last change I made to my repository (/undo brain: in the second brain)",
+    "no_repo": "I don't have access to the repository (git) here.",
+    "nothing": "I couldn't find any change of mine to undo.",
+    "failed": "I couldn't revert {sha} ({subject}): {error}",
+    "done": "↩️ Reverted {sha}: {subject} (new commit {new_sha}).",
+    "brain_no_history": "The second brain has no history (git) here.",
+    "brain_nothing": "I couldn't find any change of mine in the second brain to undo.",
+    "brain_done": "↩️ Second brain: undid {sha} ({subject})."
+  }
+}

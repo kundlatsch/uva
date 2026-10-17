@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
 from uva.goals.store import Goal, GoalKind
+from uva.i18n import t
 from uva.stm.refs import remember_ref
 from uva.logging.events import EventType, emit
 
@@ -38,12 +39,12 @@ def register(registry: ActionRegistry) -> None:
     async def goal_create(params: GoalCreateParams, ctx: ActionContext) -> ActionResult:
         store = ctx.services.goals
         if store is None:
-            return ActionResult(text="Objetivos não estão configurados.")
+            return ActionResult(text=t("actions.goals.not_configured"))
         goal = Goal(**params.model_dump())
         await store.add(goal)
         await emit(EventType.GOAL_RUN, goal_id=goal.id, title=goal.title, status="created")
         await remember_ref(ctx.services, "objetivo", goal.id, f"objetivo: {goal.title}")
         return ActionResult(
-            text=f"🎯 Objetivo criado ({goal.id}): {goal.title}. Veja em /objetivos.",
+            text=t("actions.goals.created", id=goal.id, title=goal.title),
             data={"goal_id": goal.id},
         )

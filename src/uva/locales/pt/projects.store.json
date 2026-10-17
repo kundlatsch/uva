@@ -1,0 +1,10 @@
+{
+  "status": {
+    "queued": "⏳ na fila",
+    "running": "🔨 construindo",
+    "cancelling": "🛑 cancelando",
+    "done": "✅ pronto",
+    "failed": "❌ falhou",
+    "cancelled": "🚫 cancelado"
+  }
+}

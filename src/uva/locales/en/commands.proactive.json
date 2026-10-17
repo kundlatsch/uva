@@ -1,0 +1,9 @@
+{
+  "proativo": {
+    "description": "Proactivity: status, turn initiatives on/off or send one now",
+    "unavailable": "Initiatives unavailable (Mongo).",
+    "enabled": "✅ Initiatives on. I'll show up every now and then (respecting quiet hours and the daily limit).",
+    "disabled": "🔕 Initiatives off. Goals keep running and reporting.",
+    "usage": "Usage: /proactive [on|off|now]"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "not_configured": "Stickers need SQLite.",
+  "usage": [
+    "Usage:",
+    "/stickers — list",
+    "/sticker <n> meaning <text>",
+    "/sticker <n> action <request>",
+    "/sticker <n> no-action",
+    "/sticker <n> remove"
+  ],
+  "figurinhas": {
+    "description": "Stickers I know: the meaning and action of each one",
+    "none": "I don't know any stickers yet. Send me one and I'll ask what it means.",
+    "header": "🏷️ Stickers ({count})"
+  },
+  "figurinha": {
+    "description": "Edits a sticker: meaning, action or remove",
+    "unknown": "I don't know sticker #{id} (/stickers).",
+    "meaning_set": "✅ {label} now means: {meaning}",
+    "action_set": "✅ Every time you send {emoji}, I'll do: {action}",
+    "action_cleared": "✅ {label} no longer does anything on its own (the meaning stays).",
+    "removed": "🗑️ Forgot the sticker {label} (meaning and action)."
+  }
+}

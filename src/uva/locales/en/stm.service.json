@@ -1,0 +1,20 @@
+{
+  "kind": {
+    "tarefa": "task",
+    "pesquisa": "research",
+    "nota": "note",
+    "objetivo": "goal",
+    "feature": "feature",
+    "gasto": "expense",
+    "imagem": "image",
+    "projeto": "project"
+  },
+  "status": {
+    "queued": "queued",
+    "running": "running",
+    "ok": "ok",
+    "failed": "failed"
+  },
+  "error": " — error: {error}",
+  "focus": " ← in focus"
+}

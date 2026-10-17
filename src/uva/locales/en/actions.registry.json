@@ -1,0 +1,5 @@
+{
+  "working": "Working on it…",
+  "unknown_action": "unknown or not allowed action: {name}",
+  "invalid_params": "invalid parameters for {name}: {error}"
+}

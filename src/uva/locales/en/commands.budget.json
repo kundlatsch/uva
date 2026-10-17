@@ -1,0 +1,15 @@
+{
+  "liberar": {
+    "description": "Allows extra LLM spend today (no amount: one more daily limit)",
+    "usage_arg": "[amount in US$]",
+    "not_configured": "The budget is not configured.",
+    "usage": "Usage: /unlock [amount in US$], e.g. /unlock 2 or /unlock 0,50",
+    "out_of_range": "The amount must be between US$ 0.01 and US$ {max}.",
+    "failed": "I couldn't unlock it right now: {error}",
+    "granted": [
+      "✅ Unlocked US$ {amount} more for today.",
+      "Today's limit: US$ {limit} (spent so far: US$ {today}). Valid until midnight.",
+      "The monthly limit still applies: US$ {month} of {monthly}."
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "no_extras": "liberação de orçamento não está configurada",
+  "unknown_spend": "não consegui verificar o gasto com a API (Mongo fora?)",
+  "monthly": "orçamento mensal de LLM atingido (US$ {spent} de {limit}); volta no próximo mês",
+  "selfcode": "orçamento diário de auto-código atingido (US$ {spent} de {limit}); volta amanhã",
+  "extra": ", com US$ {extra} liberados",
+  "daily": "orçamento diário de LLM atingido (US$ {spent} de {limit}{extra}); volta amanhã ou use /liberar",
+  "proactive": "orçamento diário do modo proativo atingido"
+}

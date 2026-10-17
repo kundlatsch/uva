@@ -1,0 +1,4 @@
+{
+  "not_configured": "Goals aren't configured.",
+  "created": "🎯 Goal created ({id}): {title}. See /goals."
+}

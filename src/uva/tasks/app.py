@@ -7,10 +7,13 @@ from datetime import timedelta
 from celery import Celery, signals
 from celery.schedules import crontab
 
+from uva import i18n
 from uva.config import get_settings
 from uva.logging import configure_logging
 
 settings = get_settings()
+# Failure notices may go out before Services (which also sets it) are built.
+i18n.set_language(settings.bot_language)
 
 app = Celery("uva", broker=settings.redis_url, backend=settings.redis_url, include=["uva.tasks.jobs"])
 app.conf.update(
