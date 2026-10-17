@@ -11,7 +11,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "proativo",
         "Proatividade: status, ligar/desligar as iniciativas ou mandar uma agora",
-        aliases=("proatividade", "iniciativas"),
+        aliases=("proatividade", "iniciativas", "proactive"),
         usage="[on|off|agora]",
         examples=("o que voce faz sozinha", "status da proatividade"),
     )

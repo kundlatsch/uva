@@ -69,15 +69,17 @@ def register(registry: CommandRegistry) -> None:
         await store.update(goal.id, status=status)
         return f"Objetivo {goal.id} ({goal.title}): {STATUS_LABEL[status]}."
 
-    @registry.command("pausar", "Pausa um objetivo", usage="<id>")
+    @registry.command("pausar", "Pausa um objetivo", aliases=("pause",), usage="<id>")
     async def pause(ctx: CommandContext) -> str:
         return await _set_status(ctx, GoalStatus.PAUSADO, "pausar")
 
-    @registry.command("retomar", "Retoma um objetivo pausado", usage="<id>")
+    @registry.command("retomar", "Retoma um objetivo pausado", aliases=("resume",), usage="<id>")
     async def resume(ctx: CommandContext) -> str:
         return await _set_status(ctx, GoalStatus.ATIVO, "retomar")
 
-    @registry.command("remover", "Remove um objetivo (as notas ficam)", usage="<id>")
+    @registry.command(
+        "remover", "Remove um objetivo (as notas ficam)", aliases=("remove",), usage="<id>"
+    )
     async def remove(ctx: CommandContext) -> str:
         store = ctx.services.goals
         if store is None:

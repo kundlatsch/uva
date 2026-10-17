@@ -45,6 +45,7 @@ def format_ref(item: dict[str, object]) -> str:
 @command(
     "painel",
     "Painel compacto: memória, objetivos ativos, contexto recente e gastos",
+    aliases=("dashboard", "panel"),
     usage="",
     examples=("ver painel",),
 )

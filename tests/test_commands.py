@@ -30,6 +30,26 @@ async def test_alias_resolves_to_command(router):
     assert await text_of(router, "/ajuda") == await text_of(router, "/help")
 
 
+# Every command answers to a Portuguese and an English name.
+BILINGUAL = {
+    "start": "inicio", "help": "ajuda", "brain": "cerebro", "nota": "note", "buscar": "search",
+    "memoria": "memory", "lembrar": "remember", "esquecer": "forget", "figurinhas": "stickers",
+    "figurinha": "sticker", "contexto": "context", "objetivos": "goals", "pausar": "pause",
+    "retomar": "resume", "remover": "remove", "rotina": "routine", "rotinas": "routines",
+    "proativo": "proactive", "gasto": "expense", "gastos": "expenses", "decidir": "decide",
+    "log": "eventos", "status": "estado", "llm": "model", "liberar": "unlock", "soul": "alma",
+    "frases": "phrases", "reverter": "undo", "feature": "funcionalidade",
+    "features": "funcionalidades", "projeto": "project", "projetos": "projects", "sh": "terminal",
+    "py": "python", "tarefas": "tasks", "cancelar": "cancel", "comandos": "commands",
+}
+
+
+@pytest.mark.parametrize(("name", "other"), BILINGUAL.items())
+def test_commands_have_portuguese_and_english_names(name, other):
+    registry = build_registry()
+    assert registry.get(name) is registry.get(other) is not None
+
+
 async def test_help_lists_every_command(router):
     text = await text_of(router, "/help")
     for cmd in router.registry:

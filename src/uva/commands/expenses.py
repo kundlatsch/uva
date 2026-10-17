@@ -20,6 +20,8 @@ PERIODS = {
     "ano": "neste ano",
     "tudo": "desde sempre",
 }
+# English period names accepted by /gastos (and /expenses).
+PERIOD_ALIASES = {"today": "hoje", "week": "semana", "month": "mes", "year": "ano", "all": "tudo"}
 
 
 def period_start(name: str, services: Services) -> datetime | None:
@@ -38,7 +40,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "gasto",
         "Registra um gasto",
-        aliases=("despesa",),
+        aliases=("despesa", "expense"),
         usage="<valor> <categoria> [descrição]",
     )
     async def add_expense(ctx: CommandContext) -> str:
@@ -60,7 +62,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "gastos",
         "Soma dos gastos por categoria",
-        aliases=("despesas",),
+        aliases=("despesas", "expenses"),
         usage="[hoje|semana|mes|ano|tudo]",
         examples=("quanto gastei", "quanto gastei esse mes"),
     )
@@ -69,8 +71,9 @@ def register(registry: CommandRegistry) -> None:
         if repo is None:
             return NO_DB
         name = (ctx.args[0].lower() if ctx.args else "mes")
+        name = PERIOD_ALIASES.get(name, name)
         if name not in PERIODS:
-            return "Uso: /gastos [hoje|semana|mes|ano|tudo]"
+            return "Uso: /gastos [hoje|semana|mes|ano|tudo] (ou today|week|month|year|all)"
 
         totals = await repo.totals_by_category(since=period_start(name, ctx.services))
         if not totals:

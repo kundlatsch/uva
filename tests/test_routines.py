@@ -110,6 +110,15 @@ async def test_pause_resume_remove(services, store):
     assert store.items == {}
 
 
+async def test_routine_ops_in_english(services, store):
+    router = Router(services)
+    await router.handle_text("/routine a cada 6 horas confere o dólar")
+    rid = next(iter(store.items))
+    assert "pausada" in (await router.handle_text(f"/routine {rid} pause")).text
+    assert "retomada" in (await router.handle_text(f"/rotina {rid} resume")).text
+    assert "removida" in (await router.handle_text(f"/rotina {rid} delete")).text
+
+
 async def test_llm_creates_routines(services, store):
     plan = {"actions": [{"type": "routine_create", "params": {
         "schedule_and_request": "todo dia 08:00 pesquisa se a skin X saiu na loja do LoL"}}], "reply": ""}

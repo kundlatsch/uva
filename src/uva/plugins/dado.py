@@ -12,6 +12,7 @@ MAX_SIDES = 1000
 @command(
     "dado",
     "Rola um dado; por padrão de 6 lados, ou informe o número de lados",
+    aliases=("dice", "roll"),
     usage="[lados]",
     examples=("rola um d6", "rola um d20"),
 )

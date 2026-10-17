@@ -11,7 +11,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "soul",
         "Mostra minha personalidade (soul.md)",
-        aliases=("alma", "personalidade"),
+        aliases=("alma", "personalidade", "personality"),
         examples=("qual a sua personalidade",),
     )
     async def soul(ctx: CommandContext) -> Reply | str:

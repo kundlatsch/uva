@@ -33,6 +33,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "figurinha",
         "Edita uma figurinha: significado, ação ou remover",
+        aliases=("sticker",),
         usage="<n> significado|acao|sem-acao|remover [texto]",
     )
     async def sticker(ctx: CommandContext) -> Reply:
@@ -46,20 +47,20 @@ def register(registry: CommandRegistry) -> None:
         current = await repo.by_id(sticker_id)
         if current is None:
             return Reply(f"Não conheço a figurinha #{sticker_id} (/figurinhas).")
-        if op in ("significado", "significa"):
+        if op in ("significado", "significa", "meaning"):
             if not rest:
                 return Reply(USAGE)
             updated = await repo.update(sticker_id, meaning=rest)
             return Reply(f"✅ {updated.label} agora significa: {rest}")
-        if op in ("acao", "ação"):
+        if op in ("acao", "ação", "action"):
             if not rest:
                 return Reply(USAGE)
             updated = await repo.update(sticker_id, action=rest)
             return Reply(f"✅ Toda vez que você mandar {updated.emoji}, eu faço: {rest}")
-        if op in ("sem-acao", "sem-ação", "semacao"):
+        if op in ("sem-acao", "sem-ação", "semacao", "no-action"):
             await repo.update(sticker_id, action="")
             return Reply(f"✅ {current.label} não faz mais nada sozinha (o significado continua).")
-        if op in ("remover", "apagar", "esquecer"):
+        if op in ("remover", "apagar", "esquecer", "remove", "delete"):
             await repo.delete(sticker_id)
             return Reply(f"🗑️ Esqueci a figurinha {current.label} (significado e ação).")
         return Reply(USAGE)

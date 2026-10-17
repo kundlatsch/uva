@@ -30,6 +30,11 @@ def test_today_starts_at_local_midnight():
     assert since == datetime(2026, 10, 11, 3, 0, tzinfo=UTC)
 
 
+def test_english_period_and_type():
+    req = parse_log_args(["today", "tasks"], TZ, NOW)
+    assert req.query == parse_log_args(["hoje", "tarefas"], TZ, NOW).query
+
+
 def test_type_filter():
     req = parse_log_args(["1d", "llm"], TZ, NOW)
     assert req.query.types == {EventType.LLM_CALL}

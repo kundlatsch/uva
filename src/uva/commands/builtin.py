@@ -9,7 +9,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "start",
         "Apresentação do bot",
-        aliases=("inicio", "início"),
+        aliases=("inicio", "início", "iniciar"),
         examples=("quem e voce", "se apresenta"),
     )
     async def start(ctx: CommandContext) -> str:

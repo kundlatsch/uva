@@ -14,6 +14,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "contexto",
         "O que eu lembro da conversa de agora (ou 'limpar')",
+        aliases=("context",),
         usage="[limpar]",
         examples=("do que estavamos falando",),
     )
@@ -21,7 +22,7 @@ def register(registry: CommandRegistry) -> None:
         stm = ctx.services.stm
         if stm is None:
             return "Memória de curto prazo indisponível (Redis)."
-        if ctx.args and ctx.args[0].lower() in ("limpar", "apagar", "zerar"):
+        if ctx.args and ctx.args[0].lower() in ("limpar", "apagar", "zerar", "clear", "reset"):
             await stm.clear()
             return "Contexto apagado. Começando do zero."
         session = await stm.session()

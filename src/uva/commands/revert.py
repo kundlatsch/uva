@@ -15,11 +15,11 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "reverter",
         "Desfaz a última mudança que eu fiz no meu repositório (/reverter brain: no second brain)",
-        aliases=("desfazer",),
+        aliases=("desfazer", "revert", "undo"),
         examples=("desfaz o que voce mudou",),
     )
     async def revert(ctx: CommandContext) -> str:
-        if ctx.args and ctx.args[0].lower() in ("brain", "notas"):
+        if ctx.args and ctx.args[0].lower() in ("brain", "notas", "notes"):
             return await _revert_brain(ctx.services)
         repo = ctx.services.repo
         if repo is None:

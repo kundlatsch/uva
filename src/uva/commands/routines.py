@@ -12,6 +12,13 @@ USAGE = (
     "Uso:\n/rotina todo dia 08:00 <pedido>\n/rotina segunda e quinta 9h <pedido>\n"
     "/rotina a cada 6 horas <pedido>\n/rotinas — lista\n/rotina <id> pausar|retomar|remover|agora"
 )
+# "/rotina <id> <op>": Portuguese and English words -> canonical operation.
+ROUTINE_OPS = {
+    "pausar": "pausar", "pause": "pausar",
+    "retomar": "retomar", "resume": "retomar",
+    "remover": "remover", "apagar": "remover", "remove": "remover", "delete": "remover",
+    "agora": "agora", "now": "agora",
+}
 
 
 async def create_routine(services, text: str) -> str:
@@ -36,7 +43,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "rotina",
         "Cria uma tarefa recorrente (todo dia 08:00 ..., segunda 9h ..., a cada 6 horas ...)",
-        aliases=("agendar",),
+        aliases=("agendar", "routine", "schedule"),
         usage="<quando> <pedido> | <id> pausar|retomar|remover|agora",
     )
     async def routine(ctx: CommandContext) -> Reply | str:
@@ -44,11 +51,11 @@ def register(registry: CommandRegistry) -> None:
         if store is None:
             return NOT_CONFIGURED
         args = ctx.args
-        if len(args) >= 2 and args[0].startswith("r") and args[1] in ("pausar", "retomar", "remover", "apagar", "agora"):
+        op = ROUTINE_OPS.get(args[1].lower()) if len(args) >= 2 else None
+        if op is not None and args[0].startswith("r"):
             current = await store.get(args[0])
             if current is None:
                 return f"Não achei a rotina {args[0]} (/rotinas)."
-            op = args[1]
             if op == "pausar":
                 await store.update(current.id, enabled=False)
                 return f"⏸️ Rotina {current.id} pausada."
@@ -57,7 +64,7 @@ def register(registry: CommandRegistry) -> None:
 
                 await store.update(current.id, enabled=True, next_run_at=next_run(current, _now(), ctx.services.tz))
                 return f"▶️ Rotina {current.id} retomada."
-            if op in ("remover", "apagar"):
+            if op == "remover":
                 await store.delete(current.id)
                 return f"🗑️ Rotina {current.id} removida."
             await store.update(current.id, next_run_at=_now())
@@ -70,6 +77,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "rotinas",
         "Tarefas recorrentes agendadas",
+        aliases=("routines",),
         examples=("minhas rotinas", "o que voce faz todo dia"),
     )
     async def routines(ctx: CommandContext) -> Reply | str:

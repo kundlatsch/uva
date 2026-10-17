@@ -12,6 +12,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "frases",
         "Categorias de frases prontas, ou exemplos de uma categoria",
+        aliases=("phrases",),
         usage="[categoria]",
     )
     async def phrases(ctx: CommandContext) -> str:

@@ -16,7 +16,7 @@ from uva.text import extract_duration, extract_keywords
 
 USAGE = (
     "Uso: /log [período] [tipo]  ou  /log trace <id>\n"
-    "Período: 30m, 6h, 2d, hoje, ontem (padrão: 1h)\n"
+    "Período: 30m, 6h, 2d, hoje/today, ontem/yesterday (padrão: 1h)\n"
     "Tipo: llm, goals, erros, tarefas, memoria, acoes, selfcode"
 )
 
@@ -30,8 +30,13 @@ FILTERS: dict[str, set[EventType]] = {
     "erros": {EventType.ERROR},
     "errors": {EventType.ERROR},
     "tarefas": {EventType.TASK_ENQUEUED, EventType.TASK_FINISHED},
+    "tasks": {EventType.TASK_ENQUEUED, EventType.TASK_FINISHED},
     "memoria": {EventType.MEMORY},
+    "memory": {EventType.MEMORY},
     "acoes": {EventType.ACTION},
+    "actions": {EventType.ACTION},
+    "initiatives": {EventType.INITIATIVE},
+    "projects": {EventType.PROJECT},
     "selfcode": {EventType.SELFCODE, EventType.SELF_EDIT},
 }
 
@@ -67,9 +72,9 @@ def parse_log_args(args: list[str], tz: tzinfo, now: datetime | None = None) -> 
         if match := _DURATION.match(word):
             amount, unit = int(match[1]), match[2]
             since, until, period = now - timedelta(**{_UNITS[unit]: amount}), None, word
-        elif word == "hoje":
+        elif word in ("hoje", "today"):
             since, until, period = start_of_day(tz, now), None, "hoje"
-        elif word == "ontem":
+        elif word in ("ontem", "yesterday"):
             today = start_of_day(tz, now)
             since, until, period = today - timedelta(days=1), today, "ontem"
         elif word in FILTERS:

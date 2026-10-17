@@ -13,7 +13,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "liberar",
         "Libera gasto extra de LLM hoje (sem valor: mais um limite diário)",
-        aliases=("liberar_llm",),
+        aliases=("liberar_llm", "unlock", "unlock_llm"),
         usage="[valor em US$]",
         examples=("libera mais orcamento", "aumenta o limite de hoje"),
     )

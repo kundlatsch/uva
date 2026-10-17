@@ -27,7 +27,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "llm",
         "Provedor, modelos e gasto da LLM",
-        aliases=("ia", "modelo"),
+        aliases=("ia", "modelo", "model"),
         examples=("qual modelo voce usa", "qual ia voce usa"),
     )
     async def llm(ctx: CommandContext) -> str:

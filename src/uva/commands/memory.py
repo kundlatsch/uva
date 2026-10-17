@@ -14,7 +14,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "memoria",
         "Mostra o que eu lembro (ou uma chave)",
-        aliases=("memória", "memorias"),
+        aliases=("memória", "memorias", "memory"),
         usage="[chave]",
         examples=("o que voce sabe sobre mim", "o que voce lembra de mim"),
     )
@@ -46,7 +46,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "lembrar",
         "Guarda uma memória",
-        aliases=("lembra",),
+        aliases=("lembra", "remember"),
         usage="<chave> <valor>",
     )
     async def remember(ctx: CommandContext) -> str:
@@ -63,7 +63,7 @@ def register(registry: CommandRegistry) -> None:
         await emit(EventType.MEMORY, op="save", key=item.key, value=item.value, by="user")
         return f"Ok, vou lembrar: {item.key} = {item.value}"
 
-    @registry.command("esquecer", "Apaga uma memória", usage="<chave>")
+    @registry.command("esquecer", "Apaga uma memória", aliases=("forget",), usage="<chave>")
     async def forget(ctx: CommandContext) -> str:
         service = ctx.services.memory
         if service is None:

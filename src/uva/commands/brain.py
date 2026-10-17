@@ -59,7 +59,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "brain",
         "Inspeciona o second brain: árvore, uma pasta ou o conteúdo bruto de uma nota",
-        aliases=("ver", "abrir", "inspecionar"),
+        aliases=("cerebro", "cérebro", "ver", "abrir", "inspecionar", "view", "open", "inspect"),
         usage="[pasta | título ou caminho da nota]",
         examples=("mostra o brain", "o que tem no second brain"),
     )
@@ -68,7 +68,7 @@ def register(registry: CommandRegistry) -> None:
         if vault is None:
             return "O second brain não está configurado."
         ref = " ".join(ctx.args).strip()
-        if ref in ("renomear", "renomeia"):
+        if ref in ("renomear", "renomeia", "rename"):
             return Reply.paginated(await rename_brain(ctx.services))
         if not ref:
             return Reply.paginated(await asyncio.to_thread(render_tree, vault))
@@ -91,7 +91,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "nota",
         "Salva uma nota rápida no inbox do second brain",
-        aliases=("anota", "anotar"),
+        aliases=("anota", "anotar", "note"),
         usage="<texto>",
     )
     async def note(ctx: CommandContext) -> str:
@@ -109,7 +109,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "buscar",
         "Procura no second brain",
-        aliases=("procurar",),
+        aliases=("procurar", "search"),
         usage="<termo>",
         examples=("procura nas notas",),
     )

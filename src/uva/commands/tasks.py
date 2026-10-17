@@ -12,7 +12,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "tarefas",
         "Tarefas em segundo plano recentes",
-        aliases=("tasks", "fila"),
+        aliases=("tasks", "fila", "queue"),
         examples=("minhas tarefas", "o que esta rodando"),
     )
     async def tasks(ctx: CommandContext) -> str:

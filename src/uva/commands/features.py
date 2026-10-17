@@ -51,6 +51,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "features",
         "Funcionalidades que eu programei (ou tentei)",
+        aliases=("funcionalidades",),
         examples=("o que voce ja programou",),
     )
     async def features(ctx: CommandContext) -> str:

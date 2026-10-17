@@ -23,7 +23,7 @@ def register(registry: CommandRegistry) -> None:
         text = " ".join(ctx.args).strip()
         if text in ("desfazer", "undo", "voltar"):
             return await shell.undo()
-        if text in ("historico", "histórico", "snapshots"):
+        if text in ("historico", "histórico", "history", "snapshots"):
             return await shell.history()
         if not text:
             return Reply(USAGE)

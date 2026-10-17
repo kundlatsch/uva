@@ -42,7 +42,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "comandos",
         "Lista todos os comandos e ações da LLM (debug)",
-        aliases=("catalogo",),
+        aliases=("catalogo", "catálogo", "commands", "catalog"),
         examples=("lista de comandos", "todos os comandos"),
     )
     async def catalog(ctx: CommandContext) -> Reply:

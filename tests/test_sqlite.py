@@ -92,6 +92,7 @@ async def test_gasto_and_gastos_commands(services, repo):
     await router.handle_text("/gasto 10,50 transporte")
     summary = (await router.handle_text("/gastos mes")).text
     assert "Gastos neste mês: R$ 35,50" in summary
+    assert (await router.handle_text("/expenses month")).text == summary
     assert "- mercado: R$ 25,00 (70%)" in summary
     assert "pão e leite" in summary
     assert "Não entendi o valor" in (await router.handle_text("/gasto muito mercado")).text

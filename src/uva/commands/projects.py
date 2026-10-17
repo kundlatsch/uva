@@ -35,7 +35,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "projeto",
         "Cria um projeto NOVO (fora do bot) com o Claude Code e avisa quando terminar",
-        aliases=("novoprojeto",),
+        aliases=("novoprojeto", "project", "newproject"),
         usage="<descrição>",
     )
     async def project(ctx: CommandContext) -> str:
@@ -47,6 +47,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "projetos",
         "Projetos que o Claude Code criou (ou está criando)",
+        aliases=("projects",),
         examples=("meus projetos", "como estao os projetos"),
     )
     async def projects(ctx: CommandContext) -> str:

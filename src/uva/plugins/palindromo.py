@@ -5,7 +5,7 @@ import unicodedata
 from uva.plugins.api import PluginContext, command
 
 
-NORMALIZED_FLAGS = ("--normalizado", "--normalizada", "-n")
+NORMALIZED_FLAGS = ("--normalizado", "--normalizada", "--normalized", "-n")
 
 
 def normalize_text(text: str) -> str:
@@ -32,7 +32,7 @@ def parse_text(args: list[str]) -> tuple[str, bool]:
 @command(
     "palindromo",
     "Checa se um texto é palíndromo",
-    aliases=("palindrome",),
+    aliases=("palíndromo", "palindrome"),
     usage="[--normalizado] <texto>",
     examples=(
         "reviver",

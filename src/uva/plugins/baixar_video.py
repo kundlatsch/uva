@@ -117,7 +117,7 @@ def usage_message() -> str:
 @command(
     "baixar_video",
     "Analisa uma URL pública de vídeo e informa suporte/limitações de download seguro",
-    aliases=("baixar",),
+    aliases=("baixar", "download_video", "download"),
     usage="<url>",
     examples=("/baixar_video https://www.instagram.com/reel/abc123", "/baixar https://x.com/usuario/status/123"),
 )

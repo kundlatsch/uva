@@ -75,7 +75,7 @@ def register(registry: CommandRegistry) -> None:
     @registry.command(
         "decidir",
         "Probabilidade, escolha ou nota com a OpenAI Decisions",
-        aliases=("decisao", "decisão"),
+        aliases=("decisao", "decisão", "decide", "decision"),
         usage="<afirmação>[: texto] | <pergunta> | op1, op2 | nota <critério> | n0, n1 :: texto",
     )
     async def decide(ctx: CommandContext) -> str:
