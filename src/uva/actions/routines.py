@@ -1,4 +1,4 @@
-"""routine_create: "todo dia às 8 pesquisa se ..." through the LLM."""
+"""routine_create: "every day at 8 check whether ..." through the LLM."""
 
 from __future__ import annotations
 
@@ -10,8 +10,10 @@ from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
 class RoutineCreateParams(BaseModel):
     schedule_and_request: str = Field(
         description=(
-            "Portuguese, schedule first then the request, in one of these forms: "
-            "'todo dia 08:00 <pedido>', 'segunda e quinta 09:00 <pedido>', 'a cada 6 horas <pedido>'"
+            "Schedule first, then the request, in one of these forms (English or Portuguese): "
+            "'every day 08:00 <request>', 'monday and thursday 09:00 <request>', "
+            "'every 6 hours <request>' / 'todo dia 08:00 <pedido>', 'segunda e quinta 09:00 <pedido>', "
+            "'a cada 6 horas <pedido>'. Keep the request in the user's own words."
         )
     )
 

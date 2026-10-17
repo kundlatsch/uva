@@ -1,4 +1,4 @@
-"""Routines: recurring requests ("todo dia 08:00 pesquisa se a skin X saiu na loja").
+"""Routines: recurring requests ("todo dia 08:00 pesquisa se ..." or "every day 08:00 ...").
 
 A routine is a request (what the user would type) plus a schedule: daily at a
 time, on some weekdays at a time, or every N hours. The beat checks every
@@ -120,8 +120,25 @@ _WEEKLY = re.compile(
 )
 
 
+# English: "every day 08:00 ...", "daily at 9am ...", "monday and thursday 9:30pm ...",
+# "every 6 hours ...", "every 30 minutes ...", "every hour ...".
+_TIME_EN = r"(?P<hour>\d{1,2})(?:\s+(?P<minute>\d{2}))?\s*(?P<suffix>am|pm|h)?(?=\s)"
+_DAILY_EN = re.compile(rf"^(?:every\s*day|daily|each\s+day)\s+(?:at\s+)?{_TIME_EN}\s+(?P<rest>.+)$")
+_INTERVAL_EN = re.compile(
+    r"^every\s+(?:(?P<amount>\d+(?:[.,]\d+)?)\s*)?(?P<unit>h|hr|hrs|hours?|min|mins|minutes?)\s+(?P<rest>.+)$"
+)
+_DAY_EN = r"(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(?:day)?s?|wednesdays?|tuesdays?|thursdays?|saturdays?"
+_WEEKLY_EN = re.compile(
+    rf"^(?:every\s+|on\s+)?(?P<days>(?:{_DAY_EN})(?:\s+(?:and\s+)?(?:{_DAY_EN}))*)"
+    rf"\s+(?:at\s+)?{_TIME_EN}\s+(?P<rest>.+)$"
+)
+WEEKDAY_PREFIXES_EN = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
 def parse(text: str) -> Routine | None:
-    """'todo dia 08:00 pesquisa X' / 'toda segunda e quinta 9h faz Y' / 'a cada 6 horas Z'."""
+    """Portuguese or English schedule first, then the request:
+    'todo dia 08:00 pesquisa X' / 'toda segunda e quinta 9h faz Y' / 'a cada 6 horas Z',
+    'every day 08:00 search X' / 'monday and thursday 9am do Y' / 'every 6 hours Z'."""
     raw = text.strip()
     norm = normalize(raw)
     # Keep the original wording of the request: cut the schedule prefix by word count.
@@ -144,7 +161,32 @@ def parse(text: str) -> Routine | None:
                 request=request_from(m.group("rest")), every=Every.WEEKDAYS, weekdays=days,
                 at=_hhmm(m.group(2), m.group(3)),  # group 1 is the days
             )
+    return _parse_english(norm, request_from)
+
+
+def _parse_english(norm: str, request_from) -> Routine | None:
+    if m := _DAILY_EN.match(norm):
+        return Routine(request=request_from(m.group("rest")), every=Every.DAY, at=_hhmm_en(m))
+    if m := _INTERVAL_EN.match(norm):
+        amount = float((m.group("amount") or "1").replace(",", "."))
+        hours = amount / 60 if m.group("unit").startswith("min") else amount
+        if hours < 0.25:
+            return None
+        return Routine(request=request_from(m.group("rest")), every=Every.HOURS, hours=hours)
+    if m := _WEEKLY_EN.match(norm):
+        days = sorted({WEEKDAY_PREFIXES_EN.index(word[:3]) for word in m.group("days").split() if word != "and"})
+        return Routine(request=request_from(m.group("rest")), every=Every.WEEKDAYS, weekdays=days, at=_hhmm_en(m))
     return None
+
+
+def _hhmm_en(m: re.Match[str]) -> str:
+    """'9' / '9 30' with an optional am/pm (12am = 00:00, 12pm = 12:00)."""
+    hour, suffix = int(m.group("hour")), m.group("suffix")
+    if suffix in ("am", "pm"):
+        if not 1 <= hour <= 12:
+            raise ValueError(t("routines.errors.bad_time"))
+        hour = hour % 12 + (12 if suffix == "pm" else 0)
+    return _hhmm(str(hour), m.group("minute"))
 
 
 def _hhmm(hour: str, minute: str | None) -> str:

@@ -58,6 +58,35 @@ def test_parse():
     assert (r.every, r.weekdays, r.at, r.request) == (Every.WEEKDAYS, [0, 3], "09:00", "me lembra de regar as plantas")
     r = parse("a cada 6 horas confere o preço do dólar")
     assert (r.every, r.hours, r.request) == (Every.HOURS, 6, "confere o preço do dólar")
+
+
+@pytest.mark.parametrize(
+    ("text", "every", "at", "weekdays", "hours", "wanted"),
+    [
+        ("every day 08:00 check the dollar", Every.DAY, "08:00", [], 0, "check the dollar"),
+        ("daily at 9pm water the plants", Every.DAY, "21:00", [], 0, "water the plants"),
+        ("everyday 7:30am news", Every.DAY, "07:30", [], 0, "news"),
+        ("every day at 12am backup", Every.DAY, "00:00", [], 0, "backup"),
+        ("monday and thursday 9am remind me to stretch", Every.WEEKDAYS, "09:00", [0, 3], 0, "remind me to stretch"),
+        ("every tuesday, saturday at 18:15 gym", Every.WEEKDAYS, "18:15", [1, 5], 0, "gym"),
+        ("on wednesdays 10h standup notes", Every.WEEKDAYS, "10:00", [2], 0, "standup notes"),
+        ("every 6 hours check the price", Every.HOURS, "08:00", [], 6, "check the price"),
+        ("every 30 minutes ping the site", Every.HOURS, "08:00", [], 0.5, "ping the site"),
+        ("every hour drink water", Every.HOURS, "08:00", [], 1, "drink water"),
+    ],
+)
+def test_parse_english(text, every, at, weekdays, hours, wanted):
+    r = parse(text)
+    assert (r.every, r.weekdays, r.hours, r.request) == (every, weekdays, hours, wanted)
+    if every is not Every.HOURS:
+        assert r.at == at
+
+
+def test_parse_english_rejects_bad_times():
+    assert parse("every 5 minutes too often") is None
+    with pytest.raises(ValueError):
+        parse("every day 13pm nope")
+    assert parse("every week something") is None
     assert parse("todo dia 7h30 manda bom dia").at == "07:30"
     assert parse("todo dia às 8 manda bom dia").request == "manda bom dia"
     assert parse("qualquer coisa sem horário") is None
@@ -128,6 +157,16 @@ async def test_routine_replies_in_english(services, store):
     rid = next(iter(store.items))
     assert f"Routine {rid} paused." in (await router.handle_text(f"/routine {rid} pause")).text
     assert "I couldn't find routine r999" in (await router.handle_text("/routine r999 pause")).text
+
+
+async def test_english_schedule_through_the_command(services, store):
+    i18n.set_language("en")
+    reply = (await Router(services).handle_text("/routine monday and friday 8:30am check the dollar")).text
+    routine = next(iter(store.items.values()))
+    assert (routine.every, routine.weekdays, routine.at, routine.request) == (
+        Every.WEEKDAYS, [0, 4], "08:30", "check the dollar"
+    )
+    assert "Mon, Fri at 08:30" in reply
 
 
 async def test_llm_creates_routines(services, store):
