@@ -25,8 +25,11 @@
     "status": {
       "done": "rodou",
       "concluido": "concluído ✅",
-      "failed": "falhou ⚠️"
-    }
+      "failed": "falhou ⚠️",
+      "blocked": "travou ⛔"
+    },
+    "blocked": "Motivo: {reason}\nPausei; /retomar {id} quando der para seguir.",
+    "not_done": "Ainda não terminou: {reason}"
   },
   "feature": {
     "disabled": "auto-código por objetivos está desligado (PROACTIVE_ALLOW_SELFCODE)",
@@ -41,7 +44,8 @@
     "failed": "falhou: {error}",
     "done": "concluído: {note}",
     "requested": "pediu a feature {id}",
-    "needs_feature": "precisa de /feature {feature}"
+    "needs_feature": "precisa de /feature {feature}",
+    "blocked": "travado: {reason}"
   },
   "note": {
     "run": "**Execução {n}** ({when}): {summary}",

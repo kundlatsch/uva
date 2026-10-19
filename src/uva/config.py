@@ -118,6 +118,8 @@ class Settings(BaseSettings):
     proactive_max_tokens_per_run: int = 30000
     # Tell the owner on Telegram when background work (incl. goal runs) finishes.
     proactive_notify: bool = True
+    # Recurring goals with unchanged results run less often, up to this interval.
+    goal_max_interval_hours: float = 48
 
     # Storage
     mongo_uri: str = "mongodb://mongo:27017/uva"

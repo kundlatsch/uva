@@ -27,6 +27,15 @@ def describe_goal(goal: Goal, services: Services) -> str:
         ),
         f"   {goal.title}",
     ]
+    if goal.effective_interval_hours and goal.effective_interval_hours != goal.min_interval_hours:
+        lines.append(t("commands.goals.describe.stretched", hours=f"{goal.effective_interval_hours:g}",
+                       runs=goal.unchanged_runs + 1))
+    if goal.verify:
+        lines.append(t("commands.goals.describe.verify", verify=goal.verify))
+    if goal.stop_when:
+        lines.append(t("commands.goals.describe.stop_when", stop_when=goal.stop_when))
+    if goal.skill:
+        lines.append(t("commands.goals.describe.skill", skill=goal.skill))
     if goal.status is GoalStatus.ATIVO:
         late = t("commands.goals.describe.late") if goal.next_run_at < utcnow() else ""
         when = format_local(goal.next_run_at, tz, "%d/%m %H:%M")

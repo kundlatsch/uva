@@ -53,6 +53,18 @@ class Goal(BaseModel):
     needs_feature: str | None = None
     # A skill to follow on every run (data/skills/<name>).
     skill: str = ""
+    # Contract checked by the judge: what proves it is done / when to stop following it.
+    verify: str = ""
+    stop_when: str = ""
+    # Adaptive interval (recorrente): unchanged results stretch the interval.
+    result_hash: str = ""
+    unchanged_runs: int = 0
+    effective_interval_hours: float | None = None
+
+    @property
+    def interval_hours(self) -> float:
+        """The interval in use now (min_interval_hours stretched when nothing changes)."""
+        return self.effective_interval_hours or self.min_interval_hours
 
     @property
     def min_interval(self) -> timedelta:

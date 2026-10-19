@@ -25,8 +25,11 @@
     "status": {
       "done": "ran",
       "concluido": "done ✅",
-      "failed": "failed ⚠️"
-    }
+      "failed": "failed ⚠️",
+      "blocked": "is blocked ⛔"
+    },
+    "blocked": "Why: {reason}\nI paused it; /resume {id} when it can go on.",
+    "not_done": "Not done yet: {reason}"
   },
   "feature": {
     "disabled": "self-coding for goals is off (PROACTIVE_ALLOW_SELFCODE)",
@@ -41,7 +44,8 @@
     "failed": "failed: {error}",
     "done": "done: {note}",
     "requested": "asked for feature {id}",
-    "needs_feature": "needs /feature {feature}"
+    "needs_feature": "needs /feature {feature}",
+    "blocked": "blocked: {reason}"
   },
   "note": {
     "run": "**Run {n}** ({when}): {summary}",

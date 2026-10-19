@@ -12,7 +12,11 @@
     "last_attempt": "   última tentativa: {when} ({attempt}) · execuções: {runs}",
     "never": "   última tentativa: nunca · execuções: {runs}",
     "needs_feature": "   precisa de: /feature {feature}",
-    "last_result": "   última ({when}): {summary}"
+    "last_result": "   última ({when}): {summary}",
+    "stretched": "   agora a cada {hours}h ({runs} execuções sem novidade)",
+    "verify": "   pronto quando: {verify}",
+    "stop_when": "   parar quando: {stop_when}",
+    "skill": "   habilidade: {skill}"
   },
   "objetivos": {
     "description": "Lista os objetivos em que trabalho sozinha",

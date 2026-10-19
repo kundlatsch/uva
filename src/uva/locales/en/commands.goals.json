@@ -12,7 +12,11 @@
     "last_attempt": "   last attempt: {when} ({attempt}) · runs: {runs}",
     "never": "   last attempt: never · runs: {runs}",
     "needs_feature": "   needs: /feature {feature}",
-    "last_result": "   latest ({when}): {summary}"
+    "last_result": "   latest ({when}): {summary}",
+    "stretched": "   now every {hours}h ({runs} runs without news)",
+    "verify": "   done when: {verify}",
+    "stop_when": "   stop when: {stop_when}",
+    "skill": "   skill: {skill}"
   },
   "objetivos": {
     "description": "Lists the goals I work on by myself",

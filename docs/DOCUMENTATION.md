@@ -312,10 +312,14 @@ UVA keeps what is worth remembering about you in Mongo's `memory` collection: ke
 
 **Goals.** Ask in natural language ("cria um objetivo de acompanhar notícias de energia solar", "descobre por qual livro o Ricardo Terto foi semifinalista do Jabuti"). The LLM creates them with `goal_create`:
 
-- `unico` (default): a task with an end. It is **completed** when the LLM says it is done, or when the feature it asked for is ready.
+- `unico` (default): a task with an end. It is **completed** when the judge agrees it is done (below), or when the feature it asked for is ready.
 - `recorrente`: keep track of something; runs every `min_interval_hours` (default 6h; news 6–12h, prices 2–6h...).
 
-Beat checks every `PROACTIVE_POLL_MINUTES` (5) and runs at most one goal every `PROACTIVE_INTERVAL_MINUTES` (15). Each run uses only safe actions (search, notes, memory), has a limit of rounds (`PROACTIVE_MAX_STEPS`) and tokens (`PROACTIVE_MAX_TOKENS_PER_RUN`), writes to a note titled "Objetivo - <title>" in `01-projetos/` and **always sends a report** on Telegram (`PROACTIVE_NOTIFY=true`). If a goal needs a new command, it asks self-coding for one (`PROACTIVE_ALLOW_SELFCODE`).
+**Contract and judge.** A goal can have `verify` (what proves it is done, e.g. "the note cites the official list") and `stop_when` (when to stop following it, e.g. "the price is below R$ 200"); both are shown in `/objetivos`. When a run says it is done (or a recurring goal has a `stop_when`), a separate call to the router model reads the goal, the contract and the run's evidence and answers `done`, `continue` or `blocked` with a reason. Only `done` completes the goal; `continue` keeps it going (the report says what is missing); `blocked` pauses it and tells you why (`/retomar` when it can go on). Without a contract the judge checks the description. Claims without evidence are not "done".
+
+**Adaptive interval.** Each run of a recurring goal keeps a hash of its normalized result. After 3 runs with the same result the interval doubles (6h → 12h → 24h…, up to `GOAL_MAX_INTERVAL_HOURS`, 48); a different result resets it. `/objetivos` shows the stretched interval ("agora a cada 12h").
+
+Beat checks every `PROACTIVE_POLL_MINUTES` (5) and runs at most one goal every `PROACTIVE_INTERVAL_MINUTES` (15). Each run uses only safe actions (search, notes, memory), has a limit of rounds (`PROACTIVE_MAX_STEPS`) and tokens (`PROACTIVE_MAX_TOKENS_PER_RUN`), writes to a note titled "Objetivo - <title>" in `01-projetos/` and **sends a report** on Telegram (`PROACTIVE_NOTIFY=true`) unless the run ended in `[SILENT]` (nothing new). If a goal needs a new command, it asks self-coding for one (`PROACTIVE_ALLOW_SELFCODE`).
 
 **Initiatives.** Besides goals, UVA shows up on its own. At most every `PROACTIVE_DECIDE_EVERY_MINUTES` (40), the cheap model looks at long-term memory, the recent conversation, the brain notes and the goals, and picks:
 

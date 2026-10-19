@@ -116,7 +116,8 @@ async def test_unsafe_action_aborts_the_run(services, goals, event_store):
 
 
 async def test_single_goal_is_concluded(services, goals):
-    with_llm(services, step(reply="Feito.", done=True))
+    verdict = json.dumps({"verdict": "done", "reason": "Feito e conferido."})
+    with_llm(services, step(reply="Feito.", done=True), verdict)
     g = goal(kind=GoalKind.UNICO)
     await goals.add(g)
     assert await proactive_tick(services, NOW) == "concluido"
