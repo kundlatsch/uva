@@ -32,6 +32,7 @@ import yaml
 from rapidfuzz import fuzz
 
 from uva.clock import utcnow
+from uva.i18n import t
 from uva.logging import get_logger
 from uva.storage.sqlite import Database
 from uva.text import normalize
@@ -77,7 +78,7 @@ class Usage:
 def check_name(name: str) -> str:
     name = name.strip().lower()
     if not NAME_RE.match(name):
-        raise SkillError(f"invalid skill name {name!r}: use 2-40 chars, lowercase letters, digits and '-'")
+        raise SkillError(t("skills.errors.bad_name", name=name))
     return name
 
 
@@ -93,42 +94,42 @@ def render(skill: Skill) -> str:
 def parse(text: str, folder_name: str, references: tuple[str, ...] = ()) -> Skill:
     """Validate a SKILL.md; raises SkillError."""
     if not text.startswith("---"):
-        raise SkillError("SKILL.md must start with YAML front matter (---)")
+        raise SkillError(t("skills.errors.no_front_matter"))
     head, sep, body = text[3:].partition("\n---")
     if not sep:
-        raise SkillError("front matter is not closed (---)")
+        raise SkillError(t("skills.errors.front_matter_open"))
     try:
         meta = yaml.safe_load(head) or {}
     except yaml.YAMLError as exc:
-        raise SkillError(f"invalid front matter: {exc}") from exc
+        raise SkillError(t("skills.errors.bad_front_matter", error=exc)) from exc
     if not isinstance(meta, dict):
-        raise SkillError("front matter must be a mapping")
+        raise SkillError(t("skills.errors.front_matter_mapping"))
     name = check_name(str(meta.get("name") or ""))
     if name != folder_name:
-        raise SkillError(f"name {name!r} differs from its folder {folder_name!r}")
+        raise SkillError(t("skills.errors.name_folder", name=name, folder=folder_name))
     description = " ".join(str(meta.get("description") or "").split())
     if not description:
-        raise SkillError("description is required")
+        raise SkillError(t("skills.errors.no_description"))
     if len(description) > MAX_DESCRIPTION:
-        raise SkillError(f"description has {len(description)} chars (max {MAX_DESCRIPTION})")
+        raise SkillError(t("skills.errors.long_description", chars=len(description), max=MAX_DESCRIPTION))
     triggers = meta.get("triggers") or []
     if not isinstance(triggers, list) or not all(isinstance(x, str) for x in triggers):
-        raise SkillError("triggers must be a list of phrases")
+        raise SkillError(t("skills.errors.bad_triggers"))
     body = body.lstrip("-").strip()
     check_body(body)
     try:
         version = int(meta.get("version") or 1)
     except (TypeError, ValueError) as exc:
-        raise SkillError("version must be a number") from exc
+        raise SkillError(t("skills.errors.bad_version")) from exc
     return Skill(name, description, body, tuple(t.strip() for t in triggers if t.strip()), version, references)
 
 
 def check_body(body: str) -> None:
     missing = [s for s in REQUIRED_SECTIONS if s.lower() not in body.lower()]
     if missing:
-        raise SkillError(f"the body needs the sections {', '.join(missing)} (also: {', '.join(SECTIONS[2:])})")
+        raise SkillError(t("skills.errors.missing_sections", missing=", ".join(missing), also=", ".join(SECTIONS[2:])))
     if len(body) > MAX_BODY:
-        raise SkillError(f"the body has {len(body)} chars (max {MAX_BODY}); move details to references/")
+        raise SkillError(t("skills.errors.long_body", chars=len(body), max=MAX_BODY))
 
 
 class SkillLibrary:
@@ -199,13 +200,13 @@ class SkillLibrary:
         """SKILL.md (or one reference file) as text, recording the read."""
         skill = self.get(name)
         if skill is None:
-            raise SkillError(f"no skill named {name!r}")
+            raise SkillError(t("skills.errors.missing", name=name))
         if file:
             refs_dir = self.root / skill.name / "references"
             path = refs_dir / Path(file).name
             if path.suffix != ".md" or not path.is_file():
                 found = sorted(p.name for p in refs_dir.glob("*.md")) if refs_dir.is_dir() else []
-                raise SkillError(f"{name} has no reference {file!r} (has: {', '.join(found) or 'none'})")
+                raise SkillError(t("skills.errors.no_reference", name=name, file=file, found=", ".join(found) or "—"))
             return path.read_text(encoding="utf-8")
         self._read[skill.name] = self._mtime(skill.name) or 0.0
         return render(skill)

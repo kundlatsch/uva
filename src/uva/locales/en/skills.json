@@ -1,0 +1,18 @@
+{
+  "errors": {
+    "bad_name": "invalid skill name '{name}': use 2-40 characters, lowercase letters, digits and '-'",
+    "no_front_matter": "SKILL.md must start with YAML front matter (---)",
+    "front_matter_open": "the front matter is not closed (---)",
+    "bad_front_matter": "invalid front matter: {error}",
+    "front_matter_mapping": "the front matter must be a mapping",
+    "name_folder": "the name '{name}' differs from its folder '{folder}'",
+    "no_description": "the description is required",
+    "long_description": "the description has {chars} characters (max {max})",
+    "bad_triggers": "triggers must be a list of phrases",
+    "bad_version": "the version must be a number",
+    "missing_sections": "the body needs the sections {missing} (also: {also})",
+    "long_body": "the body has {chars} characters (max {max}); move details to references/",
+    "missing": "there is no skill named '{name}'",
+    "no_reference": "{name} has no reference '{file}' (it has: {found})"
+  }
+}

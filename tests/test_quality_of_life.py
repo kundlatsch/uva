@@ -294,3 +294,14 @@ async def test_revert_diff_shows_without_undoing(services, tmp_path):
     reply = await Router(services).handle_text("/reverter diff")
     assert "desfaria" in reply.text and "-Sou irônica." in reply.text and "+Sou gentil." in reply.text
     assert (repo / "data" / "soul.md").read_text(encoding="utf-8") == "Sou gentil.\n"
+
+
+async def test_modes_have_english_names(qs):
+    from uva import i18n
+
+    router = Router(qs)
+    assert "Modo serio ligado" in (await router.handle_text("/mode serious")).text
+    assert (await qs.stm.session()).mode == "serio"
+    i18n.set_language("en")
+    listing = (await router.handle_text("/mode")).text
+    assert "Mode now: serious" in listing and "concise" in listing and "teacher" in listing

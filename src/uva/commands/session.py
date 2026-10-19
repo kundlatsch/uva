@@ -110,17 +110,17 @@ def register(registry: CommandRegistry) -> None:
             return t("commands.mode.unavailable")
         if not ctx.args:
             current = (await services.stm.session()).mode
-            names = ", ".join(sorted(modes.available(path)))
-            return t("commands.mode.status", current=current or "normal", modes=names)
+            return t("commands.mode.status", current=modes.label(current) if current else t("commands.mode.normal"),
+                     modes=", ".join(modes.names(path)))
         name = " ".join(ctx.args)
         if name.lower() in modes.NORMAL:
             await services.stm.set_mode(None)
             return t("commands.mode.cleared")
         found = modes.find(name, path)
         if found is None:
-            return t("commands.mode.unknown", name=name, modes=", ".join(sorted(modes.available(path))))
+            return t("commands.mode.unknown", name=name, modes=", ".join(modes.names(path)))
         await services.stm.set_mode(found[0])
-        return t("commands.mode.set", name=found[0])
+        return t("commands.mode.set", name=modes.label(found[0]))
 
 
 async def last_user_text(services) -> str | None:

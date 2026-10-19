@@ -299,7 +299,7 @@ async def fetch_pokemon(target: str) -> tuple[dict[str, Any] | None, list[str]]:
         "pt": "Busca dados de um Pokémon na PokeAPI, incluindo formas e variações",
     },
     aliases=("poke", "pokedex"),
-    usage="<nome|id> [forma]",
+    usage={"en": "<name|id> [form]", "pt": "<nome|id> [forma]"},
     examples=("/pokemon pikachu", "/pokemon mewtwo", "/pokemon ninetales alola", "/pokemon 25"),
 )
 async def pokemon(ctx: PluginContext) -> str:

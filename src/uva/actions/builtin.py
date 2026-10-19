@@ -111,5 +111,5 @@ def register(registry: ActionRegistry) -> None:
         lines = []
         for name in params.names:
             action = actions.get(name) if actions is not None else None
-            lines.append(describe_action(action) if action else f"- {name}: no such action")
+            lines.append(describe_action(action) if action else t("actions.builtin.action_help.unknown", name=name))
         return ActionResult(text="\n".join(lines), data={"names": params.names})

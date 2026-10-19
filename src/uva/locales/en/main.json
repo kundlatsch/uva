@@ -3,7 +3,11 @@
     "confirm": "👍 On it",
     "deny": "Ok",
     "shok": "⚙️ Running…",
-    "shno": "Ok, not running it"
+    "shno": "Ok, not running it",
+    "shal": "✅ Allowed",
+    "wrok": "💾 Saving…",
+    "wrno": "Ok",
+    "stop": "⏹️ Stopping…"
   },
   "file_too_big": "{phrase}\n(the file is over 20 MB, Telegram's limit for bots)",
   "audio_too_big": "{phrase}\n(the audio is over 20 MB, Telegram's limit for bots)"

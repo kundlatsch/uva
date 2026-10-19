@@ -1,0 +1,18 @@
+{
+  "errors": {
+    "bad_name": "nome de habilidade inválido '{name}': use de 2 a 40 caracteres, letras minúsculas, dígitos e '-'",
+    "no_front_matter": "o SKILL.md precisa começar com o cabeçalho YAML (---)",
+    "front_matter_open": "o cabeçalho YAML não foi fechado (---)",
+    "bad_front_matter": "cabeçalho YAML inválido: {error}",
+    "front_matter_mapping": "o cabeçalho YAML precisa ser um mapeamento",
+    "name_folder": "o nome '{name}' é diferente da pasta '{folder}'",
+    "no_description": "a descrição é obrigatória",
+    "long_description": "a descrição tem {chars} caracteres (máximo {max})",
+    "bad_triggers": "triggers precisa ser uma lista de frases",
+    "bad_version": "a versão precisa ser um número",
+    "missing_sections": "o corpo precisa das seções {missing} (também: {also})",
+    "long_body": "o corpo tem {chars} caracteres (máximo {max}); mova detalhes para references/",
+    "missing": "não existe habilidade chamada '{name}'",
+    "no_reference": "{name} não tem a referência '{file}' (tem: {found})"
+  }
+}

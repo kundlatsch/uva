@@ -19,6 +19,7 @@
     "description": "Deletes a memory",
     "usage": "Usage: /forget <key> (see the keys in /memory)",
     "forgotten": "Forgot '{key}'.",
-    "not_found": "I couldn't find '{key}' in memory."
+    "not_found": "I couldn't find '{key}' in memory.",
+    "usage_arg": "<key>"
   }
 }

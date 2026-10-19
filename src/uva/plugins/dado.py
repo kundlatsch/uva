@@ -21,7 +21,7 @@ USAGE = {
         "pt": "Rola um dado; por padrão de 6 lados, ou informe o número de lados",
     },
     aliases=("dice", "roll"),
-    usage="[lados]",
+    usage={"en": "[sides]", "pt": "[lados]"},
     examples=("rola um d6", "rola um d20"),
 )
 def roll(ctx: PluginContext) -> str:

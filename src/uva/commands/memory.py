@@ -77,7 +77,8 @@ def register(registry: CommandRegistry) -> None:
         return t("commands.memory.lembrar.saved", key=item.key, value=item.value)
 
     @registry.command(
-        "esquecer", t("commands.memory.esquecer.description"), aliases=("forget",), usage="<chave>"
+        "esquecer", t("commands.memory.esquecer.description"), aliases=("forget",),
+        usage=t("commands.memory.esquecer.usage_arg"),
     )
     async def forget(ctx: CommandContext) -> str:
         service = ctx.services.memory

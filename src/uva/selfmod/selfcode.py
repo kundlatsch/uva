@@ -376,7 +376,8 @@ tests/plugins/test_<name>.py. Answer ONLY with JSON in the requested format.
   text the user reads (replies, usage messages, errors) exists in both languages, in English and
   in Brazilian Portuguese, inside the plugin itself (e.g. `TEXTS = {{"en": {{...}}, "pt": {{...}}}}`),
   and the reply follows ctx.lang (`TEXTS.get(ctx.lang, TEXTS["en"])`). Identifiers in English.
-- The @command description is a dictionary: `{{"en": "...", "pt": "..."}}`.
+- The @command description is a dictionary: `{{"en": "...", "pt": "..."}}`; so is `usage` when it
+  has words (e.g. `{{"en": "<text>", "pt": "<texto>"}}`).
 - In the tests, cover both languages: `run(handler, ..., lang="en")` and `run(handler, ..., lang="pt")`.
 - The JSON "summary" field in {language_name()}.
 - Validate the arguments and return a clear usage message when they are wrong.

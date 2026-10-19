@@ -113,7 +113,7 @@ def build_services(settings: Settings) -> Services:
 
     services.health_checks["MongoDB"] = lambda: mongo.ping(client)
     services.health_checks["Redis"] = lambda: _redis_ping(redis)
-    services.health_checks["Worker + agendador"] = lambda: _heartbeat_fresh(redis)
+    services.health_checks[i18n.t("commands.status.worker")] = lambda: _heartbeat_fresh(redis)
     services.setup_hooks.extend(
         [
             event_store.setup,

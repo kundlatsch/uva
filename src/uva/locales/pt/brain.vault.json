@@ -1,0 +1,7 @@
+{
+  "placeholder": "o texto tem um marcador no lugar do conteúdo ('{placeholder}'); leia a nota e mande o conteúdo completo",
+  "unknown_folder": "pasta desconhecida: {folder}",
+  "hidden_folder": "pastas ocultas ou '..' não são permitidas",
+  "too_deep": "no máximo {max} níveis de subpastas",
+  "outside": "caminho fora do second brain"
+}

@@ -34,7 +34,7 @@ from uva.tts import SpeechError, should_speak
 log = get_logger(__name__)
 
 # Short toast shown the moment a button is pressed (texts in main.button_ack).
-BUTTON_ACK = ("confirm", "deny", "shok", "shno")
+BUTTON_ACK = ("confirm", "deny", "shok", "shno", "shal", "wrok", "wrno", "stop")
 # Handled at once, even while another message is still being worked on.
 STOP_COMMANDS = ("/parar", "/stop")
 

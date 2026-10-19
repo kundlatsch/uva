@@ -25,7 +25,9 @@ BUILTIN = {
         "short question at the end."
     ),
 }
-NORMAL = ("normal", "padrao", "default", "off", "nenhum")
+NORMAL = ("normal", "padrao", "default", "off", "nenhum", "none")
+# English names of the built-in modes (the Portuguese ones are the keys).
+ALIASES = {"serious": "serio", "concise": "conciso", "teacher": "professor"}
 
 
 def available(path: Path) -> dict[str, str]:
@@ -44,8 +46,24 @@ def available(path: Path) -> dict[str, str]:
 
 def find(name: str, path: Path) -> tuple[str, str] | None:
     key = normalize(name).replace(" ", "_")
+    key = ALIASES.get(key, key)
     modes = available(path)
     return (key, modes[key]) if key in modes else None
+
+
+def names(path: Path) -> list[str]:
+    """Mode names to show: the built-in ones in the bot language, then the custom ones."""
+    from uva.i18n import t
+
+    shown = [t(f"commands.mode.names.{key}") for key in BUILTIN]
+    return shown + sorted(k for k in available(path) if k not in BUILTIN)
+
+
+def label(key: str) -> str:
+    """How a mode is shown to the user (built-in ones translated)."""
+    from uva.i18n import t
+
+    return t(f"commands.mode.names.{key}") if key in BUILTIN else key
 
 
 def overlay(name: str, instruction: str) -> str:

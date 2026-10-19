@@ -6,5 +6,6 @@
   "queue_unavailable": "Fila de tarefas: indisponível",
   "status": {
     "description": "Serviços, uptime, fila e gastos"
-  }
+  },
+  "worker": "Worker + agendador"
 }

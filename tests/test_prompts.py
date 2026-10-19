@@ -80,7 +80,7 @@ async def test_action_help_returns_the_full_schema(services):
     params = action.params_model(names=["decide", "nope"])
     result = await action.handler(params, ActionContext(services))
     assert result.text.startswith(describe_action(services.actions.get("decide")))
-    assert "- nope: no such action" in result.text
+    assert "- nope: essa ação não existe" in result.text
     assert action.lookup
 
 

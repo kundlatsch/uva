@@ -1,0 +1,7 @@
+{
+  "unavailable": "O registro de conversas não está disponível.",
+  "bad_date": "Data inválida: use AAAA-MM-DD.",
+  "need_query": "Diga um termo ou um período para procurar.",
+  "none": "Nada encontrado nas nossas conversas antigas.",
+  "header": "🕰️ Conversas antigas (mais antigas primeiro):"
+}

@@ -19,6 +19,7 @@
     "description": "Apaga uma memória",
     "usage": "Uso: /esquecer <chave> (veja as chaves em /memoria)",
     "forgotten": "Esqueci '{key}'.",
-    "not_found": "Não achei '{key}' na memória."
+    "not_found": "Não achei '{key}' na memória.",
+    "usage_arg": "<chave>"
   }
 }

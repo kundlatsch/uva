@@ -58,14 +58,13 @@ def register(registry: ActionRegistry) -> None:
         lookup=True,
     )
     async def skill_read(params: SkillReadParams, ctx: ActionContext) -> ActionResult:
-        # A lookup: the text goes back to the LLM (English).
         library = ctx.services.skills
         if library is None:
-            return ActionResult(text="Skills are not available.")
+            return ActionResult(text=t("actions.skills.unavailable"), data={"ok": False})
         try:
             text = library.read(params.name, params.file)
         except SkillError as exc:
-            return ActionResult(text=str(exc), data={"ok": False})
+            return ActionResult(text=t("actions.skills.invalid", error=exc), data={"ok": False})
         if not params.file:
             await library.used(check_name(params.name))
         return ActionResult(text=text, data={"ok": True, "name": params.name})

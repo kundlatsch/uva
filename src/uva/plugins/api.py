@@ -34,9 +34,9 @@ Rules:
     the plugin itself, e.g. a ``TEXTS = {"en": {...}, "pt": {...}}`` dict, and
     pick with ``TEXTS.get(ctx.lang, TEXTS["en"])``. Plugins can't import the
     bot's translation module.
-  * The ``@command`` description may be a plain string or a dict
-    ``{"en": "...", "pt": "..."}`` (preferred); /help shows the one in the bot
-    language. ``examples`` are phrases matched against what the user types:
+  * The ``@command`` description (and ``usage``, when it has words) may be a
+    plain string or a dict ``{"en": "...", "pt": "..."}`` (preferred); /help
+    shows the one in the bot language. ``examples`` are phrases matched against what the user types:
     they may mix both languages.
   * ``ctx.data`` is a READ-ONLY view of the bot's data (see :class:`DataView`):
     memories, goals, the recent short-term context, expenses and note titles.
@@ -175,7 +175,7 @@ class PluginCommand:
     description: Description
     handler: Handler
     aliases: tuple[str, ...] = ()
-    usage: str = ""
+    usage: Description = ""
     examples: tuple[str, ...] = ()
 
 
@@ -184,7 +184,7 @@ def command(
     description: Description,
     *,
     aliases: tuple[str, ...] = (),
-    usage: str = "",
+    usage: Description = "",
     examples: tuple[str, ...] = (),
 ) -> Callable[[Handler], Handler]:
     """Mark a function as a bot command."""

@@ -1,0 +1,7 @@
+{
+  "placeholder": "the text has a placeholder instead of content ('{placeholder}'); read the note and send the complete content",
+  "unknown_folder": "unknown folder: {folder}",
+  "hidden_folder": "hidden folders or '..' are not allowed",
+  "too_deep": "at most {max} levels of subfolders",
+  "outside": "path outside the second brain"
+}

@@ -50,7 +50,7 @@ def parse_text(args: list[str]) -> tuple[str, bool]:
     "palindromo",
     {"en": "Checks whether a text is a palindrome", "pt": "Checa se um texto é palíndromo"},
     aliases=("palíndromo", "palindrome"),
-    usage="[--normalizado] <texto>",
+    usage={"en": "[--normalized] <text>", "pt": "[--normalizado] <texto>"},
     examples=(
         "reviver",
         "socorram me subi no onibus em marrocos",

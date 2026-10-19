@@ -23,7 +23,7 @@ TEXTS = {
     "moeda",
     {"en": "Flips a coin: heads or tails", "pt": "Joga uma moeda: cara ou coroa"},
     aliases=("coin",),
-    usage="[vezes]",
+    usage={"en": "[times]", "pt": "[vezes]"},
     examples=("joga uma moeda", "cara ou coroa"),
 )
 def flip(ctx: PluginContext) -> str:

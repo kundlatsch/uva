@@ -32,7 +32,7 @@ TEXTS = {
             "System: {system}\n"
             "Command: `{command}`"
         ),
-        "cancelled": "Cancelado. Nenhuma ação foi executada.",
+        "cancelled": "Cancelled. Nothing was done.",
         "invalid": "Invalid option. {usage}",
         "need_system": "I cannot detect the current system from the plugin sandbox. Choose one explicitly. {usage}",
     },
@@ -98,7 +98,7 @@ def systems_line(lang: str) -> str:
         "en": "Shows a safe shutdown confirmation for Windows, Linux or macOS",
         "pt": "Mostra uma confirmação segura de desligamento para Windows, Linux ou macOS",
     },
-    usage="[windows|linux|macos] confirmar",
+    usage={"en": "[windows|linux|macos] confirm", "pt": "[windows|linux|macos] confirmar"},
     examples=("desligar o pc", "desligar computador", "shutdown computer"),
 )
 def shutdown_pc(ctx: PluginContext) -> str:

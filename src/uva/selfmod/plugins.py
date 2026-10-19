@@ -117,7 +117,7 @@ def _to_command(pc: PluginCommand) -> Command:
         description=resolve_description(pc.description, i18n.get_language()),
         handler=handler,
         aliases=tuple(pc.aliases),
-        usage=pc.usage,
+        usage=resolve_description(pc.usage, i18n.get_language()),
         examples=tuple(pc.examples),
         source="plugin",
     )

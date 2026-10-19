@@ -46,7 +46,7 @@ def texts_for(ctx: PluginContext) -> dict[str, str]:
         "en": "Shows a safe shutdown confirmation by system without executing it",
         "pt": "Mostra uma confirmação segura de desligamento por sistema sem executar",
     },
-    usage="<linux|windows|macos> confirmar",
+    usage={"en": "<linux|windows|macos> confirm", "pt": "<linux|windows|macos> confirmar"},
     examples=(
         "desligar pc linux confirmar",
         "desligar pc windows confirmar",

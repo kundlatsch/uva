@@ -7,6 +7,7 @@ from datetime import date, datetime, time, timedelta
 from pydantic import BaseModel, Field
 
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
+from uva.i18n import t
 from uva.recall import render_turns
 from uva.text import normalize
 
@@ -37,15 +38,14 @@ def register(registry: ActionRegistry) -> None:
         lookup=True,
     )
     async def history_search(params: HistorySearchParams, ctx: ActionContext) -> ActionResult:
-        # A lookup: its text goes back to the LLM, so it is in English.
         index = ctx.services.index
         if index is None:
-            return ActionResult(text="The conversation log is unavailable.")
+            return ActionResult(text=t("actions.history.unavailable"), data={"ok": False})
         tz = ctx.services.tz
         try:
             since, until = _day(params.since, tz), _day(params.until, tz, end=True)
         except ValueError:
-            return ActionResult(text="Invalid date: use YYYY-MM-DD.")
+            return ActionResult(text=t("actions.history.bad_date"), data={"ok": False})
         words = normalize(params.query).split()
         if words:
             turns = await index.search_turns(words, since, until, LIMIT)
@@ -53,10 +53,10 @@ def register(registry: ActionRegistry) -> None:
         elif since or until:
             turns = await index.turns(since, until, LIMIT)
         else:
-            return ActionResult(text="Give a query or a period.")
+            return ActionResult(text=t("actions.history.need_query"), data={"ok": False})
         if not turns:
-            return ActionResult(text="Nothing found in the conversation log.", data={"count": 0})
+            return ActionResult(text=t("actions.history.none"), data={"count": 0})
         return ActionResult(
-            text="Conversation log (oldest first):\n" + render_turns(turns, tz),
+            text=t("actions.history.header") + "\n" + render_turns(turns, tz),
             data={"count": len(turns)},
         )

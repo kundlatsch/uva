@@ -5,5 +5,11 @@
   "status": "Modo agora: {current}. Disponíveis: {modes}. /modo <nome>, /modo normal tira.",
   "cleared": "De volta ao normal.",
   "unknown": "Não conheço o modo '{name}'. Disponíveis: {modes}.",
-  "set": "🎭 Modo {name} ligado até a conversa acabar (/modo normal tira)."
+  "set": "🎭 Modo {name} ligado até a conversa acabar (/modo normal tira).",
+  "normal": "normal",
+  "names": {
+    "serio": "serio",
+    "conciso": "conciso",
+    "professor": "professor"
+  }
 }

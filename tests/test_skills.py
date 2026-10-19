@@ -68,11 +68,11 @@ def sk_services(services, repo, tmp_path):
 
 def test_parse_validates_the_skill():
     assert parse(skill_text(), "weekly-plan").triggers == ("planeja minha semana",)
-    with pytest.raises(SkillError, match="differs from its folder"):
+    with pytest.raises(SkillError, match="diferente da pasta"):
         parse(skill_text(), "other")
-    with pytest.raises(SkillError, match="max 120"):
+    with pytest.raises(SkillError, match="máximo 120"):
         parse(skill_text(description="x" * 121), "weekly-plan")
-    with pytest.raises(SkillError, match="invalid skill name"):
+    with pytest.raises(SkillError, match="nome de habilidade inválido"):
         parse(skill_text(name="Weekly Plan"), "Weekly Plan")
     with pytest.raises(SkillError, match="## Procedure"):
         parse(skill_text().replace("## Procedure", "## Steps"), "weekly-plan")

@@ -19,6 +19,7 @@ import yaml
 
 from uva.brain.naming import file_stem, link
 from uva.clock import utcnow
+from uva.i18n import t
 from uva.text import normalize
 
 FOLDERS: dict[str, str] = {
@@ -57,10 +58,7 @@ _PLACEHOLDER = re.compile(
 
 def check_no_placeholders(text: str) -> None:
     if match := _PLACEHOLDER.search(text):
-        raise PlaceholderError(
-            f"the text has a placeholder instead of content ({match.group(0)!r}); "
-            "read the note and send the complete content"
-        )
+        raise PlaceholderError(t("brain.vault.placeholder", placeholder=match.group(0)))
 
 
 @dataclass(slots=True)
@@ -166,17 +164,17 @@ class Vault:
         levels are refused; names are cleaned like note titles.
         """
         if folder not in FOLDERS:
-            raise ValueError(f"unknown folder: {folder}")
+            raise ValueError(t("brain.vault.unknown_folder", folder=folder))
         raw_parts = [p.strip() for p in re.split(r"[\\/]", subfolder) if p.strip()]
         if any(p.startswith(".") for p in raw_parts):
-            raise ValueError("hidden folders or '..' are not allowed")
+            raise ValueError(t("brain.vault.hidden_folder"))
         if len(raw_parts) > MAX_SUBFOLDER_DEPTH:
-            raise ValueError(f"at most {MAX_SUBFOLDER_DEPTH} levels of subfolders")
+            raise ValueError(t("brain.vault.too_deep", max=MAX_SUBFOLDER_DEPTH))
         path = self.root / FOLDERS[folder]
         for part in raw_parts:
             path = path / clean_title(part)
         if not path.resolve().is_relative_to(self.root.resolve()):
-            raise ValueError("path outside the second brain")
+            raise ValueError(t("brain.vault.outside"))
         return path
 
     def create_folder(self, folder: str, name: str, now: datetime | None = None) -> tuple[str, str | None]:

@@ -6,5 +6,6 @@
   "queue_unavailable": "Task queue: unavailable",
   "status": {
     "description": "Services, uptime, queue and spending"
-  }
+  },
+  "worker": "Worker + scheduler"
 }

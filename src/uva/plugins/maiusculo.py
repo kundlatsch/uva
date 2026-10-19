@@ -12,7 +12,7 @@ USAGE = {
     "maiusculo",
     {"en": "Converts a text to UPPERCASE LETTERS", "pt": "Converte um texto para LETRAS MAIÚSCULAS"},
     aliases=("maiúsculo", "uppercase", "upper"),
-    usage="<texto>",
+    usage={"en": "<text>", "pt": "<texto>"},
     examples=("bom dia", "Rua 7, apto 12!"),
 )
 def uppercase(ctx: PluginContext) -> str:

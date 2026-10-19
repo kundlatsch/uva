@@ -1,0 +1,7 @@
+{
+  "unavailable": "The conversation log is unavailable.",
+  "bad_date": "Invalid date: use YYYY-MM-DD.",
+  "need_query": "Give a term or a period to look up.",
+  "none": "Nothing found in our past conversations.",
+  "header": "🕰️ Past conversations (oldest first):"
+}
