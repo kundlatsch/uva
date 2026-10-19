@@ -43,6 +43,7 @@ class EventType(StrEnum):
     SELFCODE = "selfcode"  # the bot wrote/merged/reverted its own code
     PROJECT = "project"  # a new project built by Claude Code (/projeto)
     SHELL = "shell"  # a command/Python run in /uva (/sh, /py)
+    MCP_CALL = "mcp_call"  # a tool called on an MCP server
     REPLY = "reply"
     ERROR = "error"
 

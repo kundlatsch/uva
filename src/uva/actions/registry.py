@@ -8,11 +8,11 @@ LLM never runs free-form code.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, RootModel, ValidationError
 
 from uva.i18n import t
 from uva.llm.budget import Scope
@@ -47,6 +47,11 @@ class ActionResult:
 ActionHandler = Callable[[Any, ActionContext], Awaitable[ActionResult]]
 
 
+class JsonArgs(RootModel[dict[str, Any]]):
+    """Params of an action described by a JSON Schema (MCP tools), already
+    validated against it; model_dump() gives the plain dict back."""
+
+
 @dataclass(frozen=True, slots=True)
 class Action:
     name: str
@@ -65,6 +70,13 @@ class Action:
     # Read-only lookups (note_read, recall...): in a conversation their output goes
     # back to the LLM, which then answers in the same turn.
     lookup: bool = False
+    # Actions registered at runtime from a JSON Schema (MCP tools): validated with
+    # jsonschema and wrapped in JsonArgs; params_model is then JsonArgs.
+    json_schema: dict[str, Any] | None = field(default=None, compare=False)
+    # Actions replaced together (replace_group), e.g. "mcp".
+    group: str | None = None
+    # Free-form details for the group's own code (MCP: server, tool, flags).
+    meta: Mapping[str, Any] | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if self.progress_text is None:
@@ -119,6 +131,17 @@ class ActionRegistry:
 
         return decorator
 
+    def replace_group(self, group: str, actions: Iterable[Action]) -> None:
+        """Drop every action of ``group`` and register ``actions`` in their place."""
+        self._actions = {n: a for n, a in self._actions.items() if a.group != group}
+        for action in actions:
+            if action.group != group:
+                raise ValueError(f"Action {action.name!r} is not in group {group!r}")
+            self.register(action)
+
+    def group(self, group: str) -> list[Action]:
+        return [a for a in self if a.group == group]
+
     def get(self, name: str) -> Action | None:
         return self._actions.get(name)
 
@@ -139,7 +162,22 @@ class ActionRegistry:
         action = self.get(name)
         if action is None or (allowed is not None and name not in allowed):
             raise InvalidActionError(t("actions.registry.unknown_action", name=repr(name)))
+        if action.json_schema is not None:
+            return action, _validate_json(action, params)
         try:
             return action, action.params_model.model_validate(params)
         except ValidationError as exc:
             raise InvalidActionError(t("actions.registry.invalid_params", name=name, error=exc)) from exc
+
+
+def _validate_json(action: Action, params: dict[str, Any]) -> JsonArgs:
+    import jsonschema
+
+    if not isinstance(params, dict):
+        raise InvalidActionError(t("actions.registry.invalid_params", name=action.name, error="params must be an object"))
+    validator_class = jsonschema.validators.validator_for(action.json_schema, default=jsonschema.Draft202012Validator)
+    errors = sorted(validator_class(action.json_schema).iter_errors(params), key=lambda e: list(e.path))
+    if errors:
+        detail = "; ".join(f"{'/'.join(map(str, e.path)) or 'params'}: {e.message}" for e in errors[:3])
+        raise InvalidActionError(t("actions.registry.invalid_params", name=action.name, error=detail))
+    return JsonArgs(params)

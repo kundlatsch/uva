@@ -1,0 +1,10 @@
+{
+  "clipped": "[… clipped: {total} characters in total]",
+  "disabled": "MCP is turned off (MCP_ENABLED=false).",
+  "unavailable": "I couldn't reach the MCP gateway for {server}/{tool} ({error}). Everything else still works; /mcp shows the servers.",
+  "call_failed": "The MCP call {server}/{tool} failed: {error}",
+  "empty": "(empty result)",
+  "tool_error": "⚠️ The tool {tool} reported an error:",
+  "result": "🔌 {tool}:",
+  "no_server": "No MCP server named {server}. Servers: {servers}"
+}

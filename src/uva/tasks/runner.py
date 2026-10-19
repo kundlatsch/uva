@@ -47,6 +47,11 @@ async def run_action_task(
         if services.busy is not None:
             await services.busy.mark(busy_key, services.settings.task_time_limit_seconds)
         try:
+            if action_name.startswith("mcp_"):
+                from uva.mcp.catalog import sync_actions
+
+                # A worker that has never seen this tool asks the gateway right away.
+                await sync_actions(services, force=services.actions.get(action_name) is None)
             try:
                 action, validated = services.actions.validate(action_name, params)
             except InvalidActionError as exc:

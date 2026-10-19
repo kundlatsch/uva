@@ -19,6 +19,7 @@ from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
 from uva.llm.prompts import assistant_system_prompt, message_context
+from uva.mcp.catalog import sync_actions
 from uva.memory.service import render_memory
 from uva.progress import activity, placeholder
 from uva.recall import recall
@@ -76,6 +77,7 @@ class Agent:
                 await emit(EventType.BUDGET, scope=INTERACTIVE.value, blocked=True, reason=status.reason)
                 return Reply(f"{services.say('sem_credito')}\n({status.reason})")
 
+        await sync_actions(services)  # MCP tools: cheap check, rebuilt only when changed
         actions = list(services.actions)
         history, recent_context, mode = await self._session_context()
         if mode:
@@ -91,6 +93,7 @@ class Agent:
             actions=actions,
             registry=services.registry,
             working_memory=await self._working_memory(),
+            mcp_limit=services.settings.mcp_prompt_tool_limit,
         )
         if skill is not None and services.skills is not None:
             await services.skills.used(skill.name)

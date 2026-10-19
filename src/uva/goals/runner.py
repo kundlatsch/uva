@@ -202,6 +202,9 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
     """The LLM loop for one goal, limited in steps and tokens."""
     assert services.llm is not None and services.actions is not None
     settings = services.settings
+    from uva.mcp.catalog import sync_actions
+
+    await sync_actions(services)  # proactive MCP reads, if any
     safe_actions = services.actions.subset(proactive_only=True)
     allowed = {a.name for a in safe_actions}
     system = goal_system_prompt(

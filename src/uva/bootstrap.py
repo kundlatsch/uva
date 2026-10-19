@@ -108,6 +108,13 @@ def build_services(settings: Settings) -> Services:
     project_store = mongo.MongoProjectStore(db)
     services.projects = ProjectService(project_store, settings, _enqueue_project)
     services.shell = ShellService(settings, db=sqlite_db)
+    if settings.mcp_enabled:
+        from uva.mcp.catalog import McpService, sync_actions
+        from uva.mcp.client import McpGateway
+
+        services.mcp = McpService(settings, McpGateway(settings), redis)
+        # MCP tools become actions at startup (and again whenever the catalog changes).
+        services.setup_hooks.append(lambda: sync_actions(services, force=True))
     routine_store = mongo.MongoRoutineStore(db)
     services.routines = routine_store
 

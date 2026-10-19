@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
     from uva.llm.decisions import DecisionsClient
+    from uva.mcp.catalog import McpService
     from uva.memory.service import MemoryService
     from uva.projects.service import ProjectService
     from uva.shell.service import ShellService
@@ -83,6 +84,8 @@ class Services:
     features: FeatureService | None = None
     projects: ProjectService | None = None
     shell: ShellService | None = None
+    # MCP tools (gateway client + the "mcp" action group), None when MCP_ENABLED=false.
+    mcp: McpService | None = None
     stickers: StickerRepository | None = None
     routines: RoutineStore | None = None
     stm: ShortTermMemory | None = None
