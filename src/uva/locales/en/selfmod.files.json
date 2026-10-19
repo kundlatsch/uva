@@ -8,5 +8,6 @@
   "bad_json": "invalid JSON: {error}",
   "bad_phrases": "invalid phrases file: {error}",
   "too_big": "file too big (limit {limit} KB)",
-  "over_cap": "{path} would have {size} characters, over its limit of {limit} (it goes into every prompt). Don't grow it: rewrite it shorter, merging and dropping what is outdated, or ask the user to run /profile consolidate."
+  "over_cap": "{path} would have {size} characters, over its limit of {limit} (it goes into every prompt). Don't grow it: rewrite it shorter, merging and dropping what is outdated, or ask the user to run /profile consolidate.",
+  "protected": "{path} is configured by hand only (MCP servers and their policy); I can't change or read it"
 }

@@ -27,6 +27,7 @@ This is the complete reference. For a quick overview, see the [README](../README
 - [Self-coding: UVA writes new commands](#self-coding-uva-writes-new-commands)
 - [New projects with Claude Code (/projeto)](#new-projects-with-claude-code-projeto)
 - [UVA's own folder: /uva (/sh and /py)](#uvas-own-folder-uva-sh-and-py)
+- [MCP servers](#mcp-servers)
 - [Stickers](#stickers)
 - [Audio](#audio)
 - [Images](#images)
@@ -78,9 +79,10 @@ src/uva/
   plugins/        # commands added as plugins (by hand or by self-coding)
   projects/       # /projeto: new projects built by Claude Code
   shell/          # /sh and /py client for the isolated shell container
+  mcp/            # MCP: the gateway container (gateway.py), data/mcp.json parsing
   dashboard/      # local web dashboard (FastAPI)
   logging/        # JSON logs and events with trace_id
-data/             # soul.md, profile.md (gitignored), skills/, modes.json (optional), fallback_phrases.json (pt) and .en.json
+data/             # mcp.json (MCP servers), soul.md, profile.md (gitignored), skills/, modes.json (optional), fallback_phrases.json (pt) and .en.json
 tests/            # pytest (Telegram and LLM are faked)
 scripts/          # integration tests, latency and ask tools, Windows startup
 docs/             # this documentation, the original plan, short-term memory notes
@@ -482,6 +484,42 @@ UVA has a folder of its own, `/uva`, where it runs Linux commands and Python fre
 - runs every command as the `uva` user, without sudo or capabilities (`no-new-privileges`), so it cannot read the main process's environment or the snapshots;
 - limits: `SHELL_MEMORY` (1g), `SHELL_CPUS` (1), 256 processes and `SHELL_TIMEOUT_SECONDS` (60 s) per command;
 - network: it sits on an internal network (`shellnet`) that only the bot and the worker reach, so it cannot reach Mongo or Redis. It has internet access for pip and curl, which can be cut with `SHELL_NO_INTERNET=true`.
+
+## MCP servers
+
+UVA can use tools from [MCP](https://modelcontextprotocol.io) servers (GitHub, a filesystem, Notion...). They are third-party code, so they never run inside the bot's containers: the `mcp` gateway container (`python -m uva.mcp.gateway`, official `mcp` Python SDK, pinned) starts them, keeps one session per server and serves their tools to the bot and the worker over an internal HTTP API.
+
+**Configuration: `data/mcp.json`.** Same `mcpServers` shape as Claude Desktop / Claude Code, plus a `uva` block per server with UVA's policy:
+
+| `uva` key | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | start the server |
+| `description` | `""` | shown in `/mcp` and to the LLM |
+| `allow_tools` / `deny_tools` | `["*"]` / `[]` | which tools exist for UVA (glob patterns); the rest are never listed nor callable |
+| `read_tools` | `[]` | reads: the result goes back to the LLM in the same turn |
+| `confirm_tools` | `["*"]` | writes that need a **Sim/Não** on Telegram; `[]` = server trusted. Also overrides the server's `readOnlyHint` |
+| `proactive_tools` | `[]` | reads allowed in goals and initiatives |
+| `long_running_tools` | `[]` | slow reads that run as background tasks |
+| `timeout_s` | `30` | per call |
+| `max_result_chars` | `6000` | results are clipped to this |
+| `max_concurrency` | `4` | calls at once on this server |
+
+No secrets in the file: `${VAR}` is expanded inside the gateway from `mcp.env` (copy `mcp.env.example`; gitignored). A server whose variable is empty is **skipped**, not an error. The bot never sees `mcp.env`, and neither the bot nor the LLM can change `data/mcp.json` or `mcp.env` (self-editing refuses both): adding a server is done by hand, followed by `/mcp recarregar`.
+
+Servers configured today, both read-only:
+
+- **brain**: the reference filesystem server (`@modelcontextprotocol/server-filesystem`, pinned in the image) on the vault, mounted read-only at `/mnt/brain`. Only its read tools are allowed.
+- **github**: GitHub's hosted server (`https://api.githubcopilot.com/mcp/`, Streamable HTTP) with `Authorization: Bearer ${GITHUB_PAT}` and `X-MCP-Readonly: true`; only `get_*`, `list_*` and `search_*` tools. To turn it on, create a fine-grained personal access token on GitHub with read-only permissions (Contents, Issues, Pull requests, Metadata) on the repositories you want, put it in `mcp.env` as `GITHUB_PAT=...`, run `docker compose up -d mcp` and `/mcp recarregar`. When it expires, paste a new one the same way.
+
+**The gateway.** One process that reads `data/mcp.json`, starts every enabled server (stdio subprocess or Streamable HTTP), restarts crashed ones with backoff (2 s up to 5 min), fetches each tool list again every 5 minutes or on `list_changed` (liveness check and how a changed definition is noticed) and answers, on `mcpnet` only and behind `MCP_GATEWAY_TOKEN` (set it in `.env`; without it every request is refused):
+
+- `GET /servers`, `GET /catalog` (tools with schema, annotations and a definition hash), `GET /version`;
+- `POST /call` `{server, tool, arguments, timeout_s}` → content blocks (text, resource links; images only as type and size), `is_error`, duration;
+- `POST /reload`, `POST /servers/<name>/restart`, `POST /servers/<name>/enabled`.
+
+Sampling (a server asking UVA's LLM for a completion), elicitation (a server asking the user something) and roots are never offered to servers.
+
+**Isolation.** The `mcp` container gets only the gateway token from `.env`, the servers' own secrets from `mcp.env`, `data/mcp.json` (read-only) and the vault (read-only): no repository, no Mongo or Redis, a read-only root filesystem, no capabilities (`no-new-privileges`), `MCP_MEMORY` (1g), `MCP_CPUS` (1) and 256 processes. Stdio servers inherit only a few safe variables (PATH, HOME...) plus the `env` written for them. Remote servers go out through `mcp-internet`, which `MCP_NO_INTERNET=true` cuts. Local server packages are installed in the image at pinned versions, never fetched at runtime.
 
 ## Stickers
 

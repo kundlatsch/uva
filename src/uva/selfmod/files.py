@@ -10,7 +10,8 @@ Allowed roots:
                      data/.versions/journal.jsonl so /reverter can restore it.
   * ``brain/...`` -> the second brain: read, create new notes, append;
                      existing notes are never overwritten (and not in git).
-Everything else (src/, security.py, .env, docker-compose.yml...) is refused.
+Everything else (src/, security.py, .env, mcp.env, docker-compose.yml...) is refused,
+and so is data/mcp.json (MCP servers and their policy: only Gustavo edits it).
 """
 
 from __future__ import annotations
@@ -35,6 +36,8 @@ MAX_BYTES = 50_000
 UNTRACKED = {"data/profile.md"}
 UNTRACKED_PREFIXES = ("data/skills/",)
 JOURNAL = "journal.jsonl"
+# Under data/ but never read nor written by the bot (configured by hand).
+PROTECTED = {"data/mcp.json"}
 
 
 def is_untracked(repo_relative: str | None) -> bool:
@@ -96,6 +99,8 @@ class FileAccess:
         if any(p.startswith(".") for p in parts):
             raise FileAccessError(t("selfmod.files.hidden", path=raw))
         root_name = parts[0]
+        if rel.as_posix().lower() in PROTECTED:
+            raise FileAccessError(t("selfmod.files.protected", path=raw))
         if root_name not in self.roots:
             allowed = ", ".join(f"{r}/" for r in self.roots)
             raise FileAccessError(t("selfmod.files.roots", allowed=allowed, path=raw))

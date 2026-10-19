@@ -50,6 +50,9 @@ def files(repo_dir, tmp_path) -> FileAccess:
         "data/.hidden.md",
         "data/script.py",
         "soul.md",
+        "mcp.env",
+        "data/mcp.json",
+        "data/MCP.json",
     ],
 )
 def test_paths_outside_the_allowlist_are_refused(files, path):

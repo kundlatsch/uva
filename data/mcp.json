@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "brain": {
+      "type": "stdio",
+      "command": "mcp-server-filesystem",
+      "args": ["/mnt/brain"],
+      "uva": {
+        "enabled": true,
+        "description": "Gustavo's second brain (Obsidian vault), read-only",
+        "allow_tools": [
+          "read_text_file", "read_multiple_files", "list_directory", "list_directory_with_sizes",
+          "directory_tree", "search_files", "get_file_info", "list_allowed_directories"
+        ],
+        "read_tools": ["*"],
+        "timeout_s": 20,
+        "max_result_chars": 6000
+      }
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PAT}",
+        "X-MCP-Readonly": "true"
+      },
+      "uva": {
+        "enabled": true,
+        "description": "GitHub (Gustavo's repositories), read-only",
+        "allow_tools": ["get_*", "list_*", "search_*"],
+        "read_tools": ["*"],
+        "timeout_s": 30,
+        "max_result_chars": 6000
+      }
+    }
+  }
+}

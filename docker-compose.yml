@@ -30,7 +30,7 @@ x-app: &app
 services:
   bot:
     <<: *app
-    networks: [default, shellnet]
+    networks: [default, shellnet, mcpnet]
 
   # Local dashboard: published only on this computer (127.0.0.1).
   dashboard:
@@ -38,11 +38,11 @@ services:
     command: python -m uva.dashboard.app
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-8080}:8080"
-    networks: [default, shellnet]
+    networks: [default, shellnet, mcpnet]
 
   worker:
     <<: *app
-    networks: [default, shellnet]
+    networks: [default, shellnet, mcpnet]
     command: celery -A uva.tasks.app worker --loglevel=INFO --concurrency=2
 
   beat:
@@ -110,6 +110,44 @@ services:
       - shell-internet
     restart: unless-stopped
 
+  # MCP gateway: runs the MCP servers listed in data/mcp.json (third-party code)
+  # and serves their tools to the bot and the worker over the internal "mcpnet"
+  # network, behind MCP_GATEWAY_TOKEN. Same isolation as "shell": no .env (only
+  # the token, and the servers' own secrets from mcp.env), no repository, no
+  # Mongo/Redis, read-only root filesystem, no capabilities, resource limits.
+  # The vault is mounted read-only for the "brain" server. Remote servers go out
+  # through "mcp-internet", which MCP_NO_INTERNET=true cuts.
+  mcp:
+    build:
+      context: .
+      target: mcp
+    image: uva-mcp:latest
+    env_file:
+      - path: mcp.env
+        required: false
+    environment:
+      MCP_GATEWAY_TOKEN: ${MCP_GATEWAY_TOKEN:-}
+      MCP_CONFIG: /config/mcp.json
+      HOME: /tmp
+    volumes:
+      - ./data/mcp.json:/config/mcp.json:ro
+      - ${SECOND_BRAIN_HOST_PATH:-./brain}:/mnt/brain:ro
+      - mcp-data:/data/mcp
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${MCP_MEMORY:-1g}
+    cpus: ${MCP_CPUS:-1}
+    pids_limit: 256
+    networks:
+      - mcpnet
+      - mcp-internet
+    restart: unless-stopped
+
   mongo:
     image: mongo:7
     volumes:
@@ -130,8 +168,13 @@ networks:
     internal: true
   shell-internet:
     internal: ${SHELL_NO_INTERNET:-false}
+  mcpnet:
+    internal: true
+  mcp-internet:
+    internal: ${MCP_NO_INTERNET:-false}
 
 volumes:
+  mcp-data:
   uva-home:
   uva-snapshots:
   mongo-data:

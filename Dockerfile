@@ -17,7 +17,8 @@ RUN apt-get update \
 COPY pyproject.toml ./
 COPY src ./src
 # Dev extras (pytest) are needed at runtime: self-coded plugins are tested in the worker.
-RUN pip install ".[dev]"
+# The mcp extra is the gateway's SDK (also used by the tests, which run in the app image).
+RUN pip install ".[dev,mcp]"
 
 
 # Worker for /projeto: Claude Code builds NEW projects in /data/projects.
@@ -38,6 +39,18 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && mkdir -p /data/projects \
     && chown builder:builder /data/projects
 CMD ["celery", "-A", "uva.tasks.app", "worker", "-Q", "projects", "--concurrency=1", "--hostname=projects@%h", "--loglevel=INFO"]
+
+
+# MCP gateway: runs the MCP servers (third-party code) away from the bot. Only
+# data/mcp.json, the vault (read-only) and mcp.env reach it; see docker-compose.yml.
+# Local server packages are installed here at pinned versions, never fetched at
+# runtime (no npx -y).
+FROM base AS mcp
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm     && npm install -g @modelcontextprotocol/server-filesystem@2026.8.31     && npm cache clean --force     && rm /usr/local/bin/npm     && useradd --no-create-home --uid 10030 mcp     && mkdir -p /data/mcp     && chown mcp:mcp /data/mcp
+USER mcp
+CMD ["python", "-m", "uva.mcp.gateway"]
 
 
 # /sh and /py: the bot's own folder /uva. Only /uva and /snapshots are mounted

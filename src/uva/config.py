@@ -226,6 +226,14 @@ class Settings(BaseSettings):
     shell_url: str = "http://shell:8700"
     shell_timeout_seconds: int = 60
 
+    # MCP servers (data/mcp.json), run by the isolated "mcp" gateway container.
+    mcp_enabled: bool = True
+    mcp_url: str = "http://mcp:8790"
+    # Shared with the gateway (compose passes this one value to it); required.
+    mcp_gateway_token: SecretStr | None = None
+    # Above this many MCP tools the prompt lists servers (and mcp_tools) instead.
+    mcp_prompt_tool_limit: int = 30
+
     # Local dashboard (http://localhost:8080); optional password (HTTP Basic, any user).
     dashboard_password: SecretStr | None = None
 
