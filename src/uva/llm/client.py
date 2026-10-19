@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Any
 
 from uva.config import LLMProvider as ProviderName
@@ -62,6 +64,44 @@ def metered() -> Iterator[TokenMeter]:
         _meter.reset(token)
 
 
+class Outage:
+    """Set inside an ``outage_watch()`` block when a call failed for good
+    (after the retries and the fallback): the LLM was unreachable."""
+
+    def __init__(self) -> None:
+        self.failed = False
+        self.error = ""
+
+
+_outage: ContextVar[Outage | None] = ContextVar("uva_llm_outage", default=None)
+
+
+@contextmanager
+def outage_watch() -> Iterator[Outage]:
+    outage = Outage()
+    token = _outage.set(outage)
+    try:
+        yield outage
+    finally:
+        _outage.reset(token)
+
+
+@dataclass(frozen=True, slots=True)
+class Fallback:
+    provider: LLMProvider
+    model: str
+
+
+MAX_BACKOFF_SECONDS = 30.0
+
+
+def backoff(attempt: int, error: LLMError) -> float:
+    """Seconds before retry ``attempt`` (0-based): Retry-After when given, else 1, 2, 4..."""
+    if error.retry_after is not None:
+        return min(MAX_BACKOFF_SECONDS, error.retry_after)
+    return min(MAX_BACKOFF_SECONDS, float(2**attempt))
+
+
 class LLMClient:
     def __init__(
         self,
@@ -74,6 +114,9 @@ class LLMClient:
         usage: UsageStore | None,
         max_tokens: int = 4000,
         soul: Soul | None = None,
+        max_retries: int = 3,
+        fallback: Fallback | None = None,
+        sleep=asyncio.sleep,
     ) -> None:
         self.provider = provider
         self.router_model = router_model
@@ -83,10 +126,33 @@ class LLMClient:
         self.usage = usage
         self.max_tokens = max_tokens
         self.soul = soul
+        self.max_retries = max_retries
+        self.fallback = fallback
+        self._sleep = sleep
+
+    async def _call(self, provider: LLMProvider, purpose: str, **request: Any) -> LLMResponse:
+        """One provider call with retries on transient errors (429, 5xx, timeouts)."""
+        for attempt in range(self.max_retries + 1):
+            try:
+                return await provider.complete(**request)
+            except LLMError as exc:
+                if not exc.transient or attempt >= self.max_retries:
+                    raise
+                wait = backoff(attempt, exc)
+                await emit(EventType.ERROR, where="llm_retry", purpose=purpose, provider=provider.name,
+                           model=request.get("model"), status=exc.status, attempt=attempt + 1,
+                           wait_seconds=wait, error=str(exc))
+                await self._sleep(wait)
+        raise AssertionError("unreachable")
 
     @property
     def provider_name(self) -> str:
         return self.provider.name
+
+    @staticmethod
+    def _unreachable(exc: LLMError) -> None:
+        if (outage := _outage.get()) is not None:
+            outage.failed, outage.error = True, str(exc)
 
     @property
     def supports_web_search(self) -> bool:
@@ -109,18 +175,29 @@ class LLMClient:
         if use_soul and self.soul is not None:
             system = self.soul.apply(system)
         started = time.perf_counter()
+        request = {"system": system, "json_schema": json_schema, "max_tokens": max_tokens or self.max_tokens}
+        provider, fallback = self.provider, False
         try:
-            response = await self.provider.complete(
-                messages,
-                model=model,
-                system=system,
-                json_schema=json_schema,
-                max_tokens=max_tokens or self.max_tokens,
-            )
+            response = await self._call(self.provider, purpose, messages=messages, model=model, **request)
         except LLMError as exc:
             await emit(EventType.ERROR, where="llm", purpose=purpose, model=model, error=str(exc))
-            raise
-        await self._account(response, purpose, scope, started, request=without_context(messages[-1].content))
+            if self.fallback is None:
+                self._unreachable(exc)
+                raise
+            provider, fallback = self.fallback.provider, True
+            try:
+                response = await self._call(
+                    provider, purpose, messages=messages, model=self.fallback.model, **request
+                )
+            except LLMError as fallback_exc:
+                await emit(EventType.ERROR, where="llm", purpose=purpose, model=self.fallback.model,
+                           fallback=True, error=str(fallback_exc))
+                self._unreachable(fallback_exc)
+                raise
+        await self._account(
+            response, purpose, scope, started, request=without_context(messages[-1].content),
+            provider_name=provider.name, fallback=fallback,
+        )
         if (calls := _debug.get()) is not None:
             calls.append({
                 "purpose": purpose,
@@ -161,8 +238,10 @@ class LLMClient:
         return response
 
     async def _account(
-        self, response: LLMResponse, purpose: str, scope: Scope, started: float, request: str
+        self, response: LLMResponse, purpose: str, scope: Scope, started: float, request: str,
+        provider_name: str | None = None, fallback: bool = False,
     ) -> None:
+        provider_name = provider_name or self.provider_name
         if (meter := _meter.get()) is not None:
             meter.input_tokens += response.input_tokens
             meter.output_tokens += response.output_tokens
@@ -175,7 +254,7 @@ class LLMClient:
 
         if self.usage is not None:
             record = UsageRecord(
-                provider=self.provider_name,
+                provider=provider_name,
                 model=response.model,
                 input_tokens=response.input_tokens,
                 output_tokens=response.output_tokens,
@@ -191,8 +270,9 @@ class LLMClient:
 
         await emit(
             EventType.LLM_CALL,
-            provider=self.provider_name,
+            provider=provider_name,
             model=response.model,
+            fallback=fallback,
             purpose=purpose,
             scope=scope.value,
             input_tokens=response.input_tokens,
@@ -217,20 +297,19 @@ def build_llm_client(settings: Settings, usage: UsageStore | None) -> LLMClient 
     api_key = settings.llm_api_key.get_secret_value().strip()
     timeout = settings.llm_timeout_seconds
 
-    provider: LLMProvider
-    if settings.llm_provider is ProviderName.ANTHROPIC:
-        from uva.llm.anthropic_provider import AnthropicProvider
-
-        provider = AnthropicProvider(api_key, timeout=timeout)
-    else:
-        from uva.llm.openai_provider import OpenAICompatibleProvider
-
-        provider = OpenAICompatibleProvider(
-            api_key,
-            settings.llm_base_url,
-            reasoning_effort=settings.llm_reasoning_effort,
-            timeout=timeout,
-        )
+    provider = _provider(settings.llm_provider, api_key, settings.llm_base_url, settings, timeout)
+    fallback = None
+    if settings.llm_fallback_provider is not None and settings.llm_fallback_model:
+        key = settings.llm_fallback_api_key.get_secret_value().strip() if settings.llm_fallback_api_key else ""
+        if not key and settings.llm_fallback_provider is settings.llm_provider:
+            key = api_key  # same provider, another model
+        if key or settings.llm_fallback_base_url:
+            fallback = Fallback(
+                _provider(settings.llm_fallback_provider, key, settings.llm_fallback_base_url, settings, timeout),
+                settings.llm_fallback_model,
+            )
+        else:
+            log.warning("llm_fallback_disabled", reason="LLM_FALLBACK_API_KEY not set")
 
     return LLMClient(
         provider,
@@ -241,4 +320,18 @@ def build_llm_client(settings: Settings, usage: UsageStore | None) -> LLMClient 
         usage=usage,
         max_tokens=settings.llm_max_tokens,
         soul=Soul(settings.soul_file, profile=settings.profile_file),
+        max_retries=settings.llm_max_retries,
+        fallback=fallback,
+    )
+
+
+def _provider(name: ProviderName, api_key: str, base_url: str | None, settings: Settings, timeout: float) -> LLMProvider:
+    if name is ProviderName.ANTHROPIC:
+        from uva.llm.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider(api_key, timeout=timeout)
+    from uva.llm.openai_provider import OpenAICompatibleProvider
+
+    return OpenAICompatibleProvider(
+        api_key, base_url, reasoning_effort=settings.llm_reasoning_effort, timeout=timeout
     )

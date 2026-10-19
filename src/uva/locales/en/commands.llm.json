@@ -16,6 +16,7 @@
     "heavy_model": "Heavy model (summaries, goals): {model}",
     "no_price": "⚠️ No price configured for {models}; using US$ {input}/{output} per 1M tokens (set LLM_PRICES)",
     "search": "Search: {search}",
-    "no_search": "none"
+    "no_search": "none",
+    "fallback": "Fallback (when the main one fails): {provider} / {model}"
   }
 }

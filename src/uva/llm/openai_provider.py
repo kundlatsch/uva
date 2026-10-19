@@ -6,7 +6,7 @@ from typing import Any
 
 import openai
 
-from uva.llm.base import LLMError, LLMMessage, LLMResponse
+from uva.llm.base import LLMError, LLMMessage, LLMResponse, status_error
 
 
 class OpenAICompatibleProvider:
@@ -21,8 +21,9 @@ class OpenAICompatibleProvider:
         client: Any = None,
         timeout: float = 60.0,
     ) -> None:
+        # Retries happen in LLMClient (with backoff and a fallback), not in the SDK.
         self.client = client or openai.AsyncOpenAI(
-            api_key=api_key or "not-needed", base_url=base_url or None, timeout=timeout
+            api_key=api_key or "not-needed", base_url=base_url or None, timeout=timeout, max_retries=0
         )
         self.reasoning_effort = reasoning_effort
         # Some compatible servers only know {"type": "json_object"}.
@@ -64,9 +65,9 @@ class OpenAICompatibleProvider:
             try:
                 response = await self.client.chat.completions.create(**request)
             except openai.APIError as retry_exc:
-                raise LLMError(f"openai: {retry_exc}") from retry_exc
+                raise status_error("openai", retry_exc) from retry_exc
         except openai.APIError as exc:
-            raise LLMError(f"openai: {exc}") from exc
+            raise status_error("openai", exc) from exc
 
         choice = response.choices[0]
         usage = response.usage

@@ -16,6 +16,7 @@
     "heavy_model": "Modelo pesado (resumos, objetivos): {model}",
     "no_price": "⚠️ Sem preço configurado para {models}; usando US$ {input}/{output} por 1M tokens (ajuste LLM_PRICES)",
     "search": "Pesquisa: {search}",
-    "no_search": "nenhuma"
+    "no_search": "nenhuma",
+    "fallback": "Reserva (quando o principal falha): {provider} / {model}"
   }
 }

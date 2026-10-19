@@ -36,7 +36,38 @@ def without_context(content: str) -> str:
 
 
 class LLMError(RuntimeError):
-    """Any failure talking to the provider (network, auth, bad request...)."""
+    """Any failure talking to the provider (network, auth, bad request...).
+
+    ``transient`` marks failures worth retrying (429, 5xx, timeouts, network);
+    ``retry_after`` is the provider's hint in seconds, when it sent one.
+    """
+
+    def __init__(
+        self, message: str, *, status: int | None = None, retry_after: float | None = None,
+        transient: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.retry_after = retry_after
+        self.transient = transient
+
+
+def retry_after_seconds(headers) -> float | None:
+    """The Retry-After header as seconds (only the number form)."""
+    try:
+        value = headers.get("retry-after") if headers is not None else None
+        return max(0.0, float(value)) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def status_error(prefix: str, exc: Exception) -> LLMError:
+    """LLMError from an SDK error, keeping the status and Retry-After."""
+    status = getattr(exc, "status_code", None)
+    response = getattr(exc, "response", None)
+    retry_after = retry_after_seconds(getattr(response, "headers", None))
+    transient = status is None or status == 429 or status >= 500 or status == 408
+    return LLMError(f"{prefix}: {exc}", status=status, retry_after=retry_after, transient=transient)
 
 
 class LLMProvider(Protocol):

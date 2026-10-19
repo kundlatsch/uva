@@ -55,6 +55,9 @@ def register(registry: CommandRegistry) -> None:
         else:
             lines.append(t("commands.llm.llm.router_model", model=services.llm.router_model))
             lines.append(t("commands.llm.llm.heavy_model", model=services.llm.heavy_model))
+            if services.llm.fallback is not None:
+                lines.append(t("commands.llm.llm.fallback", provider=services.llm.fallback.provider.name,
+                               model=services.llm.fallback.model))
             unknown = [
                 m
                 for m in {services.llm.router_model, services.llm.heavy_model}

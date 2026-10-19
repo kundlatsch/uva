@@ -6,7 +6,7 @@ from typing import Any
 
 import anthropic
 
-from uva.llm.base import LLMError, LLMMessage, LLMResponse
+from uva.llm.base import LLMError, LLMMessage, LLMResponse, status_error
 from uva.media import parse_data_url
 
 WEB_SEARCH_TOOL = {"type": "web_search_20260209", "name": "web_search"}
@@ -16,7 +16,8 @@ class AnthropicProvider:
     name = "anthropic"
 
     def __init__(self, api_key: str | None, client: Any = None, timeout: float = 60.0) -> None:
-        self.client = client or anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout)
+        # Retries happen in LLMClient (with backoff and a fallback), not in the SDK.
+        self.client = client or anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout, max_retries=0)
         # Flipped off if the API rejects our schema; then we rely on the prompt
         # asking for JSON and validate afterwards.
         self._native_json = True
@@ -51,9 +52,9 @@ class AnthropicProvider:
             try:
                 response = await self.client.messages.create(**request)
             except anthropic.APIError as retry_exc:
-                raise LLMError(f"anthropic: {retry_exc}") from retry_exc
+                raise status_error("anthropic", retry_exc) from retry_exc
         except anthropic.APIError as exc:
-            raise LLMError(f"anthropic: {exc}") from exc
+            raise status_error("anthropic", exc) from exc
 
         return _to_response(response)
 
@@ -70,7 +71,7 @@ class AnthropicProvider:
                 messages=[{"role": "user", "content": query}],
             )
         except anthropic.APIError as exc:
-            raise LLMError(f"anthropic web search: {exc}") from exc
+            raise status_error("anthropic web search", exc) from exc
 
         result = _to_response(response)
         result.extra["sources"] = _sources(response)

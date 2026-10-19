@@ -38,5 +38,6 @@
   },
   "incident": {
     "again": "(a mesma falha, {count} vezes até agora; /rotina <id> incidentes)"
-  }
+  },
+  "llm_down": "o LLM não respondeu ({error}); tento de novo em alguns minutos"
 }

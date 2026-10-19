@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from uva.clock import format_local, utcnow
 from uva.i18n import t, t_list
 from uva.incidents import IncidentStore
+from uva.llm.client import outage_watch
 from uva.logging.events import EventType, emit
 from uva.text import normalize
 
@@ -59,6 +60,8 @@ class Routine(BaseModel):
     context_from: str = ""
     last_output: str = ""
     last_status: str = ""  # ok | silent | failed
+    # The last run failed because the LLM was unreachable: retried every LLM_RETRY_MINUTES.
+    waiting_llm: bool = False
 
 
 class RoutineStore(Protocol):
@@ -348,16 +351,24 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
     router = None
     for routine in await store.due(now):
         late = now - routine.next_run_at > timedelta(minutes=10)
+        llm_down = False
         if routine.script:
             outcome = await _run_script(services, routine)
         else:
             router = router or Router(services)
             previous = await store.get(routine.context_from) if routine.context_from else None
-            outcome = await _run_request(router, routine, previous)
+            with outage_watch() as outage:
+                outcome = await _run_request(router, routine, previous)
+            if outage.failed:
+                llm_down = True
+                outcome = Outcome("failed", t("routines.llm_down", error=outage.error[:200]))
         next_at = next_run(routine.model_copy(update={"last_run_at": now}), now, tz)
+        if llm_down:  # try again soon instead of waiting for the next slot
+            next_at = min(next_at, now + timedelta(minutes=services.settings.llm_retry_minutes))
         await store.update(
             routine.id, last_run_at=now, next_run_at=next_at, runs=routine.runs + 1,
             last_result=(outcome.text or outcome.status)[:500], last_status=outcome.status,
+            waiting_llm=llm_down,
             **({"last_output": outcome.text[:OUTPUT_CHARS]} if outcome.status == "ok" else {}),
         )
         ran.append(routine.id)

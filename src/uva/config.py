@@ -64,6 +64,15 @@ class Settings(BaseSettings):
     llm_reasoning_effort: str | None = None
     llm_max_tokens: int = 4000
     llm_timeout_seconds: float = 60
+    # Retries on 429/5xx/timeouts (exponential backoff, honours Retry-After).
+    llm_max_retries: int = 3
+    # Optional second provider, used when the first still fails after retries.
+    llm_fallback_provider: LLMProvider | None = None
+    llm_fallback_model: str | None = None
+    llm_fallback_base_url: str | None = None
+    llm_fallback_api_key: SecretStr | None = None
+    # A routine or goal that failed because the LLM was unreachable is retried this often.
+    llm_retry_minutes: int = 10
     # Recent messages kept as conversation context for the LLM.
     llm_history_messages: int = 10
     # USD per 1M tokens, JSON: {"gpt-5.5": [input, output], ...}

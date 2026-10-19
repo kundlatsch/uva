@@ -38,5 +38,6 @@
   },
   "incident": {
     "again": "(the same failure, {count} times so far; /routine <id> incidents)"
-  }
+  },
+  "llm_down": "the LLM was unreachable ({error}); I'll try again in a few minutes"
 }

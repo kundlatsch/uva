@@ -62,6 +62,7 @@ class GoalRun:
     feature_later: bool = False  # couldn't ask now (busy/budget) but may next time
     feature_ready: bool = False  # the feature this goal needed is already merged
     silent: bool = False  # the last reply was [SILENT]: nothing to report
+    llm_down: bool = False  # failed because the LLM was unreachable: retried soon
     verdict: str | None = None  # the judge's: done | continue | blocked (None: not judged)
     verdict_reason: str = ""
 
@@ -156,7 +157,9 @@ async def proactive_tick(
             verdict=run.verdict,
             verdict_reason=run.verdict_reason,
         )
-        if notify is not None and not (run.silent and run.ok and status != "needs_feature"):
+        quiet = run.silent and run.ok and status != "needs_feature"
+        repeat_outage = run.llm_down and goal.waiting_llm  # already told about this outage
+        if notify is not None and not quiet and not repeat_outage:
             await notify(Reply(describe_run(run, status, note)))
         return status
 
@@ -242,6 +245,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
                 ]
             except LLMError as exc:
                 run.ok, run.error = False, t("goals.runner.llm_unavailable", error=exc)
+                run.llm_down = True
                 break
             except (PlanError, InvalidActionError) as exc:
                 await emit(
@@ -466,8 +470,11 @@ async def _reschedule(services: Services, run: GoalRun, note: str | None, now: d
         interval = timedelta(hours=hours)
         adaptive = {"result_hash": digest, "unchanged_runs": unchanged,
                     "effective_interval_hours": hours if hours != goal.min_interval_hours else None}
+    if run.llm_down:  # re-queued: tried again once the LLM may be back
+        interval = min(interval, timedelta(minutes=services.settings.llm_retry_minutes))
     fields: dict = {
         **adaptive,
+        "waiting_llm": run.llm_down,
         "last_run_at": now,
         "next_run_at": now + interval,
         "run_count": goal.run_count + 1,

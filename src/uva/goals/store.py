@@ -60,6 +60,8 @@ class Goal(BaseModel):
     result_hash: str = ""
     unchanged_runs: int = 0
     effective_interval_hours: float | None = None
+    # The last run failed because the LLM was unreachable (retried every LLM_RETRY_MINUTES).
+    waiting_llm: bool = False
 
     @property
     def interval_hours(self) -> float:
