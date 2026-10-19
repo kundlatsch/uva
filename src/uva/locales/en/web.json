@@ -1,0 +1,16 @@
+{
+  "errors": {
+    "bad_url": "that is not a valid URL",
+    "scheme": "only http and https links ({detail})",
+    "credentials": "links with a user and password are not read",
+    "private_host": "{detail} is a local or internal address; I only read public sites",
+    "private_address": "it points to a private network address ({detail}); I only read public sites",
+    "dns": "the site's name does not resolve ({detail})",
+    "redirects": "too many redirects (more than {detail})",
+    "network": "the site did not answer ({detail})",
+    "status": "the site answered with an error (HTTP {detail})",
+    "too_big": "the file is too big (over {detail})",
+    "unreadable": "I could not read the file ({detail})",
+    "content_type": "I don't read this kind of content ({detail})"
+  }
+}

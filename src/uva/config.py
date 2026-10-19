@@ -97,6 +97,12 @@ class Settings(BaseSettings):
     # USD per audio minute; empty = the built-in table for the model.
     transcribe_price_per_minute: float | None = None
 
+    # Reading links (web_fetch): text kept per page; bare links in a message are read
+    # before the LLM answers (at most this many).
+    web_fetch_max_chars: int = 12000
+    link_autofetch: bool = True
+    link_autofetch_max: int = 2
+
     # Search
     search_backend: SearchBackendName = SearchBackendName.AUTO
     search_max_results: int = 5

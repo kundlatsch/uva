@@ -253,7 +253,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             return await router.handle_document(name, data, message.caption or "", user_id=user_id,
                                                 inbound=extra if extra.context else None)
 
-        await turn(context.bot, message.chat_id, work(), f"[document {name}]", activity="olhando",
+        await turn(context.bot, message.chat_id, work(), f"[document {name}]", activity="lendo",
                    react_to=reaction_target(message))
 
     async def on_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

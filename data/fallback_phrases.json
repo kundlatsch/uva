@@ -249,6 +249,30 @@
       "👀 Tô de olho, um instante.",
       "🖼️ Lendo a imagem com calma."
     ],
+    "lendo_link": [
+      "🔗 Olhando o link…",
+      "🔗 Abrindo o link, um segundo.",
+      "🌐 Lendo a página…",
+      "🔗 Deixa eu ver esse link.",
+      "🌐 Dando uma lida na página, já te falo.",
+      "🔗 Abrindo a página pra ver do que se trata.",
+      "🌐 Carregando o link…",
+      "🔗 Peraí que eu tô lendo o link.",
+      "🌐 Vendo o que tem nesse endereço.",
+      "🔗 Um segundo, lendo o que você mandou."
+    ],
+    "lendo": [
+      "📄 Lendo o documento…",
+      "📄 Abrindo o arquivo, um segundo.",
+      "📑 Dando uma lida nisso, já te falo.",
+      "📄 Deixa eu ler com calma.",
+      "📑 Lendo página por página…",
+      "📄 Folheando o arquivo…",
+      "📑 Peraí que eu tô lendo.",
+      "📄 Vendo o que tem nesse documento.",
+      "📑 Um segundo, abrindo o que você mandou.",
+      "📄 Lendo e guardando no cérebro…"
+    ],
     "salvando": [
       "💾 Salvando, um segundo.",
       "💾 Guardando isso direitinho.",

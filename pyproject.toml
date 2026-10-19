@@ -27,6 +27,8 @@ dependencies = [
     # Documents sent on Telegram (uva/documents.py).
     "pypdf==6.21.1",
     "python-docx==1.2.0",
+    # Web pages as text (uva/web/fetch.py).
+    "trafilatura==2.3.1",
 ]
 
 [project.optional-dependencies]

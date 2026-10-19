@@ -249,6 +249,30 @@
       "👀 I'm on it, just a moment.",
       "🖼️ Reading the image calmly."
     ],
+    "lendo_link": [
+      "🔗 Looking at the link…",
+      "🔗 Opening the link, one second.",
+      "🌐 Reading the page…",
+      "🔗 Let me check this link.",
+      "🌐 Skimming the page, I'll tell you in a sec.",
+      "🔗 Opening the page to see what it's about.",
+      "🌐 Loading the link…",
+      "🔗 Hold on, I'm reading the link.",
+      "🌐 Seeing what's at that address.",
+      "🔗 One second, reading what you sent."
+    ],
+    "lendo": [
+      "📄 Reading the document…",
+      "📄 Opening the file, one second.",
+      "📑 Reading through it, I'll tell you in a sec.",
+      "📄 Let me read it calmly.",
+      "📑 Reading page by page…",
+      "📄 Leafing through the file…",
+      "📑 Hold on, I'm reading.",
+      "📄 Seeing what's in this document.",
+      "📑 One second, opening what you sent.",
+      "📄 Reading it and saving it to the brain…"
+    ],
     "salvando": [
       "💾 Saving, one second.",
       "💾 Putting this away nicely.",

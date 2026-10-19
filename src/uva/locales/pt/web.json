@@ -1,0 +1,16 @@
+{
+  "errors": {
+    "bad_url": "isso não é um URL válido",
+    "scheme": "só leio links http e https ({detail})",
+    "credentials": "não leio links com usuário e senha",
+    "private_host": "{detail} é um endereço local ou interno; só leio sites públicos",
+    "private_address": "ele aponta para um endereço de rede privada ({detail}); só leio sites públicos",
+    "dns": "o nome do site não existe ({detail})",
+    "redirects": "redirecionamentos demais (mais de {detail})",
+    "network": "o site não respondeu ({detail})",
+    "status": "o site respondeu com erro (HTTP {detail})",
+    "too_big": "o arquivo é grande demais (mais de {detail})",
+    "unreadable": "não consegui ler o arquivo ({detail})",
+    "content_type": "não leio esse tipo de conteúdo ({detail})"
+  }
+}
