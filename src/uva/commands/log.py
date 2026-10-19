@@ -38,6 +38,8 @@ FILTERS: dict[str, set[EventType]] = {
     "initiatives": {EventType.INITIATIVE},
     "projects": {EventType.PROJECT},
     "selfcode": {EventType.SELFCODE, EventType.SELF_EDIT},
+    "skills": {EventType.SELF_EDIT},
+    "habilidades": {EventType.SELF_EDIT},
 }
 
 _DURATION = re.compile(r"^(\d+)(m|h|d)$")

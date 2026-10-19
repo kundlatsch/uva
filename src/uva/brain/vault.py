@@ -263,6 +263,21 @@ class Vault:
         self._changed(self._relative(path))
         return self.read(self._relative(path))
 
+    def append_daily_section(self, day: datetime, heading: str, text: str) -> Note:
+        """Add a "## heading" section to the journal note of ``day`` (once)."""
+        local = day.astimezone(self.tz)
+        directory = self.root / FOLDERS["diario"]
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{local:%Y-%m-%d}.md"
+        if not path.exists():
+            header = render_note(f"{local:%Y-%m-%d}", "", created=self._timestamp(day), tags=["diario"], links=[])
+            path.write_text(header.rstrip() + "\n", encoding="utf-8")
+        if f"\n## {heading}\n" not in path.read_text(encoding="utf-8"):
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(f"\n\n## {heading}\n\n{text.strip()}\n")
+            self._changed(self._relative(path))
+        return self.read(self._relative(path))
+
     # --- reading ---------------------------------------------------------
 
     def read(self, ref: str) -> Note:

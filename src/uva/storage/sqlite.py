@@ -79,6 +79,13 @@ MIGRATIONS: list[str] = [
         last_used_at TEXT
     );
     """,
+    # 5: small key/value state (last reviewed turn, last journal digest...)
+    """
+    CREATE TABLE kv (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
+    """,
 ]
 
 
@@ -112,6 +119,15 @@ class Database:
     def version(self) -> int:
         with self.connect() as conn:
             return conn.execute("PRAGMA user_version").fetchone()[0]
+
+    async def get_kv(self, key: str) -> str | None:
+        row = await self.run(lambda conn: conn.execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone())
+        return row[0] if row else None
+
+    async def set_kv(self, key: str, value: str) -> None:
+        await self.run(
+            lambda conn: conn.execute("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", (key, value))
+        )
 
     async def run(self, fn: Callable[[sqlite3.Connection], T]) -> T:
         """Run ``fn(conn)`` in a worker thread inside a transaction."""

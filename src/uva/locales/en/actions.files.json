@@ -3,5 +3,6 @@
   "read_failed": "Couldn't read {path}: {error}",
   "change_failed": "Left {path} alone: {error}",
   "commit": " (commit {commit}; /undo reverts it)",
-  "updated": "✏️ {path} updated{commit}."
+  "updated": "✏️ {path} updated{commit}.",
+  "patch_not_unique": "The text to replace appears {count} time(s) in {path}; it must appear exactly once."
 }

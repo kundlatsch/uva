@@ -42,6 +42,11 @@ app.conf.beat_schedule = {
 # Routines: checked every minute; missed slots (PC off) run once when back.
 app.conf.beat_schedule["routines-tick"] = {"task": "uva.routines_tick", "schedule": crontab(minute="*")}
 app.conf.beat_schedule["index-sync"] = {"task": "uva.index_sync", "schedule": timedelta(minutes=10)}
+app.conf.beat_schedule["review-tick"] = {"task": "uva.review_tick", "schedule": crontab(minute="*/2")}
+app.conf.beat_schedule["journal-digest"] = {
+    "task": "uva.journal_digest",
+    "schedule": crontab(hour=settings.memory_maintenance_hour, minute=10),
+}
 app.conf.beat_schedule["stm-promotion"] = {
     "task": "uva.stm_promotion",
     "schedule": timedelta(minutes=30),

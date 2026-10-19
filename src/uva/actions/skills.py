@@ -78,7 +78,7 @@ def register(registry: ActionRegistry) -> None:
     async def skill_create(params: SkillCreateParams, ctx: ActionContext) -> ActionResult:
         library = ctx.services.skills
         if library is None or ctx.services.files is None:
-            return ActionResult(text=t("actions.skills.unavailable"))
+            return ActionResult(text=t("actions.skills.unavailable"), data={"ok": False})
         try:
             name = check_name(params.name)
             if library.get(name) is not None:
@@ -99,7 +99,7 @@ def register(registry: ActionRegistry) -> None:
     async def skill_patch(params: SkillPatchParams, ctx: ActionContext) -> ActionResult:
         library = ctx.services.skills
         if library is None or ctx.services.files is None:
-            return ActionResult(text=t("actions.skills.unavailable"))
+            return ActionResult(text=t("actions.skills.unavailable"), data={"ok": False})
         skill = library.get(params.name)
         if skill is None:
             return ActionResult(text=t("actions.skills.missing", name=params.name), data={"ok": False})
@@ -129,7 +129,7 @@ def register(registry: ActionRegistry) -> None:
     async def skill_write_file(params: SkillWriteFileParams, ctx: ActionContext) -> ActionResult:
         library = ctx.services.skills
         if library is None or ctx.services.files is None:
-            return ActionResult(text=t("actions.skills.unavailable"))
+            return ActionResult(text=t("actions.skills.unavailable"), data={"ok": False})
         skill = library.get(params.name)
         if skill is None:
             return ActionResult(text=t("actions.skills.missing", name=params.name), data={"ok": False})

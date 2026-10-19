@@ -229,7 +229,7 @@ Every decision is logged with its score, so the thresholds can be tuned by looki
 ## LLM, search and budget
 
 - **Providers**: `LLM_PROVIDER=anthropic` (default; models `claude-haiku-5-5` and `claude-opus-5-5` if not configured) or `openai_compatible` (OpenAI, Ollama, OpenRouter... with `LLM_BASE_URL`). `LLM_MODEL_ROUTER` is the fast model, `LLM_MODEL_HEAVY` the strong one (summaries, goals, self-coding), `LLM_MODEL_VISION` the one for images.
-- **Actions**: `reply`, `run_command` (runs a bot command), `search`, `recall`, notes (`note_create`, `note_append`, `note_update`, `note_search`, `note_read`, `folder_create`), memory (`memory_save`, `memory_update`, `memory_forget`), `goal_create`, `routine_create`, `expense_add`, files (`file_read`, `file_write`, `file_append`), `feature_request`, `project_create`, `shell_run`, `python_run`, `task_status`, `retry`, `cancel`, `decide`, `image_save`, `history_search` (the conversation log), skills (`skill_read`, `skill_create`, `skill_patch`, `skill_write_file`) and `action_help` (full params of an action listed in one line). `/comandos` lists them with their parameters.
+- **Actions**: `reply`, `run_command` (runs a bot command), `search`, `recall`, notes (`note_create`, `note_append`, `note_update`, `note_search`, `note_read`, `folder_create`), memory (`memory_save`, `memory_update`, `memory_forget`), `goal_create`, `routine_create`, `expense_add`, files (`file_read`, `file_write`, `file_append`), `feature_request`, `project_create`, `shell_run`, `python_run`, `task_status`, `retry`, `cancel`, `decide`, `image_save`, `profile_patch` (replace one piece of the profile, or append), `history_search` (the conversation log), skills (`skill_read`, `skill_create`, `skill_patch`, `skill_write_file`) and `action_help` (full params of an action listed in one line). `/comandos` lists them with their parameters.
 - **Search**: with Anthropic it uses Claude's own web search; with other providers it uses Wikipedia + DuckDuckGo (`SEARCH_BACKEND` changes this). "Pesquisa sobre X na Wikipédia" forces Wikipedia. The summary is written by the heavy model and includes the sources.
 - **Cost**: every call records model, tokens, estimated cost and duration (`/log 1d llm`). The price table knows the Anthropic models; for others, set `LLM_PRICES` (US$ per 1M tokens). Without a price, `LLM_DEFAULT_PRICE_*` is used (pessimistic). OpenAI cached prompt tokens are billed at 10% of the input price.
 - **Budget**: `LLM_DAILY_BUDGET_USD` (1) and `LLM_MONTHLY_BUDGET_USD` (20) for conversation, `PROACTIVE_DAILY_BUDGET_USD` (0.5) for proactive mode. When a limit is hit, the LLM tier turns off until the next day/month and the bot says so; commands keep working.
@@ -277,7 +277,7 @@ The brain is your content, so names stay in Portuguese even though everything in
 
 ## Short-term memory
 
-See [MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md) for the technical view of short-term memory, long-term memory, promotion and recall together.
+See [MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md) for the technical view of short-term memory, long-term memory, the background review and recall together.
 
 UVA remembers what happened in the current conversation, including what **it** did: a Redis session (`stm:<your id>`), shared by bot and worker, with the last turns (summarized command outputs and messages it sent on its own), references to everything it started or created (searches, tasks, notes, goals, features, expenses) with the status kept up to date by the worker, and which of them is "in focus". Details (in Portuguese) in [memoria-curto-prazo.md](memoria-curto-prazo.md).
 
@@ -285,7 +285,18 @@ UVA remembers what happened in the current conversation, including what **it** d
 - The LLM receives a "recent context" block and the `task_status`, `retry` and `cancel` actions (they accept the ref, e.g. `t3`, or "aquela").
 - `/contexto` shows the session; `/contexto limpar` (`clear`) wipes it.
 - **Conversation log.** Besides the 12h session, every turn (your message, the reply, and every notice UVA sends) is appended to SQLite (`conversation_turns`, never trimmed) with its source (`telegram`, `dashboard`, `notice`, `routine`, `goal`, `initiative`). `/historico <term>` searches it, the LLM has the `history_search` action (term and/or period), and recall uses it for questions about the past.
-- Lifetime `STM_TTL_HOURS` (12h), with at most `STM_MAX_TURNS` (30) turns and `STM_MAX_REFS` (15) references; what is still running does not expire. After `STM_PROMOTE_IDLE_HOURS` (3h) idle, the cheap model decides what is worth moving to long-term memory and the session is dropped.
+- Lifetime `STM_TTL_HOURS` (12h), with at most `STM_MAX_TURNS` (30) turns and `STM_MAX_REFS` (15) references; what is still running does not expire. After `STM_PROMOTE_IDLE_HOURS` (3h) idle the session is dropped (the conversation log keeps every turn, and the background review below has already kept what mattered).
+
+## Background review and journal digest
+
+UVA keeps what matters from the conversation on its own, in the background:
+
+- **When**: after `REVIEW_EVERY_TURNS` (8) new messages from you, or after `REVIEW_MIN_TURNS` (4) when you have been quiet for `REVIEW_IDLE_MINUTES` (10). Beat checks every 2 minutes; the worker runs it with the cheap model, under the proactive budget.
+- **What it reads**: the new turns of the conversation log since the last review, the keys in working memory, the skill index and the size of the profile.
+- **What it may do** (nothing else): `memory_save` / `memory_update` / `memory_forget` for facts about you, `skill_create` / `skill_patch` / `skill_write_file` (and `skill_read`) for how you want a kind of task done, and `profile_patch` for core profile facts within `PROFILE_MAX_CHARS`. Each kind of knowledge goes to one place only; usually it keeps nothing.
+- **Safety**: every write is scanned for prompt injection first (see [Security](#security)); a hit is skipped and logged.
+- **Telling you**: when something was kept you get one line, e.g. "💾 anotei: memória time, habilidade match-recap". `REVIEW_NOTIFY=off` turns it off, `verbose` adds the reason. The writes are in `/log memoria` and `/log skills`.
+- **Journal digest**: every night (at `MEMORY_MAINTENANCE_HOUR`) the day's conversation is summarized, in Portuguese, into a "Resumo do dia" section of that day's journal note (`diario/AAAA-MM-DD.md`), so the episodes can be read in Obsidian too. Quiet days get none.
 
 ## Long-term memory
 
@@ -557,3 +568,4 @@ sh scripts/run-integration-tests.sh
 - A global filter (`security.py`) runs before any handler and only lets through messages from `ALLOWED_TELEGRAM_USER_ID` in a **private chat**.
 - Messages from other people or from groups are silently ignored and logged (`unauthorized_update_ignored`).
 - The LLM only triggers registered, validated actions; it never runs free code. Code it writes (self-coding) is statically checked and tested before being merged, `/sh` and `/py` run in an isolated container, and Claude Code projects run in a separate container with a closed tool list.
+- **Prompt-injection scanner** (`uva/safety.py`): text that comes from outside or is about to be stored is checked for instruction overrides ("ignore previous instructions", "ignore as instruções"), role overrides ("you are now...", "a partir de agora você é..."), instructions hidden in HTML comments, requests to read secrets (`.env`, tokens, credentials), `curl`/`wget` sending secrets out, and invisible or bidirectional Unicode. The background review skips any write with a hit.

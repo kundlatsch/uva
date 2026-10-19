@@ -257,6 +257,17 @@ class SearchIndex:
 
         return await self.db.run(job)
 
+    async def turns_after(self, turn_id: int, limit: int = 200) -> list[TurnRecord]:
+        """Turns newer than ``turn_id``, oldest first (the first ``limit``)."""
+
+        def job(conn: sqlite3.Connection) -> list[TurnRecord]:
+            rows = conn.execute(
+                "SELECT * FROM conversation_turns WHERE id > ? ORDER BY id LIMIT ?", (turn_id, limit)
+            ).fetchall()
+            return [_turn(row) for row in rows]
+
+        return await self.db.run(job)
+
     async def last_turn_id(self) -> int:
         return await self.db.run(
             lambda conn: conn.execute("SELECT COALESCE(MAX(id), 0) FROM conversation_turns").fetchone()[0]

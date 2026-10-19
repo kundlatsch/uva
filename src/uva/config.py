@@ -5,6 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -136,6 +137,14 @@ class Settings(BaseSettings):
     stm_max_turns: int = 30
     stm_max_refs: int = 15
     stm_promote_idle_hours: float = 3
+
+    # Background review of the conversation (memory, skills, profile) and the
+    # nightly journal digest.
+    review_idle_minutes: int = 10
+    review_min_turns: int = 4
+    review_every_turns: int = 8
+    # off | on (one short line when something was kept) | verbose (with the reason)
+    review_notify: Literal["off", "on", "verbose"] = "on"
 
     # Long-term memory
     memory_working_size: int = 20  # items injected into the prompt

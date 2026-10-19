@@ -32,6 +32,15 @@ class FileAppendParams(BaseModel):
     reason: str = Field(default="", description="Why the change")
 
 
+class ProfilePatchParams(BaseModel):
+    old: str = Field(default="", description="Exact text of data/profile.md to replace; empty = append")
+    new: str = Field(description="Replacement text (or the text to append), in Portuguese")
+    reason: str = Field(default="", description="Why")
+
+
+PROFILE = "data/profile.md"
+
+
 def not_configured() -> ActionResult:
     return ActionResult(text=t("actions.files.not_configured"))
 
@@ -68,6 +77,30 @@ def register(registry: ActionRegistry) -> None:
     )
     async def file_append(params: FileAppendParams, ctx: ActionContext) -> ActionResult:
         return await _change(ctx, "append", params.path, params.content, params.reason)
+
+    @registry.action(
+        "profile_patch",
+        "Changes part of the user's profile (data/profile.md) in place, or appends to it, within its size limit",
+        ProfilePatchParams,
+    )
+    async def profile_patch(params: ProfilePatchParams, ctx: ActionContext) -> ActionResult:
+        files = ctx.services.files
+        if files is None:
+            return not_configured()
+        try:
+            current = files.read(PROFILE)
+        except FileNotFoundError:
+            current = ""
+        except FileAccessError as exc:
+            return ActionResult(text=t("actions.files.read_failed", path=PROFILE, error=exc), data={"ok": False})
+        if params.old:
+            count = current.count(params.old)
+            if count != 1:
+                return ActionResult(text=t("actions.files.patch_not_unique", path=PROFILE, count=count), data={"ok": False})
+            content = current.replace(params.old, params.new)
+        else:
+            content = current.rstrip("\n") + ("\n" if current.strip() else "") + params.new.strip() + "\n"
+        return await _change(ctx, "write", PROFILE, content, params.reason or "profile_patch")
 
 
 async def _change(ctx: ActionContext, op: str, path: str, content: str, reason: str) -> ActionResult:

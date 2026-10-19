@@ -214,38 +214,18 @@ async def test_contexto_command(services, stm):
     assert session.refs == [] and len(session.turns) == 2  # only the "limpar" exchange
 
 
-async def test_promotion_saves_facts_and_discards_session(services, stm):
-    services.memory = MemoryService(InMemoryMemoryStore(), make_settings())
-    provider, _ = with_llm(
-        services,
-        json.dumps({"memories": [{"key": "time", "value": "Torce pro Avaí", "category": "perfil", "relevance": 0.7}]}),
-    )
+async def test_idle_session_is_dropped_keeping_running_refs(services, stm):
+    provider, _ = with_llm(services)
     await stm.add_exchange("eu torço pro Avaí, viu", "Anotado, sofredor.")
     await stm.add_ref("tarefa", "run1", "task: algo", "rodando")
     later = utcnow() + timedelta(hours=4)
 
     result = await promote_idle_sessions(services, now=later)
 
-    assert result["promoted"] == 1 and result["saved"] == 1
-    assert (await services.memory.get("time")).value == "Torce pro Avaí"
-    assert "Torce" not in provider.calls[0]["system"] and "eu torço pro Avaí" in provider.calls[0]["messages"][0].content
+    # Facts are kept by the background review (uva/review.py); this only expires the session.
+    assert result == {"sessions": 1, "dropped": 1} and provider.calls == []
     session = await stm.session()
     assert session.turns == [] and [r.id for r in session.refs] == ["run1"]  # running ref kept
-
-
-async def test_promotion_waits_when_budget_is_spent(services, stm):
-    services.memory = MemoryService(InMemoryMemoryStore(), make_settings())
-    provider, usage = with_llm(services)
-    usage.records.append(
-        UsageRecord(
-            provider="p", model="m", input_tokens=0, output_tokens=0, purpose="t",
-            cost_usd=services.settings.proactive_daily_budget_usd, scope=Scope.PROACTIVE,
-        )
-    )
-    await stm.add_exchange("oi", "oi")
-    result = await promote_idle_sessions(services, now=utcnow() + timedelta(hours=4))
-    assert result["skipped"] == 1 and provider.calls == []
-    assert (await stm.session()).turns  # kept for a later try
 
 
 async def test_active_sessions_are_not_promoted(services, stm):

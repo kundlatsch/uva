@@ -173,6 +173,28 @@ def initiative_tick() -> str:
     return runtime.run(job)
 
 
+@app.task(name="uva.review_tick")
+def review_tick() -> str:
+    """Review recent conversation into memory, skills and profile when due."""
+    from uva.review import review_tick as tick
+
+    async def job() -> str:
+        return await tick(await runtime.get_services(), runtime.notify)
+
+    return runtime.run(job)
+
+
+@app.task(name="uva.journal_digest")
+def journal_digest() -> str:
+    """Yesterday's conversation summarized in yesterday's journal note."""
+    from uva.review import journal_digest as digest
+
+    async def job() -> str:
+        return await digest(await runtime.get_services())
+
+    return runtime.run(job)
+
+
 @app.task(name="uva.index_sync")
 def index_sync() -> dict:
     """Pick up notes edited outside UVA (Obsidian) and drop deleted ones."""

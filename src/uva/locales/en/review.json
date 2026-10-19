@@ -1,0 +1,9 @@
+{
+  "notice": "💾 kept: {what}",
+  "notice_verbose": "💾 kept: {what}\n{reply}",
+  "kind": {
+    "memory": "memory {name}",
+    "skill": "skill {name}",
+    "profile": "profile"
+  }
+}

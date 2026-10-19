@@ -3,5 +3,6 @@
   "read_failed": "Não consegui ler {path}: {error}",
   "change_failed": "Não mexi em {path}: {error}",
   "commit": " (commit {commit}; /reverter desfaz)",
-  "updated": "✏️ {path} atualizado{commit}."
+  "updated": "✏️ {path} atualizado{commit}.",
+  "patch_not_unique": "O texto a trocar aparece {count} vez(es) em {path}; precisa aparecer exatamente uma."
 }

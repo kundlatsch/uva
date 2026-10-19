@@ -1,0 +1,9 @@
+{
+  "notice": "💾 anotei: {what}",
+  "notice_verbose": "💾 anotei: {what}\n{reply}",
+  "kind": {
+    "memory": "memória {name}",
+    "skill": "habilidade {name}",
+    "profile": "perfil"
+  }
+}

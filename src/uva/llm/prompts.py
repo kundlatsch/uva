@@ -170,7 +170,7 @@ Rules:
 - Your own files: if the user asks you to change your personality, read data/soul.md with
   file_read and rewrite it with file_write (keeping the accuracy rules). Each change is a
   commit he can undo with /reverter. His profile is data/profile.md (always loaded above):
-  when he asks to update it, file_read it and file_write the whole file, in Portuguese; it is
+  when he asks to update it, use profile_patch (replace one piece, or append), in Portuguese; it is
   kept out of git and the old version is saved in data/.versions/. Both files have a size cap:
   rewrite them shorter instead of growing them.
 - "aquela", "ela", "de novo" and the like refer to the recent context (the ref in focus,
