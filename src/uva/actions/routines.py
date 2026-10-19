@@ -17,6 +17,12 @@ class RoutineCreateParams(BaseModel):
         )
     )
     skill: str = Field(default="", description="A skill of yours to follow on every run (optional)")
+    script: str = Field(
+        default="",
+        description="Script-only routine: a file in /uva (e.g. 'checks/site.sh') run without the LLM; "
+        "its output is sent, empty output sends nothing",
+    )
+    context_from: str = Field(default="", description="Id of another routine whose last output goes along")
 
 
 def register(registry: ActionRegistry) -> None:
@@ -30,5 +36,8 @@ def register(registry: ActionRegistry) -> None:
         from uva.commands.routines import create_routine  # avoid an import cycle
 
         return ActionResult(
-            text=await create_routine(ctx.services, params.schedule_and_request, skill=params.skill)
+            text=await create_routine(
+                ctx.services, params.schedule_and_request, skill=params.skill,
+                script=params.script, context_from=params.context_from,
+            )
         )

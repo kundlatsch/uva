@@ -8,7 +8,10 @@
     "/routines — list",
     "/routine <id> pause|resume|remove|now",
     "(Portuguese works too: todo dia 08:00, segunda e quinta 9h, a cada 6 horas)",
-    "/routine <id> skill <name>|none"
+    "/routine <id> skill <name>|none",
+    "/routine <when> script <file in /uva> (no LLM; empty output sends nothing)",
+    "/routine <when> <request> after <id> (gets that routine's last output)",
+    "/routine <id> incidents"
   ],
   "bad_time": "I didn't get the time: {error}.",
   "created": [
@@ -23,10 +26,18 @@
     "resumed": "▶️ Routine {id} resumed.",
     "removed": "🗑️ Routine {id} removed.",
     "run_now": "⏰ Routine {id} will run in the next minute.",
-    "usage_arg": "<when> <request> | <id> pause|resume|delete|now|skill",
+    "usage_arg": "<when> <request> | <id> pause|resume|delete|now|skill|incidents",
     "unknown_skill": "I don't have a skill '{skill}' (/skills).",
     "skill_set": "🧠 Routine {id} now follows the skill {skill}.",
-    "skill_cleared": "Routine {id} no longer follows a skill."
+    "skill_cleared": "Routine {id} no longer follows a skill.",
+    "bad_script": "Invalid script path '{path}': use a file inside /uva, e.g. checks/site.sh.",
+    "no_incidents": "Routine {id} has no recorded failures.",
+    "incidents_header": "🚨 Failures of routine {id}:",
+    "incident_line": "- {state} · {count}x since {first}: {error}",
+    "incident_state": {
+      "open": "open",
+      "resolved": "resolved"
+    }
   },
   "rotinas": {
     "description": "Scheduled recurring tasks",

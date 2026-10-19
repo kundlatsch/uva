@@ -6,7 +6,7 @@ from uva.clock import format_local
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.i18n import t
 from uva.replies import Reply
-from uva.routines import describe, describe_schedule, parse, schedule
+from uva.routines import describe, describe_schedule, parse, schedule, split_extras, valid_script
 
 # "/rotina <id> <op>": Portuguese and English words -> canonical operation.
 ROUTINE_OPS = {
@@ -15,11 +15,14 @@ ROUTINE_OPS = {
     "remover": "remover", "apagar": "remover", "remove": "remover", "delete": "remover",
     "agora": "agora", "now": "agora",
     "habilidade": "skill", "skill": "skill",
+    "incidentes": "incidents", "incidents": "incidents", "falhas": "incidents",
 }
 NO_SKILL = ("nenhuma", "nenhum", "none", "-")
 
 
-async def create_routine(services, text: str, skill: str = "") -> str:
+async def create_routine(
+    services, text: str, skill: str = "", script: str = "", context_from: str = ""
+) -> str:
     """Shared by /rotina and the routine_create action."""
     if services.routines is None:
         return t("commands.routines.not_configured")
@@ -29,6 +32,14 @@ async def create_routine(services, text: str, skill: str = "") -> str:
         return t("commands.routines.bad_time", error=exc)
     if routine is None or len(routine.request) < 3:
         return t("commands.routines.usage")
+    request, found_script, found_from = split_extras(routine.request)
+    routine.request = request
+    routine.script = (script or found_script).strip()
+    routine.context_from = (context_from or found_from).strip().lower()
+    if routine.script and not valid_script(routine.script):
+        return t("commands.routines.rotina.bad_script", path=routine.script)
+    if routine.context_from and await services.routines.get(routine.context_from) is None:
+        return t("commands.routines.rotina.not_found", id=routine.context_from)
     if skill:
         if services.skills is None or services.skills.get(skill) is None:
             return t("commands.routines.rotina.unknown_skill", skill=skill)
@@ -74,6 +85,8 @@ def register(registry: CommandRegistry) -> None:
                 return t("commands.routines.rotina.removed", id=current.id)
             if op == "skill":
                 return await _set_skill(ctx, current, args[2] if len(args) > 2 else "")
+            if op == "incidents":
+                return await _incidents(ctx, current)
             await store.update(current.id, next_run_at=_now())
             return t("commands.routines.rotina.run_now", id=current.id)
         text = (ctx.raw_args or " ".join(args)).strip()
@@ -99,6 +112,25 @@ def register(registry: CommandRegistry) -> None:
             f"{body}\n\n{t('commands.routines.usage')}",
             header=t("commands.routines.rotinas.header", count=len(items)),
         )
+
+
+async def _incidents(ctx: CommandContext, routine) -> str:
+    if ctx.services.sqlite is None:
+        return t("commands.routines.rotina.no_incidents", id=routine.id)
+    from uva.incidents import IncidentStore
+
+    found = await IncidentStore(ctx.services.sqlite).list(routine.id)
+    if not found:
+        return t("commands.routines.rotina.no_incidents", id=routine.id)
+    tz = ctx.services.tz
+    lines = [t("commands.routines.rotina.incidents_header", id=routine.id)]
+    for incident in found:
+        state = t(f"commands.routines.rotina.incident_state.{incident.state}")
+        lines.append(t(
+            "commands.routines.rotina.incident_line", state=state, count=incident.count,
+            first=format_local(incident.first_at, tz, "%d/%m %H:%M"), error=incident.last_error[:200],
+        ))
+    return "\n".join(lines)
 
 
 async def _set_skill(ctx: CommandContext, routine, name: str) -> str:

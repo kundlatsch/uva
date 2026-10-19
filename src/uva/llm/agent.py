@@ -58,7 +58,9 @@ class Agent:
         self.run_command = run_command
         self.history: deque[LLMMessage] = deque(maxlen=services.settings.llm_history_messages)
 
-    async def handle(self, text: str, image: str | None = None, skill: Skill | None = None) -> Reply:
+    async def handle(
+        self, text: str, image: str | None = None, skill: Skill | None = None, note: str = ""
+    ) -> Reply:
         """Plan and act. With ``image`` the vision model sees the picture too;
         with ``skill`` its body goes along as how to do this request."""
         services = self.services
@@ -90,6 +92,7 @@ class Agent:
             recent_context=recent_context,
             recalled=found.render() if found else "",
             skill=attach(skill) if skill is not None else "",
+            note=note,
         )
         images = (image,) if image else ()
         content = context + (text or "(image without caption)")

@@ -25,6 +25,7 @@ from uva.llm.budget import Scope
 from uva.llm.client import metered
 from uva.llm.plan import GOAL_PLAN_SCHEMA, GoalPlan, PlanError, parse_plan
 from uva.llm.prompts import goal_brief, goal_system_prompt
+from uva.routines import classify
 from uva.skills import attach
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit, trace
@@ -56,6 +57,7 @@ class GoalRun:
     feature_note: str = ""  # why no request was made (or that one already exists)
     feature_later: bool = False  # couldn't ask now (busy/budget) but may next time
     feature_ready: bool = False  # the feature this goal needed is already merged
+    silent: bool = False  # the last reply was [SILENT]: nothing to report
 
     @property
     def summary(self) -> str:
@@ -142,7 +144,7 @@ async def proactive_tick(
             error=run.error,
             needs_feature=run.needs_feature,
         )
-        if notify is not None:
+        if notify is not None and not (run.silent and run.ok and status != "needs_feature"):
             await notify(Reply(describe_run(run, status, note)))
         return status
 
@@ -236,7 +238,12 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
                 run.ok, run.error = False, t("goals.runner.invalid_reply", error=exc)
                 break
 
-            run.summaries.append(plan.reply.strip())
+            status, said = classify(plan.reply)
+            if status == "failed":
+                run.ok, run.error = False, said or t("goals.runner.no_progress")
+                break
+            run.silent = status == "silent"
+            run.summaries.append(said)
             assert isinstance(plan, GoalPlan)
             if plan.needs_feature:
                 feature = plan.needs_feature.strip().removeprefix("/feature").strip()

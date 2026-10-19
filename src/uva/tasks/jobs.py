@@ -12,7 +12,7 @@ from uva.actions.registry import RetryableActionError
 from uva import initiatives
 from uva.goals import runner as goals_runner
 from uva.i18n import t
-from uva.index.service import notice_source
+from uva.index.service import notice_source, turn_source
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
 from uva.phrases import Phrases
@@ -143,6 +143,7 @@ def routines_tick() -> list[str]:
 
     async def job() -> list[str]:
         notice_source.set("routine")
+        turn_source.set("routine")
         return await run_due(await runtime.get_services(), runtime.notify)
 
     try:

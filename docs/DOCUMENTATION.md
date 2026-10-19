@@ -95,7 +95,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/objetivos`, `/goals` | goals UVA works on by itself |
 | `/pausar`, `/pause` `<id>` · `/retomar`, `/resume` `<id>` · `/remover`, `/remove` `<id>` | manage a goal |
 | `/proativo`, `/proactive` `[on\|off\|agora\|now]` | proactive mode status and controls |
-| `/rotina`, `/routine` `<when> <request>` | creates a recurring task; `/rotina <id> pausar\|retomar\|remover\|agora` (or `pause\|resume\|delete\|now`); `/rotina <id> habilidade <name>\|nenhuma` (`skill`) |
+| `/rotina`, `/routine` `<when> <request>` | creates a recurring task (`<when> script <file>` runs a script in `/uva`; `... depois-de <id>` chains routines); `/rotina <id> pausar\|retomar\|remover\|agora` (or `pause\|resume\|delete\|now`); `/rotina <id> habilidade <name>\|nenhuma` (`skill`); `/rotina <id> incidentes` (`incidents`) |
 | `/rotinas`, `/routines` | lists routines |
 | `/gasto`, `/expense` `<amount> <category> [description]` | records an expense |
 | `/gastos`, `/expenses` `[hoje\|semana\|mes\|ano\|tudo]` | expenses by category (also `today\|week\|month\|year\|all`) |
@@ -343,11 +343,21 @@ Requests that run by themselves on a schedule, through the normal router (same b
 
 **PC turned off.** Beat checks every minute. A routine whose time passed while the PC was off runs **once** when it comes back, however many times it missed, and the message says "late: it was due at 10/10 08:00" ("atrasada: era para ..." in Portuguese). The next run is always the next scheduled time after now. The schedule and the last run live in Mongo (`routines`).
 
+**Silent runs.** A routine's request reaches the LLM with a note saying it is a scheduled run. For requests like "only tell me if the price drops", when nothing happened it answers `[SILENT]` (also `[SILENCIO]`): nothing is sent and the result is logged (`/log acoes`). A reply that starts with `[FAILED]` (or `[FALHOU]`) alone on the first line counts as a failure. Goal runs follow the same rule: a run whose last reply is `[SILENT]` writes its note but sends no report.
+
+**Failures.** Failures are always reported, but only once per distinct error: the error text is normalized (lowercase, numbers and durations stripped) into a signature, and an open incident with the same signature does not alert again until `ROUTINE_FAILURE_REMIND_HOURS` (6) have passed (the reminder says how many times it failed). A successful run resolves the routine's incidents, so the next failure alerts again. `/rotina <id> incidentes` (`incidents`) lists them (SQLite `routine_incidents`).
+
+**Script-only routines.** `/rotina todo dia 08:00 script checks/site.sh` (or `routine_create` with `script`) runs a file in UVA's `/uva` folder through the shell sandbox (same isolation and limits as `/sh`; `.py` files run with `python`, others with `bash`), without the LLM and without budget. Its stdout is sent; empty output sends nothing; a non-zero exit or a timeout is a failure. If the command looks destructive it is not run (nobody is there to confirm).
+
+**Chained routines.** `/rotina todo dia 09:00 resume o relatório depois-de r1a2` (`after`, or `routine_create` with `context_from`) gives this routine the last output of routine `r1a2` as context (marked as data). Each routine keeps its last output.
+
+**Skills.** `/rotina <id> habilidade <name>` makes a routine follow a skill on every run (`nenhuma` removes it).
+
 ## SQLite (structured data)
 
 Data with a fixed shape lives in SQLite at `SQLITE_PATH` (volume `sqlite-data`), in WAL mode. Migrations are in `src/uva/storage/sqlite.py` (`MIGRATIONS` list; the applied number is in `PRAGMA user_version`). To change the schema, append a new migration at the end; never edit old ones.
 
-Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`).
+Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`) and routine failure incidents (`routine_incidents`).
 
 Example: expenses.
 

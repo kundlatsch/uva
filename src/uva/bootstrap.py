@@ -72,6 +72,7 @@ def build_services(settings: Settings) -> Services:
 
     services.vault = Vault(Path(settings.second_brain_path), services.tz)
     sqlite_db = Database(Path(settings.sqlite_path))
+    services.sqlite = sqlite_db
     services.index = SearchIndex(sqlite_db, services.vault)
     services.skills = SkillLibrary(settings.skills_dir, sqlite_db)
     if llm is not None and llm.soul is not None:

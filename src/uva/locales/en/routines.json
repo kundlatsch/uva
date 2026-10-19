@@ -19,11 +19,24 @@
   "failed": "failed: {error}",
   "notice": {
     "head": "⏰ Routine {id}: {request}",
-    "late": "(late: it was due at {when}; the PC was off)"
+    "late": "(late: it was due at {when}; the PC was off)",
+    "failed": "❌ failed: {error}"
   },
   "errors": {
     "no_days": "schedule without days",
     "bad_time": "invalid time"
   },
-  "skill_line": "skill: {skill}"
+  "skill_line": "skill: {skill}",
+  "script_line": "script: {path} (no LLM)",
+  "after_line": "uses the last output of {id}",
+  "script": {
+    "no_shell": "the /uva sandbox is not available",
+    "bad_path": "invalid script path: {path}",
+    "risky": "the script command looks destructive ({reasons}); not run",
+    "timed_out": "timed out\n{output}",
+    "exit": "exit code {code}\n{output}"
+  },
+  "incident": {
+    "again": "(the same failure, {count} times so far; /routine <id> incidents)"
+  }
 }

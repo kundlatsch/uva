@@ -106,15 +106,21 @@ class ShellService:
     async def execute(self, kind: str, code: str, confirmed: list[str] | None = None) -> Reply:
         await activity("executando")
         try:
-            result = await self._call("POST", "/run", {"kind": kind, "code": code, "label": code[:200]})
+            result = await self.run(code, kind, confirmed=confirmed)
         except ShellUnavailable as exc:
             return Reply(f"⚠️ {exc}")
+        return render_result(kind, code, result, self.settings.shell_timeout_seconds)
+
+    async def run(self, code: str, kind: str = "sh", confirmed: list[str] | None = None) -> dict:
+        """Run in the sandbox and return its raw result (output, exit, timed_out...).
+        Raises ShellUnavailable. No confirmation here: callers check risks()."""
+        result = await self._call("POST", "/run", {"kind": kind, "code": code, "label": code[:200]})
         await emit(
             EventType.SHELL, op="run", kind=kind, code=code[:2000], exit=result.get("exit"),
             timed_out=result.get("timed_out"), seconds=result.get("seconds"),
             snapshot=result.get("snapshot"), confirmed=confirmed, output=result.get("output", "")[:2000],
         )
-        return render_result(kind, code, result, self.settings.shell_timeout_seconds)
+        return result
 
     async def undo(self) -> Reply:
         try:

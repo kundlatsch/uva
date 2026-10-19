@@ -19,11 +19,24 @@
   "failed": "falhou: {error}",
   "notice": {
     "head": "⏰ Rotina {id}: {request}",
-    "late": "(atrasada: era para {when}; o PC estava desligado)"
+    "late": "(atrasada: era para {when}; o PC estava desligado)",
+    "failed": "❌ falhou: {error}"
   },
   "errors": {
     "no_days": "agenda sem dias",
     "bad_time": "horário inválido"
   },
-  "skill_line": "habilidade: {skill}"
+  "skill_line": "habilidade: {skill}",
+  "script_line": "script: {path} (sem LLM)",
+  "after_line": "usa a última saída de {id}",
+  "script": {
+    "no_shell": "a sandbox /uva não está disponível",
+    "bad_path": "caminho de script inválido: {path}",
+    "risky": "o comando do script parece destrutivo ({reasons}); não rodei",
+    "timed_out": "estourou o tempo\n{output}",
+    "exit": "código de saída {code}\n{output}"
+  },
+  "incident": {
+    "again": "(a mesma falha, {count} vezes até agora; /rotina <id> incidentes)"
+  }
 }

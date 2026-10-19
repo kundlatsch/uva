@@ -86,6 +86,20 @@ MIGRATIONS: list[str] = [
         value TEXT NOT NULL
     );
     """,
+    # 6: routine failure incidents (one alert per distinct error, see uva/incidents.py)
+    """
+    CREATE TABLE routine_incidents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        routine_id TEXT NOT NULL,
+        signature TEXT NOT NULL,
+        state TEXT NOT NULL,         -- open | resolved
+        first_at TEXT NOT NULL,
+        last_alert_at TEXT,
+        count INTEGER NOT NULL DEFAULT 1,
+        last_error TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX idx_incidents_routine ON routine_incidents (routine_id, state);
+    """,
 ]
 
 

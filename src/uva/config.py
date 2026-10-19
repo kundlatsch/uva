@@ -146,6 +146,9 @@ class Settings(BaseSettings):
     # off | on (one short line when something was kept) | verbose (with the reason)
     review_notify: Literal["off", "on", "verbose"] = "on"
 
+    # Routines: the same failure alerts once, then reminds every N hours.
+    routine_failure_remind_hours: float = 6
+
     # Long-term memory
     memory_working_size: int = 20  # items injected into the prompt
     memory_half_life_days: float = 30
