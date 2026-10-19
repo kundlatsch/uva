@@ -1,0 +1,49 @@
+{
+  "mcp": {
+    "description": "Servidores MCP e suas ferramentas (GitHub, o vault...): estado, ferramentas, ligar/desligar, aprovar mudanças",
+    "usage_arg": "[ferramentas|ligar|desligar|aprovar <servidor>] | recarregar"
+  },
+  "not_configured": "O MCP está desligado (MCP_ENABLED=false).",
+  "usage": "Uso: /mcp (servidores) · /mcp ferramentas <servidor> · /mcp ligar|desligar <servidor> · /mcp aprovar <servidor> · /mcp recarregar",
+  "gateway_down": "🔴 Não consegui falar com o gateway MCP ({error}). O container \"mcp\" está de pé? O resto continua funcionando.",
+  "gateway_later": "(O gateway não respondeu: {error}. Vale quando ele voltar.)",
+  "no_servers": "Nenhum servidor MCP configurado. Adicione à mão em data/mcp.json e depois /mcp recarregar.",
+  "header": "🔌 Servidores MCP:",
+  "server_line": "{icon} {name} ({transport}): {state}, {tools} ferramentas",
+  "state": {
+    "ready": "pronto",
+    "starting": "iniciando",
+    "error": "erro",
+    "disabled": "desabilitado",
+    "skipped": "pulado",
+    "stopped": "parado",
+    "off": "desligado (/mcp ligar)"
+  },
+  "config_error": "⚠️ O data/mcp.json tem um problema: {error}",
+  "today": "Hoje: {calls} chamadas, {failed} com falha.",
+  "hint": "/mcp ferramentas <servidor> lista as ferramentas; histórico: /log hoje mcp.",
+  "no_tools": "Nenhuma ferramenta de {server} (ele está pronto? /mcp mostra os servidores).",
+  "tools_header": "🔧 Ferramentas de {server} ({n}):",
+  "flag": {
+    "read": "leitura",
+    "write": "escrita",
+    "confirm": "pede confirmação",
+    "trusted": "roda sem perguntar",
+    "destructive": "destrutiva",
+    "proactive": "proativa",
+    "slow": "em segundo plano",
+    "flagged": "🚫 bloqueada: parece instrução para o assistente ({reason})",
+    "changed": "⏸ definição mudou: /mcp aprovar {server}",
+    "bad_schema": "🚫 schema inutilizável ({reason})",
+    "server_off": "⏸ servidor desligado"
+  },
+  "no_store": "Não consigo salvar isso agora (banco indisponível).",
+  "turned_on": "🟢 Servidor MCP {server} ligado.",
+  "turned_off": "⏸ Servidor MCP {server} desligado: as ferramentas dele somem até /mcp ligar {server}.",
+  "reloaded": "🔄 data/mcp.json recarregado. Servidores: {servers}.",
+  "nothing_to_approve": "Nada para aprovar em {server}: nenhuma definição de ferramenta mudou.",
+  "approved": "✅ Aceitei as novas definições em {server}: {tools}.",
+  "unknown_server": "Não existe servidor MCP {server}. Servidores: {servers}. Servidores novos só entram à mão, em data/mcp.json.",
+  "status_line": "🔌 MCP: {ready}/{servers} servidores prontos, {tools} ferramentas · hoje {calls} chamadas, {failed} com falha",
+  "status_down": "🔴 Gateway MCP"
+}

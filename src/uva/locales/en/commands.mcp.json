@@ -1,0 +1,49 @@
+{
+  "mcp": {
+    "description": "MCP servers and their tools (GitHub, the vault...): status, tools, on/off, approve changes",
+    "usage_arg": "[tools|on|off|approve <server>] | reload"
+  },
+  "not_configured": "MCP is turned off (MCP_ENABLED=false).",
+  "usage": "Usage: /mcp (servers) · /mcp tools <server> · /mcp on|off <server> · /mcp approve <server> · /mcp reload",
+  "gateway_down": "🔴 I couldn't reach the MCP gateway ({error}). Is the \"mcp\" container up? Everything else keeps working.",
+  "gateway_later": "(The gateway didn't answer: {error}. It applies when it's back.)",
+  "no_servers": "No MCP servers configured. Add them to data/mcp.json by hand, then /mcp reload.",
+  "header": "🔌 MCP servers:",
+  "server_line": "{icon} {name} ({transport}): {state}, {tools} tools",
+  "state": {
+    "ready": "ready",
+    "starting": "starting",
+    "error": "error",
+    "disabled": "disabled",
+    "skipped": "skipped",
+    "stopped": "stopped",
+    "off": "turned off (/mcp on)"
+  },
+  "config_error": "⚠️ data/mcp.json has a problem: {error}",
+  "today": "Today: {calls} calls, {failed} failed.",
+  "hint": "/mcp tools <server> lists the tools; history: /log today mcp.",
+  "no_tools": "No tools for {server} (is it ready? /mcp shows the servers).",
+  "tools_header": "🔧 Tools of {server} ({n}):",
+  "flag": {
+    "read": "read",
+    "write": "write",
+    "confirm": "asks before running",
+    "trusted": "runs without asking",
+    "destructive": "destructive",
+    "proactive": "proactive",
+    "slow": "background",
+    "flagged": "🚫 blocked: looks like instructions to the assistant ({reason})",
+    "changed": "⏸ definition changed: /mcp approve {server}",
+    "bad_schema": "🚫 unusable schema ({reason})",
+    "server_off": "⏸ server turned off"
+  },
+  "no_store": "I can't save that now (database unavailable).",
+  "turned_on": "🟢 MCP server {server} turned on.",
+  "turned_off": "⏸ MCP server {server} turned off: its tools are gone until /mcp on {server}.",
+  "reloaded": "🔄 data/mcp.json reloaded. Servers: {servers}.",
+  "nothing_to_approve": "Nothing to approve on {server}: no tool definition changed.",
+  "approved": "✅ Accepted the new definitions on {server}: {tools}.",
+  "unknown_server": "There's no MCP server {server}. Servers: {servers}. New servers are only added by hand in data/mcp.json.",
+  "status_line": "🔌 MCP: {ready}/{servers} servers ready, {tools} tools · today {calls} calls, {failed} failed",
+  "status_down": "🔴 MCP gateway"
+}

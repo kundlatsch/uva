@@ -45,6 +45,7 @@ The dashboard is at http://localhost:8080 (local only).
 | `/gasto`, `/gastos` | `/expense`, `/expenses` | expense tracking |
 | `/feature`, `/projeto` | `/feature`, `/project` | self-coding and new projects |
 | `/sh`, `/py` | `/terminal`, `/python` | sandboxed shell and Python |
+| `/mcp` | `/mcp` | MCP servers (GitHub, the vault...), read-only by default |
 | `/habilidades`, `/historico`, `/perfil` | `/skills`, `/history`, `/profile` | skills, past conversations, profile size |
 | `/parar`, `/refazer`, `/modo` | `/stop`, `/retry`, `/mode` | conversation controls |
 | `/log`, `/status`, `/llm` | `/log`, `/status`, `/model` | diagnostics and spending |

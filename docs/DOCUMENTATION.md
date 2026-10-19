@@ -120,7 +120,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/gastos`, `/expenses` `[hoje\|semana\|mes\|ano\|tudo]` | expenses by category (also `today\|week\|month\|year\|all`) |
 | `/decidir`, `/decide` `...` | probability, choice or score (OpenAI Decisions) |
 | `/log`, `/eventos` `[period] [type]` · `/log trace <id>` | what happened |
-| `/status`, `/estado` | services, uptime, queue and spending |
+| `/status`, `/estado` | services, uptime, queue, MCP and spending |
 | `/llm`, `/modelo`, `/model` | provider, models and LLM spending |
 | `/liberar`, `/unlock` `[amount in US$]` | extra LLM budget for today |
 | `/tarefas`, `/tasks` | recent background tasks |
@@ -137,6 +137,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/projetos`, `/projects` | lists projects |
 | `/sh`, `/terminal` `<command> \| desfazer \| historico` | runs a Linux command in `/uva` (also `undo`, `history`) |
 | `/py`, `/python` `<code>` | runs Python in `/uva` |
+| `/mcp` `[ferramentas\|ligar\|desligar\|aprovar <server>] \| recarregar` | MCP servers and their tools (also `tools\|on\|off\|approve`, `reload`); see [MCP servers](#mcp-servers) |
 | `/figurinhas`, `/stickers` | stickers UVA knows |
 | `/figurinha`, `/sticker` `<n> ...` | edits a sticker |
 
@@ -537,6 +538,15 @@ Sampling (a server asking UVA's LLM for a completion), elicitation (a server ask
 - **Rug pulls.** The first time UVA sees a tool, its definition hash is approved (Mongo `mcp_tools`). If the definition changes later, that tool is turned off and UVA sends one notice; `/mcp aprovar <server>` accepts the new definitions.
 - **Config out of reach.** `data/mcp.json` and `mcp.env` are refused by self-editing (`file_write`/`file_read`), `/feature` plugins can't reach them either, and the gateway never offers sampling or elicitation to servers.
 
+**Commands and visibility.**
+
+- `/mcp`: servers with their state (pronto, iniciando, erro, pulado, desligado), tool count, description, last error, config problems and today's calls.
+- `/mcp ferramentas <server>` (`tools`): each tool with its flags (leitura, escrita, pede confirmação, destrutiva, proativa, em segundo plano) and why a tool is blocked (looks like instructions, changed definition, bad schema).
+- `/mcp ligar|desligar <server>` (`on|off`): turns a server on or off at runtime. The state lives in Mongo (`mcp_servers`) and is applied again after the gateway restarts; `data/mcp.json` is never touched. Only servers already in the file exist.
+- `/mcp recarregar` (`reload`): the gateway re-reads `data/mcp.json` (after you edit it by hand).
+- `/mcp aprovar <server>` (`approve`): accepts changed tool definitions.
+- `/status` has one MCP line (servers ready, tools, calls and failures today); `/log hoje mcp` lists the `mcp_call` events; the dashboard has an **MCP** tab with servers, tools and the calls of the last 24 h (arguments masked).
+
 **Isolation.** The `mcp` container gets only the gateway token from `.env`, the servers' own secrets from `mcp.env`, `data/mcp.json` (read-only) and the vault (read-only): no repository, no Mongo or Redis, a read-only root filesystem, no capabilities (`no-new-privileges`), `MCP_MEMORY` (1g), `MCP_CPUS` (1) and 256 processes. Stdio servers inherit only a few safe variables (PATH, HOME...) plus the `env` written for them. Remote servers go out through `mcp-internet`, which `MCP_NO_INTERNET=true` cuts. Local server packages are installed in the image at pinned versions, never fetched at runtime.
 
 ## Stickers
@@ -653,7 +663,7 @@ Every message gets a *trace id*, and every step (chosen route, command, action, 
 - `/log 30m`, `/log 6h`, `/log 2d`, `/log hoje` (`today`), `/log ontem` (`yesterday`): other periods.
 - `/log 1d llm`: filter by type: `llm`, `goals`, `iniciativas`, `projetos`, `shell`, `erros`, `tarefas`, `memoria`, `acoes`, `selfcode` (English: `errors`, `tasks`, `memory`, `actions`, `initiatives`, `projects`).
 - `/log trace <id>`: all events of one message, with full data.
-- `/status`: services up, uptime, queue and spending.
+- `/status`: services up, uptime, queue, MCP servers and calls today, and spending.
 
 Long replies arrive as a `.md` file.
 

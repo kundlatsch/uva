@@ -305,6 +305,36 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
         found = await events._store.find(query) if events._store else []
         return [event_json(e, s.tz) for e in reversed(found)]
 
+    @app.get("/api/mcp")
+    async def mcp() -> dict[str, Any]:
+        """Servers, tools (as UVA sees them) and the last MCP calls."""
+        s = current()
+        if s.mcp is None:
+            return {"enabled": False}
+        from uva.commands.mcp import tool_flags
+        from uva.mcp.client import McpCallError, McpUnavailable
+
+        error, servers = None, []
+        try:
+            servers = (await s.mcp.gateway.servers()).get("servers", [])
+            await s.mcp.sync(s.actions)
+        except (McpUnavailable, McpCallError) as exc:
+            error = str(exc)
+        since = utcnow() - timedelta(hours=24)
+        calls = await events._store.find(EventQuery(since=since, types={EventType.MCP_CALL}, limit=200)) if events._store else []
+        return {
+            "enabled": True,
+            "error": error,
+            "config_error": s.mcp.config_error,
+            "servers": servers,
+            "tools": [
+                {"server": i.server, "tool": i.tool, "action": i.action, "status": i.status,
+                 "flags": tool_flags(i), "description": i.description[:200]}
+                for i in s.mcp.tools
+            ],
+            "calls": [event_json(e, s.tz) for e in reversed(calls)][:100],
+        }
+
     @app.get("/api/conversation")
     async def conversation() -> dict[str, Any]:
         s = current()

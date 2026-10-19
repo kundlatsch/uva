@@ -40,6 +40,7 @@ FILTERS: dict[str, set[EventType]] = {
     "selfcode": {EventType.SELFCODE, EventType.SELF_EDIT},
     "skills": {EventType.SELF_EDIT},
     "habilidades": {EventType.SELF_EDIT},
+    "mcp": {EventType.MCP_CALL},
 }
 
 _DURATION = re.compile(r"^(\d+)(m|h|d)$")
@@ -105,6 +106,7 @@ _KEYWORDS = {
     "memoria": "memoria",
     "acao": "acoes",
     "acoes": "acoes",
+    "mcp": "mcp",
 }
 
 
@@ -196,6 +198,9 @@ def _summarize_trace(trace_id: str, group: list[Event], tz: tzinfo) -> str:
                         reason=reason,
                     )
                 )
+            case EventType.MCP_CALL:
+                parts.append(t("commands.log.summary.mcp", tool=f"{data.get('server')}/{data.get('tool')}",
+                               ok="✅" if data.get("ok") else ("⏸" if data.get("held") else "❌")))
             case EventType.ERROR:
                 error = _preview(str(data.get("error", "")), 60)
                 parts.append(t("commands.log.summary.error", error=error))

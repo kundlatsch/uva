@@ -6,7 +6,8 @@
     "costs": "Custos e limites",
     "chat": "Chat",
     "logs": "Logs",
-    "env": "Ambiente"
+    "env": "Ambiente",
+    "mcp": "MCP"
   },
   "common": {
     "nothing": "nada"
@@ -87,5 +88,21 @@
     "filter_placeholder": "filtrar",
     "variable": "variável",
     "value": "valor"
+  },
+  "mcp": {
+    "tab": "MCP",
+    "servers": "Servidores",
+    "tools": "Ferramentas",
+    "calls": "Chamadas recentes (24h)",
+    "unavailable": "Gateway MCP indisponível: {error}",
+    "server": "Servidor",
+    "state": "Estado",
+    "tool": "Ferramenta",
+    "flags": "Marcações",
+    "when": "Quando",
+    "ok": "ok",
+    "failed": "falhou",
+    "held": "esperando um sim",
+    "disabled": "O MCP está desligado (MCP_ENABLED=false)."
   }
 }

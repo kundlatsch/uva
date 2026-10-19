@@ -6,7 +6,8 @@
     "costs": "Costs and limits",
     "chat": "Chat",
     "logs": "Logs",
-    "env": "Environment"
+    "env": "Environment",
+    "mcp": "MCP"
   },
   "common": {
     "nothing": "nothing"
@@ -87,5 +88,21 @@
     "filter_placeholder": "filter",
     "variable": "variable",
     "value": "value"
+  },
+  "mcp": {
+    "tab": "MCP",
+    "servers": "Servers",
+    "tools": "Tools",
+    "calls": "Recent calls (24h)",
+    "unavailable": "MCP gateway unavailable: {error}",
+    "server": "Server",
+    "state": "State",
+    "tool": "Tool",
+    "flags": "Flags",
+    "when": "When",
+    "ok": "ok",
+    "failed": "failed",
+    "held": "waiting for a yes",
+    "disabled": "MCP is turned off (MCP_ENABLED=false)."
   }
 }

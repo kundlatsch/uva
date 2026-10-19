@@ -32,6 +32,16 @@ async def collect_status(services: Services) -> list[str]:
         except Exception:
             lines.append(t("commands.status.queue_unavailable"))
 
+    if services.mcp is not None:
+        from uva.commands.mcp import status_line
+
+        try:
+            line = await asyncio.wait_for(status_line(services), HEALTH_TIMEOUT_SECONDS)
+        except Exception:
+            line = t("commands.mcp.status_down")
+        if line:
+            lines.append(line)
+
     lines.extend(await describe_spend(services))
     from uva.profile import usage
 

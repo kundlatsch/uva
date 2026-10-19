@@ -83,6 +83,7 @@ details summary { cursor: pointer; font-weight: 600; }
     <button data-tab="costs" data-i18n="tabs.costs">Custos e limites</button>
     <button data-tab="chat" data-i18n="tabs.chat">Chat</button>
     <button data-tab="logs" data-i18n="tabs.logs">Logs</button>
+    <button data-tab="mcp" data-i18n="tabs.mcp">MCP</button>
     <button data-tab="env" data-i18n="tabs.env">Ambiente</button>
   </nav>
   <span class="muted" id="now" style="margin-left:auto"></span>
@@ -146,6 +147,13 @@ details summary { cursor: pointer; font-weight: 600; }
     <span class="muted" id="lcount"></span>
   </div>
   <div class="card" id="loglist"></div>
+</section>
+
+<section id="mcp">
+  <div id="mcperr" class="muted"></div>
+  <div class="card"><h3 data-i18n="mcp.servers">Servidores</h3><table id="mcpservers"></table></div>
+  <div class="card" style="margin-top:14px"><h3 data-i18n="mcp.tools">Ferramentas</h3><table id="mcptools"></table></div>
+  <div class="card" style="margin-top:14px"><h3 data-i18n="mcp.calls">Chamadas recentes (24h)</h3><div id="mcpcalls" class="muted">—</div></div>
 </section>
 
 <section id="env">
@@ -347,7 +355,7 @@ $("#send").onclick = send;
 $("#input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
 
 // --- logs ---------------------------------------------------------------
-const TYPES = ["message_received", "route", "command", "action", "llm_call", "task_enqueued", "task_finished", "goal_run", "initiative", "memory", "budget", "self_edit", "selfcode", "project", "shell", "reply", "error"];
+const TYPES = ["message_received", "route", "command", "action", "llm_call", "task_enqueued", "task_finished", "goal_run", "initiative", "memory", "budget", "self_edit", "selfcode", "project", "shell", "mcp_call", "reply", "error"];
 $("#ltype").innerHTML += TYPES.map((type) => `<option>${type}</option>`).join("");
 async function loadLogs() {
   const q = new URLSearchParams({hours: $("#lhours").value, types: $("#ltype").value, trace: $("#ltrace").value.trim(), limit: 800});
@@ -363,6 +371,18 @@ $("#lgo").onclick = loadLogs;
 ["#lhours", "#ltype"].forEach((s) => $(s).onchange = loadLogs);
 $("#lgrep").oninput = loadLogs;
 
+// --- mcp ----------------------------------------------------------------
+async function loadMcp() {
+  const d = await api("/api/mcp");
+  if (!d.enabled) { $("#mcperr").textContent = t("mcp.disabled"); return; }
+  $("#mcperr").textContent = [d.error ? t("mcp.unavailable", {error: d.error}) : "", d.config_error || ""].filter(Boolean).join(" · ");
+  const icon = {ready: "🟢", starting: "🟡", error: "🔴", disabled: "⏸", skipped: "⚪", stopped: "⏸"};
+  $("#mcpservers").innerHTML = `<tr><th>${esc(t("mcp.server"))}</th><th>${esc(t("mcp.state"))}</th><th>${esc(t("mcp.tools"))}</th></tr>` + (d.servers || []).map((s) => `<tr><td><b>${esc(s.name)}</b> <span class="muted">${esc(s.transport)}</span><br><span class="muted">${esc(s.description)}</span></td><td>${icon[s.state] || "❔"} ${esc(s.state)}${s.error ? `<br><span class="muted">${esc(s.error)}</span>` : ""}</td><td class="num">${esc(s.tools)}</td></tr>`).join("");
+  $("#mcptools").innerHTML = `<tr><th>${esc(t("mcp.tool"))}</th><th>${esc(t("mcp.flags"))}</th></tr>` + (d.tools || []).map((x) => `<tr><td><code>${esc(x.action)}</code><br><span class="muted">${esc(x.description)}</span></td><td>${esc(x.flags)}</td></tr>`).join("");
+  $("#mcpcalls").innerHTML = (d.calls || []).map((e) => `<div class="ev"><b>${esc(e.local)}</b> <span class="tag">${esc(e.data.server)}/${esc(e.data.tool)}</span> ${esc(e.data.held ? t("mcp.held") : e.data.ok ? t("mcp.ok") : t("mcp.failed"))} ${e.data.duration_ms != null ? esc(e.data.duration_ms) + " ms" : ""} <a href="#" data-t="${e.trace_id}">${e.trace_id}</a> <span class="muted">${esc(JSON.stringify(e.data.arguments || {})).slice(0, 300)}</span>${e.data.error ? `<br><span class="bad">${esc(e.data.error)}</span>` : ""}</div>`).join("") || `<span class="muted">${esc(t("common.nothing"))}</span>`;
+  document.querySelectorAll("#mcpcalls [data-t]").forEach((a) => a.onclick = (ev) => { ev.preventDefault(); openTrace(a.dataset.t); });
+}
+
 // --- env ----------------------------------------------------------------
 let envRows = [];
 async function loadEnv() { envRows = await api("/api/env"); renderEnv(); }
@@ -372,7 +392,7 @@ function renderEnv() {
 }
 $("#envq").oninput = renderEnv;
 
-const loaders = {overview: loadOverview, costs: loadCosts, chat: loadConversation, logs: loadLogs, env: loadEnv};
+const loaders = {overview: loadOverview, costs: loadCosts, chat: loadConversation, logs: loadLogs, mcp: loadMcp, env: loadEnv};
 function load(tab) { loaders[tab]?.().catch((e) => console.error(e)); }
 (async () => {
   await loadTexts();

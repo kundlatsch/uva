@@ -2,7 +2,7 @@
   "usage": [
     "Usage: /log [period] [type]  or  /log trace <id>",
     "Period: 30m, 6h, 2d, today/hoje, yesterday/ontem (default: 1h)",
-    "Type: llm, goals, errors, tasks, memory, actions, selfcode"
+    "Type: llm, goals, errors, tasks, memory, actions, selfcode, mcp"
   ],
   "unknown_arg": "I didn't get '{word}'.\n{usage}",
   "period": {
@@ -24,7 +24,8 @@
     "needs_feature": ", needs /feature {feature}",
     "goal": "goal '{title}' ({status}{reason})",
     "error": "ERROR: {error}",
-    "actions": "actions: {actions}"
+    "actions": "actions: {actions}",
+    "mcp": "mcp {tool} {ok}"
   },
   "route": {
     "command": "command /{command}",

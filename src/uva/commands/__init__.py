@@ -14,6 +14,7 @@ from uva.commands import (
     goals,
     llm,
     log,
+    mcp,
     memory,
     phrases,
     proactive,
@@ -55,6 +56,7 @@ _MODULES = (
     features,
     projects,
     shell,
+    mcp,
     tasks,
     catalog,
 )
