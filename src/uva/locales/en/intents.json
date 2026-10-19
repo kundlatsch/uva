@@ -1,0 +1,26 @@
+{
+  "no_storage": "Standing intents need SQLite, and it isn't available.",
+  "no_triggers": "An intent needs at least one trigger term.",
+  "created": "📌 Intent #{id}: when {triggers} comes up, I'll {text}.",
+  "created_results": "📌 Intent #{id}: when a research or goal result mentions {triggers}, I'll tell you ({text}).",
+  "cancelled": "🗑️ Intent #{id} cancelled: {text}",
+  "not_found": "There is no active intent #{id} (/intents).",
+  "result_hit": "📌 Intent #{id}: {text}",
+  "usage": "/intents lists them · /intent <number> cancel",
+  "state": {
+    "armed": "armed",
+    "fired": "fired (cooling down)",
+    "done": "done",
+    "cancelled": "cancelled",
+    "expired": "expired"
+  },
+  "list": {
+    "header": "📌 Standing intents ({count} active)",
+    "none": "No standing intents. Say something like \"when I mention travel, remind me of the passport\".",
+    "no_live": "(none active)",
+    "closed": "Closed:",
+    "line": "#{id} · {state} · {fires}/{max} · {text}{scope}",
+    "triggers": "when: {triggers} · since {created}",
+    "results": "(in results)"
+  }
+}

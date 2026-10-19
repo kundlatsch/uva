@@ -11,6 +11,7 @@ from uva.actions import (
     goals,
     history,
     images,
+    intents,
     memory,
     notes,
     projects,
@@ -29,7 +30,7 @@ from uva.actions.registry import (
     RetryableActionError,
 )
 
-_MODULES = (builtin, notes, memory, goals, expenses, files, features, projects, routines, reminders, shell, context, decide, documents, images, history, skills, web)
+_MODULES = (builtin, notes, memory, goals, expenses, files, features, projects, routines, reminders, intents, shell, context, decide, documents, images, history, skills, web)
 
 
 def build_action_registry() -> ActionRegistry:

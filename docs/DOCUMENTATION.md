@@ -21,6 +21,7 @@ This is the complete reference. For a quick overview, see the [README](../README
 - [Goals and proactive mode](#goals-and-proactive-mode)
 - [Routines (recurring tasks)](#routines-recurring-tasks)
 - [Reminders (one-shot)](#reminders-one-shot)
+- [Standing intents](#standing-intents)
 - [SQLite (structured data)](#sqlite-structured-data)
 - [Personality (soul.md) and profile (profile.md)](#personality-soulmd-and-profile-profilemd)
 - [Skills (how you want things done)](#skills-how-you-want-things-done)
@@ -79,6 +80,8 @@ src/uva/
   inbound.py      # Telegram input: batching, quoted replies, forwards
   documents.py    # text out of PDF/DOCX/TXT/MD/CSV/JSON documents
   sent.py         # messages UVA sent on its own, by Telegram message id
+  intents.py      # standing intents: triggers, matching, cooldown, expiry
+  provenance.py   # where content came from (owner/agent/external/system), taint rules
   web/            # web_fetch: SSRF guard, page/PDF/JSON to text, link detection
   tasks/          # Celery: app, tasks, queue, "busy" lock
   storage/        # Mongo, SQLite (expenses, stickers, index, incidents, allowlist...)
@@ -125,6 +128,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/rotinas`, `/routines` | lists routines |
 | `/lembrete`, `/reminder` `<when> <text>` | one-shot reminder (`daqui 20 min`, `amanhã às 9`, `sexta 14h`, `dia 25 às 10h`, `25/12 08:00`, `in 2 hours`, `tomorrow 9am`); `/lembrete <id> cancelar\|adiar <when>` (`cancel\|snooze`) |
 | `/lembretes`, `/reminders` | pending reminders and the ones of the last 7 days |
+| `/intencoes`, `/intents` | standing intents ("when X comes up, do Y") with state and fires; `/intencao <n> cancelar` (`/intent <n> cancel`) |
 | `/gasto`, `/expense` `<amount> <category> [description]` | records an expense |
 | `/gastos`, `/expenses` `[hoje\|semana\|mes\|ano\|tudo]` | expenses by category (also `today\|week\|month\|year\|all`) |
 | `/decidir`, `/decide` `...` | probability, choice or score (OpenAI Decisions) |
@@ -401,11 +405,22 @@ A reminder is a routine that runs once (`every: once`, `once_at` in UTC, in the 
 - The notice has buttons ✅ Feito, ⏰ +1h and ⏰ amanhã (tomorrow at the same time). `/lembrete <id> adiar 30 min` (`snooze`, also `2h`, `amanhã 9h`) and `/lembrete <id> cancelar` (`cancel`).
 - A reminder whose time passed while the PC was off runs once when it is back, marked late. After it runs it is disabled; the daily maintenance (`memory_maintenance`, at `MEMORY_MAINTENANCE_HOUR`) deletes reminders that ran more than 7 days ago.
 
+## Standing intents
+
+"When X comes up, do Y": "quando eu falar de viagem, me lembra do passaporte", "se eu mencionar o Pedro, pergunta do livro que ele me emprestou". The LLM creates them with `intent_create(text, triggers, max_fires?, cooldown_hours?, expires_days?, scope?)`; a clock time is a reminder instead (see above).
+
+- **Triggers** are a list of entries, each a list of terms; an entry matches when **all** its terms are in your message (whole words, normalized like the similarity tier: no accents, any case, simple plural folding, so "promoção" matches "promoções").
+- **When**: only your own messages that reach the LLM (never notices, routines, goals or lookups), with no LLM call: an FTS prefilter over the armed intents (up to 256), then the exact check; at most 3 per message. A hit puts "Standing intent #n (created <date>): <text>" in the message's context block (as your request, not as data), and the answer does what it says.
+- **Limits**: after firing an intent rests for its cooldown (24 h), fires at most `max_fires` times (3) and expires after 90 days. States: `armed`, `fired` (cooling down), `done`, `cancelled`, `expired`; the cooldown and the expiry are applied on read and by the daily maintenance.
+- **Results**: with `scope: "results"` ("quando aparecer uma promoção do Hades numa pesquisa, me avisa") the intent is checked against research summaries and goal results instead, and the result message gets a "📌 Intenção #n" line.
+- `/intencoes` (`/intents`) lists them; `/intencao <n> cancelar` (`cancel`) or asking the LLM (`intent_cancel`) cancels one. UVA never decides on its own that an intent is over.
+- Storage: SQLite `intents` + FTS5 `intents_fts` (migration 11; `uva/intents.py`).
+
 ## SQLite (structured data)
 
 Data with a fixed shape lives in SQLite at `SQLITE_PATH` (volume `sqlite-data`), in WAL mode. Migrations are in `src/uva/storage/sqlite.py` (`MIGRATIONS` list; the applied number is in `PRAGMA user_version`). To change the schema, append a new migration at the end; never edit old ones.
 
-Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`), routine failure incidents (`routine_incidents`) and the messages UVA sent on its own (`sent_messages`, by Telegram message id, kept 30 days).
+Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`), routine failure incidents (`routine_incidents`), standing intents (`intents`, `intents_fts`) and the messages UVA sent on its own (`sent_messages`, by Telegram message id, kept 30 days).
 
 Example: expenses.
 

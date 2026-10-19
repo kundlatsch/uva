@@ -104,11 +104,13 @@ class Agent:
                 await activity("lendo_link")
                 note = "\n\n".join(x for x in (await self._read_links(links), note) if x)
                 ctx.taint("link")
-        found = await recall(services, text) if text else None
+        own = provenance.turn_origin() == provenance.OWNER
+        found = await recall(services, text, intents=own) if text else None
         if found and (external := [n for n in found.notes if provenance.external_note(n)]):
             ctx.taint(f"note:{external[0]}")
         if found:
-            await emit(EventType.ROUTE, tier="recall", notes=found.notes, sections=len(found.sections))
+            await emit(EventType.ROUTE, tier="recall", notes=found.notes, sections=len(found.sections),
+                       intents=found.intent_ids)
         system = assistant_system_prompt(
             actions=actions,
             registry=services.registry,
@@ -122,6 +124,7 @@ class Agent:
             tz=services.tz,
             recent_context=recent_context,
             recalled=found.render() if found else "",
+            intents=found.intents if found else "",
             skill=attach(skill) if skill is not None else "",
             note=note,
         )

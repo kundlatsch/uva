@@ -1,0 +1,9 @@
+{
+  "intencoes": {
+    "description": "Intenções: \"quando X aparecer, faça Y\""
+  },
+  "intencao": {
+    "description": "Cancela uma intenção",
+    "usage_arg": "<número> cancelar"
+  }
+}

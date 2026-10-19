@@ -81,6 +81,10 @@ def memory_maintenance() -> dict:
             from uva import sent
 
             result["sent_purged"] = await sent.purge(services.sqlite)
+            from uva.intents import store_for
+
+            if (intents := store_for(services)) is not None:
+                result["intents_changed"] = await intents.maintenance()
         return result
 
     try:

@@ -1,0 +1,9 @@
+{
+  "intencoes": {
+    "description": "Standing intents: \"when X comes up, do Y\""
+  },
+  "intencao": {
+    "description": "Cancels a standing intent",
+    "usage_arg": "<number> cancel"
+  }
+}

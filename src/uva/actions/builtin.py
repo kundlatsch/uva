@@ -85,6 +85,10 @@ def register(registry: ActionRegistry) -> None:
             )
             note_path = save_research(ctx.services.vault, found, title).path
             text += "\n\n" + t("actions.builtin.search.saved", path=note_path)
+        from uva.intents import results_notice
+
+        if hits := await results_notice(ctx.services, f"{found.query}\n{found.summary}"):
+            text += "\n\n" + hits
         return ActionResult(
             text=text,
             data={

@@ -150,13 +150,19 @@ def now_line(tz: tzinfo) -> str:
 
 
 def message_context(
-    *, tz: tzinfo, recent_context: str = "", recalled: str = "", skill: str = "", note: str = ""
+    *, tz: tzinfo, recent_context: str = "", recalled: str = "", skill: str = "", note: str = "",
+    intents: str = "",
 ) -> str:
     """What changes on every message, put before the last user message so the
     system prompt stays byte-identical (and cached) across messages."""
     parts = [f"Now: {now_line(tz)}."]
     if recent_context:
         parts.append(f"Recent context (what you did in this session):\n{recent_context}")
+    if intents:
+        parts.append(
+            "Standing intents he set earlier that this message triggered (his own requests: do what "
+            "they say, briefly, along with the answer):\n" + intents
+        )
     if recalled:
         parts.append(
             "Found in your systems for this message (long-term memory, notes, goals, "
@@ -234,6 +240,11 @@ Rules:
   or rename an existing note use note_update (read it first with note_read and send the FULL
   content); never create another note for that and never write placeholders like "<texto
   anterior aqui>".
+- "When X comes up, do Y" ("quando eu falar de viagem, me lembra do passaporte", "se eu
+  mencionar o Pedro, pergunta do livro") is intent_create, with triggers as a list of entries,
+  each a list of terms that must all appear (["viagem"], ["passaporte", "vencendo"]); use
+  scope "results" when it is about research or goal results. A clock time is a reminder, not an
+  intent. Never infer that an intent is cancelled: only intent_cancel when he says so.
 - Something to do on a schedule ("todo dia às 8...", "toda segunda...", "a cada 6 horas...")
   is a routine: use routine_create. A goal is for work toward an outcome, not a timetable.
 - A request to be reminded at a time, once ("me lembra amanhã às 9 de...", "daqui 20 min me

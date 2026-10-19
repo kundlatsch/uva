@@ -159,8 +159,12 @@ async def proactive_tick(
         )
         quiet = run.silent and run.ok and status != "needs_feature"
         repeat_outage = run.llm_down and goal.waiting_llm  # already told about this outage
-        if notify is not None and not quiet and not repeat_outage:
-            await notify(Reply(describe_run(run, status, note)))
+        from uva.intents import results_notice
+
+        hits = await results_notice(services, run.summary) if run.ok else ""
+        if notify is not None and (hits or (not quiet and not repeat_outage)):
+            text = describe_run(run, status, note)
+            await notify(Reply(f"{text}\n\n{hits}" if hits else text, kind="goal", ref=goal.id))
         return status
 
 

@@ -1,0 +1,26 @@
+{
+  "no_storage": "Intenções precisam do SQLite, e ele não está disponível.",
+  "no_triggers": "Uma intenção precisa de pelo menos um termo de gatilho.",
+  "created": "📌 Intenção #{id}: quando aparecer {triggers}, eu vou {text}.",
+  "created_results": "📌 Intenção #{id}: quando um resultado de pesquisa ou objetivo falar de {triggers}, eu te aviso ({text}).",
+  "cancelled": "🗑️ Intenção #{id} cancelada: {text}",
+  "not_found": "Não tenho a intenção ativa #{id} (/intencoes).",
+  "result_hit": "📌 Intenção #{id}: {text}",
+  "usage": "/intencoes lista · /intencao <número> cancelar",
+  "state": {
+    "armed": "armada",
+    "fired": "disparou (em pausa)",
+    "done": "concluída",
+    "cancelled": "cancelada",
+    "expired": "expirada"
+  },
+  "list": {
+    "header": "📌 Intenções ({count} ativas)",
+    "none": "Nenhuma intenção. Diga algo como \"quando eu falar de viagem, me lembra do passaporte\".",
+    "no_live": "(nenhuma ativa)",
+    "closed": "Encerradas:",
+    "line": "#{id} · {state} · {fires}/{max} · {text}{scope}",
+    "triggers": "quando: {triggers} · desde {created}",
+    "results": "(em resultados)"
+  }
+}

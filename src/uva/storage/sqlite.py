@@ -136,6 +136,24 @@ MIGRATIONS: list[str] = [
     UPDATE conversation_turns SET origin = 'agent' WHERE role = 'bot';
     UPDATE conversation_turns SET origin = 'system' WHERE role = 'notice' OR source IN ('routine', 'goal', 'initiative');
     """,
+    # 11: standing intents ("when X comes up, do Y"; see uva/intents.py)
+    """
+    CREATE TABLE intents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        triggers_json TEXT NOT NULL,      -- [[term, ...], ...]: an entry matches when all its terms do
+        state TEXT NOT NULL,              -- armed | fired | done | cancelled | expired
+        created_at TEXT NOT NULL,
+        expires_at TEXT,
+        max_fires INTEGER NOT NULL DEFAULT 3,
+        fires INTEGER NOT NULL DEFAULT 0,
+        cooldown_s INTEGER NOT NULL DEFAULT 86400,
+        last_fired_at TEXT,
+        scope TEXT NOT NULL DEFAULT 'messages',  -- messages | results
+        source_trace TEXT
+    );
+    CREATE VIRTUAL TABLE intents_fts USING fts5(triggers, tokenize='unicode61 remove_diacritics 2');
+    """,
 ]
 
 

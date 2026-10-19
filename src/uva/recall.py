@@ -102,12 +102,16 @@ class Recall:
     notes: list[str] = field(default_factory=list)  # paths shown, for the log
     memory_keys: list[str] = field(default_factory=list)  # items shown (counted as a use)
     turns: int = 0  # conversation-log turns shown
+    # Standing intents this message triggered: his own earlier requests, kept apart
+    # from the data sections (uva/intents.py).
+    intents: str = ""
+    intent_ids: list[int] = field(default_factory=list)
 
     def render(self) -> str:
         return "\n\n".join(self.sections)
 
     def __bool__(self) -> bool:
-        return bool(self.sections)
+        return bool(self.sections or self.intents)
 
 
 def _needed(words: list[str]) -> int:
@@ -138,12 +142,18 @@ def past_window(text: str, tz, now: datetime | None = None) -> tuple[bool, datet
     return False, None, None
 
 
-async def recall(services: Services, text: str) -> Recall:
+async def recall(services: Services, text: str, *, intents: bool = False) -> Recall:
+    """``intents``: also check the standing intents (only for the user's own messages)."""
     words = terms(text)
     if past_window(text, services.tz)[0]:
         # "o que eu te falei sobre Lisboa semana passada": look for "lisboa".
         words = [w for w in words if w not in EPISODE_WORDS]
     found = Recall()
+    if intents:
+        try:
+            await _intents(services, text, found)
+        except Exception as exc:
+            log.warning("recall_failed", step="intents", error=str(exc))
     steps = []
     if words:
         steps += [("memory", _memory), ("notes", _notes), ("goals", _goals), ("expenses", _expenses)]
@@ -162,6 +172,18 @@ async def recall(services: Services, text: str) -> Recall:
         except Exception as exc:
             log.warning("memory_touch_failed", error=str(exc))
     return found
+
+
+async def _intents(services: Services, text: str, found: Recall) -> None:
+    from uva.intents import render_fired, store_for
+
+    store = store_for(services)
+    if store is None:
+        return
+    fired = await store.fire(text)
+    if fired:
+        found.intents = render_fired(fired, services.tz)
+        found.intent_ids = [i.id for i in fired]
 
 
 async def _memory(services: Services, words: list[str], found: Recall) -> None:
