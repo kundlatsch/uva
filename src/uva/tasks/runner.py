@@ -87,6 +87,31 @@ async def run_action_task(
                 await services.busy.clear(busy_key)
 
 
+async def sweep_orphans(services: Services, live_ids: set[str], notify: Notifier | None) -> list[str]:
+    """Tasks recorded as running that no worker has any more (it stopped): failed,
+    their refs updated, one notice listing them. Idempotent actions are left
+    alone: the broker gives them back and they run again."""
+    from uva.i18n import t
+    from uva.tasks.queue import IDEMPOTENT_ACTIONS
+
+    if services.tasks is None:
+        return []
+    store = services.tasks.store
+    orphans = [
+        r for r in await store.recent(500)
+        if r.status is TaskStatus.RUNNING and r.id not in live_ids and r.action not in IDEMPOTENT_ACTIONS
+    ]
+    reason = t("tasks.recovery.interrupted")
+    for record in orphans:
+        await store.update(record.id, status=TaskStatus.FAILED, error=reason)
+        await _ref_status(services, record.id, "falhou", reason)
+        await emit(EventType.TASK_FINISHED, task_id=record.id, action=record.action, status="failed", error=reason)
+    if orphans and notify is not None:
+        lines = "\n".join(t("tasks.recovery.line", id=r.id, action=r.action) for r in orphans)
+        await notify(Reply(t("tasks.recovery.notice", tasks=lines)))
+    return [r.id for r in orphans]
+
+
 async def _ref_status(services: Services, task_id: str, status, error=None, *, focus=True) -> None:
     """Keep the short-term memory in sync with the task (best effort)."""
     if services.stm is None:

@@ -67,6 +67,15 @@ if settings.proactive_interval_minutes > 0:
     }
 
 
+@signals.worker_ready.connect
+def _sweep_after_restart(sender=None, **_: object) -> None:
+    """Tasks this worker was running when it stopped are failed (and the user told)."""
+    hostname = getattr(sender, "hostname", "") or ""
+    if hostname.startswith("projects@"):
+        return  # /projeto has its own records
+    app.send_task("uva.recover_tasks", countdown=10)
+
+
 @signals.setup_logging.connect
 def _setup_logging(**_: object) -> None:
     # Same JSON logs as the bot instead of Celery's own format.

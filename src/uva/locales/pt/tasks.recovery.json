@@ -1,0 +1,5 @@
+{
+  "interrupted": "interrompida: o worker foi reiniciado",
+  "line": "- {id} ({action})",
+  "notice": "⚠️ O worker foi reiniciado e estas tarefas foram interrompidas (não terminaram):\n{tasks}\nPeça de novo se ainda precisar (ou “refaz”)."
+}

@@ -10,9 +10,27 @@
     "stop": "⏹️ Parando…",
     "rmdok": "✅ Feito",
     "rmd1h": "⏰ Daqui 1h",
-    "rmdtm": "⏰ Amanhã"
+    "rmdtm": "⏰ Amanhã",
+    "rcvok": "🔁 Fazendo de novo…",
+    "rcvno": "Ok"
   },
   "file_too_big": "{phrase}\n(o arquivo passa de 20 MB, o limite do Telegram para bots)",
   "audio_too_big": "{phrase}\n(o áudio passa de 20 MB, o limite do Telegram para bots)",
-  "document_too_big": "O arquivo passa de {mb} MB, meu limite para documentos (DOCUMENT_MAX_MB)."
+  "document_too_big": "O arquivo passa de {mb} MB, meu limite para documentos (DOCUMENT_MAX_MB).",
+  "recover": {
+    "ask": "Fui desligada enquanto respondia “{text}”. Faço de novo?",
+    "media": "Fui desligada no meio disto: {kind} (“{text}”). Se ainda precisar, manda de novo.",
+    "yes": "🔁 Sim, de novo",
+    "no": "Não",
+    "dropped": "Ok, deixei pra lá.",
+    "kind": {
+      "text": "mensagem",
+      "button": "botão",
+      "photo": "foto",
+      "album": "álbum de fotos",
+      "voice": "áudio",
+      "document": "documento",
+      "sticker": "figurinha"
+    }
+  }
 }

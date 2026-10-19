@@ -154,6 +154,21 @@ MIGRATIONS: list[str] = [
     );
     CREATE VIRTUAL TABLE intents_fts USING fts5(triggers, tokenize='unicode61 remove_diacritics 2');
     """,
+    # 12: inbound journal: what the bot was answering when it stopped (uva/journal.py)
+    """
+    CREATE TABLE inbound (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        update_id INTEGER,
+        chat_id INTEGER NOT NULL,
+        message_id INTEGER,
+        kind TEXT NOT NULL,            -- text | button | photo | album | voice | document | sticker
+        text TEXT NOT NULL DEFAULT '',
+        state TEXT NOT NULL,           -- received | processing | done | failed
+        received_at TEXT NOT NULL,
+        done_at TEXT
+    );
+    CREATE INDEX idx_inbound_state ON inbound (state);
+    """,
 ]
 
 

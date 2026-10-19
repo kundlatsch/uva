@@ -13,6 +13,10 @@ from uva.clock import utcnow
 from uva.i18n import t
 
 
+# Background actions safe to run twice (re-delivered after a worker restart).
+IDEMPOTENT_ACTIONS = frozenset({"search"})
+
+
 class TaskStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"

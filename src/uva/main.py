@@ -19,6 +19,7 @@ from telegram.ext import (
 from uva import documents
 from uva.bootstrap import build_services, setup_storage
 from uva.inbound import Inbound, InboundBuffer, compose, forward_label, quoted
+from uva.journal import DONE, FAILED, PROCESSING, journal_for, recovery_question
 from uva.config import Settings, get_settings
 from uva.i18n import t
 from uva.logging import configure_logging, get_logger
@@ -36,7 +37,8 @@ from uva.tts import SpeechError, should_speak
 log = get_logger(__name__)
 
 # Short toast shown the moment a button is pressed (texts in main.button_ack).
-BUTTON_ACK = ("confirm", "deny", "shok", "shno", "shal", "wrok", "wrno", "stop", "rmdok", "rmd1h", "rmdtm")
+BUTTON_ACK = ("confirm", "deny", "shok", "shno", "shal", "wrok", "wrno", "stop", "rmdok", "rmd1h", "rmdtm",
+              "rcvok", "rcvno")
 # Handled at once, even while another message is still being worked on.
 STOP_COMMANDS = ("/parar", "/stop")
 
@@ -58,6 +60,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             owner = settings.allowed_telegram_user_id
             services.mcp.notifier = lambda text: send_reply(app.bot, owner, Reply(text))
         await setup_storage(services)
+        await ask_about_interrupted(app)
         try:
             await app.bot.set_my_commands(bot_commands(services.registry))
         except Exception as exc:  # the menu is a convenience
@@ -92,7 +95,7 @@ def build_application(settings: Settings, services: Services) -> Application:
                 last = composed.message_ids[-1] if composed.message_ids else None
                 work = router.handle_text(composed.text, user_id=user_id, inbound=composed)
                 try:
-                    await turn(bot, chat_id, work, composed.label or "[forward]",
+                    await turn(bot, chat_id, work, composed.label or "[forward]", message_id=last,
                                react_to=last if settings.telegram_reactions else None)
                 except Exception as exc:  # runs in a timer task: log, never lose it silently
                     log.error("batch_failed", error=repr(exc))
@@ -136,13 +139,47 @@ def build_application(settings: Settings, services: Services) -> Application:
                 inbound=context if context.context else None,
             )
 
-        await turn(bot, chat_id, work(), caption or "[album]", activity="olhando",
-                   react_to=reaction_target(first))
+        await turn(bot, chat_id, work(), caption or "[album]", activity="olhando", kind="album",
+                   message_id=first.message_id, react_to=reaction_target(first))
 
-    async def turn(bot, chat_id: int, work, label: str, *, voice_in: bool = False, **kwargs) -> None:
+    journal = journal_for(services)
+
+    async def ask_about_interrupted(app: Application) -> None:
+        """Turns a shutdown cut short: ask once whether to redo each (never on its own)."""
+        if journal is None:
+            return
+        try:
+            for entry in await journal.interrupted(max_hours=settings.recover_max_hours):
+                await send_reply(app.bot, entry.chat_id, recovery_question(entry))
+        except Exception as exc:
+            log.warning("recovery_failed", error=str(exc))
+
+    async def note(entry_id: int | None, state: str) -> None:
+        if journal is not None and entry_id is not None:
+            try:
+                await journal.mark(entry_id, state)
+            except Exception as exc:  # the journal must never block a reply
+                log.warning("journal_failed", error=str(exc))
+
+    async def turn(
+        bot, chat_id: int, work, label: str, *, voice_in: bool = False, kind: str = "text",
+        message_id: int | None = None, **kwargs,
+    ) -> None:
         tracked = services.turns.run(work, label) if services.turns is not None else work
-        async with turn_lock:
-            replies = await respond(bot, chat_id, services.say, tracked, **kwargs)
+        entry_id = None
+        if journal is not None:
+            try:
+                entry_id = await journal.received(chat_id, kind, label, message_id=message_id)
+            except Exception as exc:
+                log.warning("journal_failed", error=str(exc))
+        try:
+            async with turn_lock:
+                await note(entry_id, PROCESSING)
+                replies = await respond(bot, chat_id, services.say, tracked, **kwargs)
+        except BaseException:
+            await note(entry_id, FAILED)
+            raise
+        await note(entry_id, DONE)
         await speak(bot, chat_id, replies, voice_in)
 
     async def speak(bot, chat_id: int, replies: list[Reply], voice_in: bool) -> None:
@@ -177,7 +214,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             await buffer.flush()  # messages typed before the command go first
             await turn(
                 context.bot, message.chat_id, router.handle_text(text, user_id=user_id), text,
-                activity="executando", react_to=reaction_target(message),
+                activity="executando", message_id=message.message_id, react_to=reaction_target(message),
             )
             return
         await buffer.add(Inbound(
@@ -204,7 +241,7 @@ def build_application(settings: Settings, services: Services) -> Application:
                                              inbound=extra if extra.context else None)
 
         await turn(context.bot, message.chat_id, work(), message.caption or "[photo]", activity="olhando",
-                   react_to=reaction_target(message))
+                   kind="photo", message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_image_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Images sent "as file" (no Telegram compression)."""
@@ -225,7 +262,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             return await router.handle_photo(photo, message.caption or "", user_id=user_id)
 
         await turn(context.bot, message.chat_id, work(), message.caption or "[image]", activity="olhando",
-                   react_to=reaction_target(message))
+                   kind="photo", message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """PDF, DOCX, TXT, MD, CSV, JSON: saved in the brain, read, then the caption."""
@@ -254,7 +291,7 @@ def build_application(settings: Settings, services: Services) -> Application:
                                                 inbound=extra if extra.context else None)
 
         await turn(context.bot, message.chat_id, work(), f"[document {name}]", activity="lendo",
-                   react_to=reaction_target(message))
+                   kind="document", message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
@@ -276,7 +313,7 @@ def build_application(settings: Settings, services: Services) -> Application:
         # Download + transcription take a few seconds: say we're on it right away.
         now = services.say("transcrevendo") if services.transcriber is not None else None
         await turn(context.bot, message.chat_id, work(), "[voice]", activity="pensando", now=now,
-                   voice_in=True)
+                   voice_in=True, kind="voice", message_id=message.message_id)
 
     async def on_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
@@ -289,8 +326,8 @@ def build_application(settings: Settings, services: Services) -> Application:
             sticker.file_unique_id, file_id=sticker.file_id, emoji=sticker.emoji or "",
             set_name=sticker.set_name or "", user_id=user_id,
         )
-        await turn(context.bot, message.chat_id, work, f"[sticker {sticker.emoji or ''}]",
-                   react_to=reaction_target(message))
+        await turn(context.bot, message.chat_id, work, f"[sticker {sticker.emoji or ''}]", kind="sticker",
+                   message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
@@ -316,8 +353,8 @@ def build_application(settings: Settings, services: Services) -> Application:
             asyncio.get_running_loop().create_task(buffer.flush())
             return
         await turn(
-            context.bot, query.message.chat.id, work, f"[button] {verb}",
-            activity="executando" if verb in ("shok", "shal", "confirm", "wrok") else "pensando",
+            context.bot, query.message.chat.id, work, f"[button] {verb}", kind="button",
+            activity="executando" if verb in ("shok", "shal", "confirm", "wrok", "rcvok") else "pensando",
         )
 
     # One text handler (commands included) keeps all routing logic in Router.

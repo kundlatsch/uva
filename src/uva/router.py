@@ -422,6 +422,8 @@ class Router:
             from uva.commands.session import stop_callback
 
             return await self._safely(stop_callback(self.services, data))
+        if verb in ("rcvok", "rcvno"):  # "I was shut down while answering ... Do it again?"
+            return await self._recover(verb, token, user_id)
         if verb in ("rmdok", "rmd1h", "rmdtm"):  # under a reminder's notice
             from uva.reminders import handle_button
 
@@ -443,6 +445,15 @@ class Router:
         with trace(pending.trace_id if pending else None):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             return await self._safely(self._resolve_confirmation(verb, pending, user_id))
+
+    async def _recover(self, verb: str, token: str, user_id: int | None) -> Reply:
+        from uva.journal import TEXT_KINDS, journal_for
+
+        journal = journal_for(self.services)
+        entry = await journal.get(int(token)) if journal is not None and token.isdigit() else None
+        if verb == "rcvno" or entry is None or entry.kind not in TEXT_KINDS:
+            return Reply(t("main.recover.dropped"))
+        return await self.handle_text(entry.text, user_id=user_id)
 
     @staticmethod
     async def _text_reply(coro) -> Reply:

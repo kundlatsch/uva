@@ -80,6 +80,7 @@ src/uva/
   inbound.py      # Telegram input: batching, quoted replies, forwards
   documents.py    # text out of PDF/DOCX/TXT/MD/CSV/JSON documents
   sent.py         # messages UVA sent on its own, by Telegram message id
+  journal.py      # inbound journal: turns cut short by a restart
   intents.py      # standing intents: triggers, matching, cooldown, expiry
   provenance.py   # where content came from (owner/agent/external/system), taint rules
   web/            # web_fetch: SSRF guard, page/PDF/JSON to text, link detection
@@ -285,6 +286,11 @@ The compose file also starts `redis`, `worker` (Celery) and `beat` (scheduler). 
 - Redis keeps a "busy" flag while you are chatting and while tasks run; proactive mode only acts when nothing is flagged.
 - Beat sends a heartbeat every minute; `/status` shows 🔴 on "Worker + agendador" if it stops arriving.
 
+### Restart recovery
+
+- **The bot**: every turn is written to SQLite `inbound` as `received` before it is routed, `processing` once it starts and `done` / `failed` after the reply went out (`uva/journal.py`). When the bot starts, turns still unfinished and younger than `RECOVER_MAX_HOURS` (6) each get one question: "Fui desligada enquanto respondia '...'. Faço de novo?" with **Sim** / **Não**. Nothing is re-run on its own (the turn may have had side effects); photos, audio and documents can't be redone from their text, so for those UVA asks you to send them again. Older ones are closed quietly; rows older than 7 days are deleted by the daily maintenance.
+- **The worker**: idempotent background work (`search`) runs as `uva.run_action_idempotent`, acknowledged only when done (`acks_late`, `reject_on_worker_lost`), so a worker that dies mid-search gets it back from Redis and runs it again. Everything else (MCP calls, self-coding, projects, anything that writes outside UVA) is never re-run: when a worker starts, `uva.recover_tasks` marks the tasks recorded as running that no worker holds any more as failed, updates their references in the short-term memory and sends one notice listing them.
+
 ## Second brain (Markdown notes)
 
 UVA keeps a note vault compatible with **Obsidian**, in the repository's `brain/` folder (outside git). To use another folder, set `SECOND_BRAIN_HOST_PATH` in `.env` (e.g. `D:/Obsidian/UVA`) and run `docker compose up -d`. On first start it creates a PARA structure and a `LEIA-ME.md`:
@@ -420,7 +426,7 @@ A reminder is a routine that runs once (`every: once`, `once_at` in UTC, in the 
 
 Data with a fixed shape lives in SQLite at `SQLITE_PATH` (volume `sqlite-data`), in WAL mode. Migrations are in `src/uva/storage/sqlite.py` (`MIGRATIONS` list; the applied number is in `PRAGMA user_version`). To change the schema, append a new migration at the end; never edit old ones.
 
-Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`), routine failure incidents (`routine_incidents`), standing intents (`intents`, `intents_fts`) and the messages UVA sent on its own (`sent_messages`, by Telegram message id, kept 30 days).
+Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`), routine failure incidents (`routine_incidents`), standing intents (`intents`, `intents_fts`), the inbound journal (`inbound`, 7 days) and the messages UVA sent on its own (`sent_messages`, by Telegram message id, kept 30 days).
 
 Example: expenses.
 

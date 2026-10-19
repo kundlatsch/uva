@@ -7,7 +7,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 
-from uva.tasks.queue import TaskRecord, TaskStatus, TaskStore
+from uva.tasks.queue import IDEMPOTENT_ACTIONS, TaskRecord, TaskStatus, TaskStore
 
 # Celery's default queue is a Redis list with this name.
 CELERY_QUEUE_KEY = "celery"
@@ -29,10 +29,11 @@ class CeleryTaskQueue:
         record = TaskRecord(action=action, params=params, trace_id=trace_id)
         await self.store.add(record)
         kwargs = {"task_id": record.id, "action": action, "params": params, "trace_id": trace_id}
+        # Idempotent work (a search) is acknowledged only when done, so a worker that
+        # dies mid-task gets it again; the rest must not run twice.
+        name = "uva.run_action_idempotent" if action in IDEMPOTENT_ACTIONS else "uva.run_action"
         # send_task is blocking network I/O; keep it off the event loop.
-        await asyncio.to_thread(
-            self._app().send_task, "uva.run_action", kwargs=kwargs, task_id=record.id
-        )
+        await asyncio.to_thread(self._app().send_task, name, kwargs=kwargs, task_id=record.id)
         return record
 
     async def cancel(self, task_id: str) -> bool:

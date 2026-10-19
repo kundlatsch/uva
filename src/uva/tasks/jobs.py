@@ -45,6 +45,45 @@ def _notify_failure(what: str, exc: BaseException, task_id: str | None = None) -
 
 @app.task(bind=True, name="uva.run_action", max_retries=settings.task_max_retries)
 def run_action(self, task_id: str, action: str, params: dict, trace_id: str | None) -> str:
+    return _run_action(self, task_id, action, params, trace_id)
+
+
+# Idempotent actions (uva.tasks.queue.IDEMPOTENT_ACTIONS): acknowledged only when
+# done, and given back to the broker if the worker dies, so they run again.
+@app.task(
+    bind=True, name="uva.run_action_idempotent", max_retries=settings.task_max_retries,
+    acks_late=True, reject_on_worker_lost=True,
+)
+def run_action_idempotent(self, task_id: str, action: str, params: dict, trace_id: str | None) -> str:
+    return _run_action(self, task_id, action, params, trace_id)
+
+
+@app.task(name="uva.recover_tasks")
+def recover_tasks() -> list[str]:
+    """After a worker start: tasks it was running when it stopped are failed."""
+    from uva.tasks.runner import sweep_orphans
+
+    async def job() -> list[str]:
+        services = await runtime.get_services()
+        return await sweep_orphans(services, _live_task_ids(), runtime.notify)
+
+    return runtime.run(job)
+
+
+def _live_task_ids() -> set[str]:
+    """Ids of tasks some worker is running or holds right now (best effort)."""
+    try:
+        inspect = app.control.inspect(timeout=2)
+        found: set[str] = set()
+        for listing in (inspect.active() or {}, inspect.reserved() or {}):
+            for tasks in listing.values():
+                found.update(str(task.get("id")) for task in tasks)
+        return found
+    except Exception:
+        return set()
+
+
+def _run_action(self, task_id: str, action: str, params: dict, trace_id: str | None) -> str:
     async def job() -> str:
         services = await runtime.get_services()
         status = await run_action_task(
@@ -85,6 +124,10 @@ def memory_maintenance() -> dict:
 
             if (intents := store_for(services)) is not None:
                 result["intents_changed"] = await intents.maintenance()
+            from uva.journal import journal_for
+
+            if (journal := journal_for(services)) is not None:
+                result["inbound_purged"] = await journal.purge()
         return result
 
     try:

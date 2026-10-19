@@ -10,9 +10,27 @@
     "stop": "⏹️ Stopping…",
     "rmdok": "✅ Done",
     "rmd1h": "⏰ In an hour",
-    "rmdtm": "⏰ Tomorrow"
+    "rmdtm": "⏰ Tomorrow",
+    "rcvok": "🔁 Doing it again…",
+    "rcvno": "Ok"
   },
   "file_too_big": "{phrase}\n(the file is over 20 MB, Telegram's limit for bots)",
   "audio_too_big": "{phrase}\n(the audio is over 20 MB, Telegram's limit for bots)",
-  "document_too_big": "The file is over {mb} MB, my limit for documents (DOCUMENT_MAX_MB)."
+  "document_too_big": "The file is over {mb} MB, my limit for documents (DOCUMENT_MAX_MB).",
+  "recover": {
+    "ask": "I was shut down while answering “{text}”. Do it again?",
+    "media": "I was shut down while handling your {kind} (“{text}”). If you still need it, send it again.",
+    "yes": "🔁 Yes, again",
+    "no": "No",
+    "dropped": "Ok, I left it.",
+    "kind": {
+      "text": "message",
+      "button": "button press",
+      "photo": "photo",
+      "album": "photo album",
+      "voice": "audio",
+      "document": "document",
+      "sticker": "sticker"
+    }
+  }
 }

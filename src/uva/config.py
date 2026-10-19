@@ -168,6 +168,8 @@ class Settings(BaseSettings):
 
     # Telegram: reactions on your message as feedback (👀 received, 👍 done, 👎 error).
     telegram_reactions: bool = True
+    # After a restart, turns cut short this recently get a "do it again?" question.
+    recover_max_hours: float = 6
     # Plain messages sent in a row wait this long of quiet and go to the router as
     # one turn (long pastes, forwards and albums wait a bit more); 0 turns it off.
     inbound_debounce_ms: int = 300

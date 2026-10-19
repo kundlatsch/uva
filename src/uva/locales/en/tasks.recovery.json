@@ -1,0 +1,5 @@
+{
+  "interrupted": "interrupted: the worker was restarted",
+  "line": "- {id} ({action})",
+  "notice": "⚠️ The worker was restarted and these tasks were cut short (they did not finish):\n{tasks}\nAsk again if you still need them (or “retry” them)."
+}
