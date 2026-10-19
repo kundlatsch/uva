@@ -35,7 +35,7 @@ def register(registry: CommandRegistry) -> None:
                 relevance=item.relevance,
                 uses=item.use_count,
                 last_used=format_local(item.last_used_at, tz, "%d/%m/%Y"),
-            )
+            ) + (t("commands.memory.memoria.external") if item.origin == "external" else "")
 
         ranked = await service.ranked()
         if not ranked:
@@ -53,6 +53,7 @@ def register(registry: CommandRegistry) -> None:
                     category=item.category.value,
                     score=value,
                 )
+                + (t("commands.memory.memoria.external") if item.origin == "external" else "")
             )
         return "\n".join(lines)
 
@@ -71,7 +72,7 @@ def register(registry: CommandRegistry) -> None:
         key, value = ctx.args[0], " ".join(ctx.args[1:])
         # Explicit requests from the user are important by definition.
         item = await service.save(
-            key, value, category=MemoryCategory.FATO, relevance=0.8, source=current_trace_id()
+            key, value, category=MemoryCategory.FATO, relevance=0.8, source=current_trace_id(), origin="owner"
         )
         await emit(EventType.MEMORY, op="save", key=item.key, value=item.value, by="user")
         return t("commands.memory.lembrar.saved", key=item.key, value=item.value)

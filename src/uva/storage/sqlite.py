@@ -130,6 +130,12 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX idx_sent_at ON sent_messages (at);
     """,
+    # 10: where each turn came from (uva/provenance.py): owner | agent | external | system
+    """
+    ALTER TABLE conversation_turns ADD COLUMN origin TEXT NOT NULL DEFAULT 'owner';
+    UPDATE conversation_turns SET origin = 'agent' WHERE role = 'bot';
+    UPDATE conversation_turns SET origin = 'system' WHERE role = 'notice' OR source IN ('routine', 'goal', 'initiative');
+    """,
 ]
 
 

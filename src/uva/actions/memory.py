@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from uva import provenance
 from uva.actions.registry import ActionContext, ActionRegistry, ActionResult
 from uva.i18n import t
 from uva.logging.events import EventType, current_trace_id, emit
@@ -32,6 +33,11 @@ class MemoryForgetParams(BaseModel):
     key: str = Field(min_length=1)
 
 
+def _origin(ctx: ActionContext) -> str:
+    """The LLM wrote it ("agent"), or it came from outside content and he confirmed it."""
+    return provenance.EXTERNAL if ctx.tainted else provenance.AGENT
+
+
 def no_memory() -> ActionResult:
     return ActionResult(text=t("actions.memory.not_configured"))
 
@@ -41,7 +47,6 @@ def register(registry: ActionRegistry) -> None:
         "memory_save",
         "Stores something lasting about the user (profile, preference, fact or context)",
         MemorySaveParams,
-        proactive_safe=True,
     )
     async def memory_save(params: MemorySaveParams, ctx: ActionContext) -> ActionResult:
         memory = ctx.services.memory
@@ -54,6 +59,7 @@ def register(registry: ActionRegistry) -> None:
             relevance=params.relevance,
             ttl_days=params.ttl_days,
             source=current_trace_id(),
+            origin=_origin(ctx),
         )
         await emit(EventType.MEMORY, op="save", key=item.key, value=item.value)
         # Silent on purpose: the LLM's own reply acknowledges it.
@@ -63,13 +69,12 @@ def register(registry: ActionRegistry) -> None:
         "memory_update",
         "Updates an existing memory",
         MemoryUpdateParams,
-        proactive_safe=True,
     )
     async def memory_update(params: MemoryUpdateParams, ctx: ActionContext) -> ActionResult:
         memory = ctx.services.memory
         if memory is None:
             return no_memory()
-        item = await memory.update(params.key, value=params.value, relevance=params.relevance)
+        item = await memory.update(params.key, value=params.value, relevance=params.relevance, origin=_origin(ctx))
         await emit(EventType.MEMORY, op="update", key=params.key, found=item is not None)
         return ActionResult(data={"key": params.key, "found": item is not None})
 

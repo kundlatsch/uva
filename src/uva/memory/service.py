@@ -77,6 +77,7 @@ class MemoryService:
         relevance: float = 0.5,
         ttl_days: int | None = None,
         source: str | None = None,
+        origin: str = "owner",
     ) -> MemoryItem:
         """Create or replace the value of ``key`` (keeps its history counters)."""
         now = utcnow()
@@ -92,6 +93,7 @@ class MemoryService:
             use_count=(existing.use_count + 1) if existing else 0,
             expires_at=now + timedelta(days=ttl_days) if ttl_days else None,
             source=source,
+            origin=origin,
         )
         await self.store.upsert(item)
         await self._indexed(item)
@@ -105,6 +107,7 @@ class MemoryService:
         value: str | None = None,
         relevance: float | None = None,
         category: MemoryCategory | None = None,
+        origin: str | None = None,
     ) -> MemoryItem | None:
         """Change fields of an existing item; counts as a use."""
         item = await self.store.get(normalize_key(key))
@@ -117,6 +120,8 @@ class MemoryService:
             changes["relevance"] = relevance
         if category is not None:
             changes["category"] = category
+        if origin is not None:
+            changes["origin"] = origin
         item = item.model_copy(update=changes)
         await self.store.upsert(item)
         await self._indexed(item)

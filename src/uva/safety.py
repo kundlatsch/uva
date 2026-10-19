@@ -134,6 +134,9 @@ class HeldWrite:
     expires_at: float
     # "write" (held by the injection scanner) or "mcp" (an MCP write, always asked).
     kind: str = "write"
+    # Held because the turn had read outside content: once confirmed it is stored
+    # with origin "external".
+    tainted: bool = False
 
 
 class HeldWrites:
@@ -144,14 +147,14 @@ class HeldWrites:
     def __init__(self) -> None:
         self._items: dict[str, HeldWrite] = {}
 
-    def add(self, action: str, params: dict, kind: str = "write") -> str:
+    def add(self, action: str, params: dict, kind: str = "write", tainted: bool = False) -> str:
         import secrets
         import time
 
         now = time.monotonic()
         self._items = {k: v for k, v in self._items.items() if v.expires_at > now}
         token = secrets.token_hex(4)
-        self._items[token] = HeldWrite(action, params, now + self.TTL_SECONDS, kind)
+        self._items[token] = HeldWrite(action, params, now + self.TTL_SECONDS, kind, tainted)
         return token
 
     def pop(self, token: str) -> HeldWrite | None:

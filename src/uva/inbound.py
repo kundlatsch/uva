@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 
 from uva.clock import format_local
-from uva.safety import as_data
+from uva.safety import as_data, sanitize_untrusted
 
 MAX_MESSAGES = 12
 MAX_CHARS = 50_000
@@ -211,7 +211,8 @@ def compose(items: list[Inbound], tz: tzinfo) -> Composed:
     if quote is not None:
         context.append(quote.render(tz))
     for item in forwards:
-        context.append(f"{item.forward}:\n" + as_data("forwarded message", item.text or "(no text)"))
+        clean, _ = sanitize_untrusted(item.text or "(no text)")
+        context.append(f"{item.forward}:\n" + as_data("forwarded message", clean))
     text = "\n".join(own)
     labels = [*own] + [
         f"[{item.forward}] {item.text[:LABEL_FORWARD_CHARS]}".rstrip() for item in forwards

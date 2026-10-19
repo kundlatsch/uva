@@ -35,6 +35,16 @@ class ActionContext:
     allow_retry: bool = False
     # The user confirmed this exact call (a write the injection scanner held back).
     confirmed: bool = False
+    # This turn read outside content (search, a web page, a forward, a document,
+    # an MCP tool, a research note): writes into memory/profile/skills/data/ ask
+    # first (uva/provenance.py). Lasts for the turn only.
+    tainted: bool = False
+    taint_sources: list[str] = field(default_factory=list)
+
+    def taint(self, source: str) -> None:
+        self.tainted = True
+        if source not in self.taint_sources:
+            self.taint_sources.append(source)
 
 
 @dataclass(slots=True)

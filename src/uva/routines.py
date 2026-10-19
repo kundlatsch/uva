@@ -310,10 +310,13 @@ class Outcome:
 
 
 async def _run_request(router, routine: Routine, previous: Routine | None) -> Outcome:
+    from uva.provenance import system_turn
+
     try:
-        reply = await router.handle_text(
-            routine.request, skill=routine.skill or None, note=routine_note(routine, previous)
-        )
+        with system_turn():  # a proactive run: it never writes facts about him
+            reply = await router.handle_text(
+                routine.request, skill=routine.skill or None, note=routine_note(routine, previous)
+            )
     except Exception as exc:  # a broken routine must not block the others
         return Outcome("failed", t("routines.failed", error=repr(exc))[:300])
     status, text = classify(reply.text)

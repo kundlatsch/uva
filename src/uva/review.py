@@ -25,7 +25,8 @@ from uva.actions.registry import ActionContext, InvalidActionError
 from uva.clock import format_local, start_of_day, utcnow
 from uva.i18n import t
 from uva.index.service import TurnRecord
-from uva.llm.base import LLMError, LLMMessage
+from uva import provenance
+from uva.llm.base import LLMError, LLMMessage, without_context
 from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
 from uva.logging import get_logger
@@ -92,7 +93,8 @@ def transcript(turns: list[TurnRecord], tz) -> str:
     lines = []
     for turn in turns:
         who = "User" if turn.role == "user" else "UVA"
-        text = turn.text if len(turn.text) <= TURN_CHARS else turn.text[: TURN_CHARS - 1] + "…"
+        text = without_context(turn.text)  # what recall injected is never re-extracted
+        text = text if len(text) <= TURN_CHARS else text[: TURN_CHARS - 1] + "…"
         lines.append(f"[{format_local(turn.at, tz, '%d/%m %H:%M')}] {who}: {text}")
     out = "\n".join(lines)
     return out if len(out) <= TRANSCRIPT_CHARS else "…" + out[-TRANSCRIPT_CHARS:]
@@ -113,7 +115,9 @@ async def review_tick(services: Services, notify: Notify | None, now: datetime |
         return "disabled"
     now = now or utcnow()
     last = int(await index.db.get_kv(STATE_KEY) or 0)
-    turns = [turn for turn in await index.turns_after(last) if turn.role != "notice"]
+    # Facts come from what he said: never from outside content or proactive runs.
+    turns = [turn for turn in await index.turns_after(last) if turn.role != "notice"
+             and turn.origin not in (provenance.EXTERNAL, provenance.SYSTEM)]
     if not turns or not is_due(turns, services.settings, now):
         return "waiting"
     with trace():

@@ -30,6 +30,9 @@ class MemoryItem(BaseModel):
     use_count: int = 0
     expires_at: datetime | None = None  # removed by a Mongo TTL index
     source: str | None = None  # trace_id that created it
+    # Who it came from (uva/provenance.py): owner (/lembrar), agent (the LLM), or
+    # external (kept after reading outside content, with his confirmation).
+    origin: str = "owner"
 
     def is_expired(self, now: datetime) -> bool:
         return self.expires_at is not None and self.expires_at <= now

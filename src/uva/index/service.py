@@ -72,6 +72,7 @@ class TurnRecord:
     text: str
     source: str
     trace_id: str | None = None
+    origin: str = "owner"  # owner | agent | external | system (uva/provenance.py)
 
 
 def match_query(words: Iterable[str]) -> str:
@@ -220,16 +221,21 @@ class SearchIndex:
         source: str | None = None,
         trace_id: str | None = None,
         at: datetime | None = None,
+        origin: str | None = None,
     ) -> int:
-        """Append one turn to the log (and to the index). Returns its id."""
+        """Append one turn to the log (and to the index). Returns its id.
+        ``origin`` defaults to what the role and the turn say (provenance)."""
+        from uva.provenance import turn_role_origin
+
         if source is None:
             source = notice_source.get() if role == "notice" else turn_source.get()
+        origin = origin or turn_role_origin(role)
         at = (at or utcnow()).astimezone(UTC)
 
         def job(conn: sqlite3.Connection) -> int:
             cursor = conn.execute(
-                "INSERT INTO conversation_turns (at, role, text, trace_id, source) VALUES (?, ?, ?, ?, ?)",
-                (at.isoformat(), role, text, trace_id, source),
+                "INSERT INTO conversation_turns (at, role, text, trace_id, source, origin) VALUES (?, ?, ?, ?, ?, ?)",
+                (at.isoformat(), role, text, trace_id, source, origin),
             )
             turn_id = int(cursor.lastrowid)
             self._put(conn, "turn", str(turn_id), f"{role} {source}", text, at.isoformat())
@@ -417,4 +423,5 @@ def _turn(row: sqlite3.Row) -> TurnRecord:
         text=row["text"],
         source=row["source"],
         trace_id=row["trace_id"],
+        origin=row["origin"] if "origin" in row.keys() else "owner",
     )

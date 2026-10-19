@@ -22,10 +22,10 @@ from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
 from uva.llm.base import LLMError, LLMMessage
-from uva import documents, sent
+from uva import documents, provenance, sent
 from uva.inbound import FORWARD_ONLY_REQUEST, Composed
 from uva.media import current_photo, mentions_image
-from uva.safety import as_data
+from uva.safety import as_data, sanitize_untrusted
 from uva.stickers import SKIP, StickerFocus, action_message, action_request, as_message
 from uva.stm.refs import remember_ref
 from uva.text import normalize
@@ -41,6 +41,8 @@ UNDO_TURN = ("/desfazer_turno", "/undo_turn")
 PAGES_TTL = timedelta(hours=1)
 PAGES_KEPT = 20
 HEARD_CHARS = 800
+# A document's text kept in the conversation log (the whole text is in its note).
+EXTERNAL_LOG_CHARS = 2000
 
 
 def describe_prompt(count: int = 1) -> str:
@@ -108,8 +110,11 @@ class Router:
                     work = self.agent.handle(FORWARD_ONLY_REQUEST, image=photo, images=images, note=note)
                 else:
                     work = self._route(text.strip(), user_id, photo, skill, note, images)
-                reply = await self._safely(work)
-                await self._remember(label + (" [photo]" if photo else ""), reply)
+                with provenance.incoming("forward" if inbound is not None and inbound.external else ""):
+                    reply = await self._safely(work)
+                external = inbound.external if inbound is not None else ""
+                own = (inbound.text if inbound is not None else text) + (" [photo]" if photo else "")
+                await self._remember(label + (" [photo]" if photo else ""), reply, logged=own, external=external)
                 return self._first_page(reply)
         finally:
             current_photo.reset(token)
@@ -162,12 +167,15 @@ class Router:
         label = f"[document {filename}] {caption}".strip()
         with trace():
             await emit(EventType.MESSAGE_RECEIVED, text=label, kind="document")
-            reply = await self._safely(self._document(filename, data, caption, user_id, inbound))
-            await self._remember(label, reply)
+            external: list[str] = []
+            with provenance.incoming("document"):
+                reply = await self._safely(self._document(filename, data, caption, user_id, inbound, external))
+            await self._remember(label, reply, external="\n\n".join(external))
             return self._first_page(reply)
 
     async def _document(
-        self, filename: str, data: bytes, caption: str, user_id: int | None, inbound: Composed | None
+        self, filename: str, data: bytes, caption: str, user_id: int | None, inbound: Composed | None,
+        external: list[str] | None = None,
     ) -> Reply:
         services = self.services
         settings = services.settings
@@ -184,7 +192,9 @@ class Router:
         await remember_ref(services, "nota", note.path, f"document: {filename}")
         await emit(EventType.ROUTE, tier="document", file=filename, chars=len(extracted.text),
                    truncated=extracted.truncated, note=note.path)
-        shown = extracted.text[: settings.document_context_chars]
+        if external is not None:  # the document's text goes to the log as outside content
+            external.append(f"Document {filename} ({note.path}):\n{extracted.text[:EXTERNAL_LOG_CHARS]}")
+        shown, _ = sanitize_untrusted(extracted.text[: settings.document_context_chars])
         pages = f"{extracted.pages} pages, " if extracted.pages else ""
         clipped = f", clipped at {settings.document_max_chars}" if extracted.truncated else ""
         context = (
@@ -348,15 +358,23 @@ class Router:
             await self._remember(f"[voice] {transcript.text}", reply)
             return [heard, reply]
 
-    async def _remember(self, text: str, reply: Reply) -> None:
-        """Keep the exchange in the short-term memory and in the conversation
-        log (best effort)."""
+    async def _remember(self, text: str, reply: Reply, *, logged: str | None = None, external: str = "") -> None:
+        """Keep the exchange in the short-term memory (``text``) and in the
+        conversation log (``logged``, his own words, plus ``external``: forwards
+        and documents, with origin "external"), best effort."""
         if text.strip().lower().split(" ", 1)[0] in UNDO_TURN:
             return  # undoing the last exchange must not leave a new one behind
         said = reply.summary or reply.text
-        if self.services.index is not None:
+        index = self.services.index
+        if index is not None:
             try:
-                await self.services.index.add_exchange(text, said, trace_id=current_trace_id())
+                trace_id = current_trace_id()
+                if external:
+                    await index.add_turn("user", external, trace_id=trace_id, origin=provenance.EXTERNAL)
+                own = text if logged is None else logged
+                if own.strip():
+                    await index.add_turn("user", own, trace_id=trace_id)
+                await index.add_turn("bot", said, trace_id=trace_id)
             except Exception as exc:
                 await emit(EventType.ERROR, where="conversation_log", error=repr(exc))
         if self.services.stm is None:
@@ -442,7 +460,8 @@ class Router:
             await emit(EventType.ACTION, name=held.action, held=True, ok=False, denied=True)
             return Reply(t("mcp.denied") if held.kind == "mcp" else t("router.write.denied"))
         action, params = self.services.actions.validate(held.action, held.params)
-        ctx = ActionContext(self.services, run_command=self._run_command_for_llm, confirmed=True)
+        ctx = ActionContext(self.services, run_command=self._run_command_for_llm, confirmed=True,
+                            tainted=held.tainted)
         result = await execute_action(action, params, ctx)
         return Reply(result.text or self.services.say("confirmacao"), buttons=result.buttons)
 

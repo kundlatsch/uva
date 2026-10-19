@@ -46,7 +46,9 @@
     "confirm": "⚠️ O que eu ia salvar ({action}) parece instrução para um assistente ({findings}). Salvo mesmo assim?",
     "refused": "⚠️ Não salvei ({action}): parece instrução para um assistente ({findings}).",
     "yes": "Sim, salvar",
-    "no": "Não"
+    "no": "Não",
+    "confirm_external": "⚠️ Eu ia salvar isto ({action}) logo depois de ler conteúdo de fora ({findings}). É seu mesmo? Salvo?",
+    "refused_external": "⚠️ Não salvei ({action}): veio depois de ler conteúdo de fora ({findings}) e não tinha ninguém para confirmar."
   },
   "document": {
     "no_vault": "Preciso do second brain para guardar documentos, e ele não está configurado."

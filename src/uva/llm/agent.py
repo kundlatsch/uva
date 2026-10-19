@@ -23,6 +23,7 @@ from uva.llm.prompts import assistant_system_prompt, message_context
 from uva.mcp.catalog import sync_actions
 from uva.memory.service import render_memory
 from uva.progress import activity, placeholder
+from uva import provenance
 from uva.recall import recall
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
@@ -90,12 +91,22 @@ class Agent:
             found_mode = modes.find(mode, services.settings.repo_dir / "data" / "modes.json")
             if found_mode is not None:
                 note = "\n".join(x for x in (modes.overlay(*found_mode), note) if x)
+        ctx = ActionContext(services, INTERACTIVE, self.run_command)
+        for source in provenance.incoming_sources():  # a forward, a document
+            ctx.taint(source)
+        if provenance.turn_origin() == provenance.SYSTEM:
+            # Proactive runs (routines) keep notes but never write facts about him.
+            actions = [a for a in actions if a.name not in provenance.MEMORY_WRITES]
+        allowed = {a.name for a in actions}
         if text and services.settings.link_autofetch:
             links = bare_links(text, services.settings.link_autofetch_max)
             if links:  # read before answering: "o que acha disso? https://..."
                 await activity("lendo_link")
                 note = "\n\n".join(x for x in (await self._read_links(links), note) if x)
+                ctx.taint("link")
         found = await recall(services, text) if text else None
+        if found and (external := [n for n in found.notes if provenance.external_note(n)]):
+            ctx.taint(f"note:{external[0]}")
         if found:
             await emit(EventType.ROUTE, tier="recall", notes=found.notes, sections=len(found.sections))
         system = assistant_system_prompt(
@@ -117,7 +128,6 @@ class Agent:
         images = (image, *images) if image else ()
         content = context + (text or "(image without caption)")
         messages = [*history, LLMMessage("user", content, images=images)]
-        ctx = ActionContext(services, INTERACTIVE, self.run_command)
         for round_ in range(MAX_LOOKUP_ROUNDS + 1):
             try:
                 response = await services.llm.complete(
@@ -135,7 +145,7 @@ class Agent:
 
             try:
                 plan = parse_plan(response.text)
-                calls = [services.actions.validate(c.type, c.params) for c in plan.actions]
+                calls = [services.actions.validate(c.type, c.params, allowed=allowed) for c in plan.actions]
             except (PlanError, InvalidActionError) as exc:
                 # Nothing from a broken answer is executed.
                 await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
@@ -264,14 +274,19 @@ GUARDED_WRITES = frozenset({
 })
 
 
+def guarded_write(action: Action, params) -> bool:
+    """A write into what the LLM reads again later (memory, profile, skills, data/)."""
+    if action.name not in GUARDED_WRITES:
+        return False
+    data = params.model_dump()
+    return not action.name.startswith("file_") or str(data.get("path", "")).strip().startswith("data/")
+
+
 def held_back(action: Action, params) -> list:
     """Injection findings that stop this write until the user confirms ([] = go)."""
-    if action.name not in GUARDED_WRITES:
+    if not guarded_write(action, params):
         return []
-    data = params.model_dump()
-    if action.name.startswith("file_") and not str(data.get("path", "")).strip().startswith("data/"):
-        return []
-    return scan_untrusted(json.dumps(data, ensure_ascii=False))
+    return scan_untrusted(json.dumps(params.model_dump(), ensure_ascii=False))
 
 
 async def execute_action(action: Action, params, ctx: ActionContext) -> ActionResult:
@@ -280,7 +295,10 @@ async def execute_action(action: Action, params, ctx: ActionContext) -> ActionRe
     Never raises, except RetryableActionError inside background tasks.
     """
     if not ctx.confirmed and (findings := held_back(action, params)):
-        return await _hold(action, params, ctx, findings)
+        return await _hold(action, params, ctx, describe(findings)[:300])
+    if not ctx.confirmed and ctx.tainted and guarded_write(action, params):
+        # Outside content was read in this turn: he says yes before it is kept.
+        return await _hold(action, params, ctx, ", ".join(ctx.taint_sources), external=True)
     started = time.perf_counter()
     try:
         result = await action.handler(params, ctx)
@@ -299,6 +317,8 @@ async def execute_action(action: Action, params, ctx: ActionContext) -> ActionRe
     except Exception as exc:
         result = ActionResult(text=t("llm.agent.action_failed", action=action.name))
         ok, error = False, repr(exc)
+    if ok and (source := provenance.taint_of(action.name, params.model_dump(), result.data)):
+        ctx.taint(source)
     await emit(
         EventType.ACTION,
         name=action.name,
@@ -312,18 +332,21 @@ async def execute_action(action: Action, params, ctx: ActionContext) -> ActionRe
     return result
 
 
-async def _hold(action: Action, params, ctx: ActionContext, findings) -> ActionResult:
-    """Ask the user before a suspicious write (in a conversation); refuse it elsewhere."""
+async def _hold(action: Action, params, ctx: ActionContext, shown: str, *, external: bool = False) -> ActionResult:
+    """Ask the user before a suspicious write (in a conversation); refuse it elsewhere.
+    ``shown`` is why: the scanner's findings, or (``external``) the outside content
+    this turn read."""
+    kind = "_external" if external else ""
     from uva.replies import Button
 
-    shown = describe(findings)[:300]
     await emit(EventType.ACTION, name=action.name, params=params.model_dump(), ok=False,
-               held=True, findings=shown, scope=ctx.scope.value)
+               held=True, findings=shown, scope=ctx.scope.value, tainted=ctx.taint_sources)
     if ctx.scope is not INTERACTIVE:
-        return ActionResult(text=t("router.write.refused", action=action.name, findings=shown), data={"ok": False})
-    token = ctx.services.held_writes.add(action.name, params.model_dump())
+        return ActionResult(text=t(f"router.write.refused{kind}", action=action.name, findings=shown),
+                            data={"ok": False})
+    token = ctx.services.held_writes.add(action.name, params.model_dump(), tainted=ctx.tainted)
     return ActionResult(
-        text=t("router.write.confirm", action=action.name, findings=shown),
+        text=t(f"router.write.confirm{kind}", action=action.name, findings=shown),
         data={"ok": False, "held": token},
         buttons=[Button(t("router.write.yes"), f"wrok:{token}"), Button(t("router.write.no"), f"wrno:{token}")],
     )
