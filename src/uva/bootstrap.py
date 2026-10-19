@@ -23,6 +23,7 @@ from uva.memory.service import MemoryService, RedisWorkingVersion
 from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
+from uva.skills import SkillLibrary
 from uva.projects.service import ProjectService
 from uva.shell.service import ShellService
 from uva.storage.stickers import StickerRepository
@@ -72,6 +73,9 @@ def build_services(settings: Settings) -> Services:
     services.vault = Vault(Path(settings.second_brain_path), services.tz)
     sqlite_db = Database(Path(settings.sqlite_path))
     services.index = SearchIndex(sqlite_db, services.vault)
+    services.skills = SkillLibrary(settings.skills_dir, sqlite_db)
+    if llm is not None and llm.soul is not None:
+        llm.soul.skills = services.skills  # the index goes right after the soul
     services.vault.on_change.append(services.index.note_changed)
     services.vault.on_remove.append(services.index.note_removed)
     memory_store = mongo.MongoMemoryStore(db)

@@ -7,7 +7,8 @@
     "/routine every 6 hours <request>",
     "/routines — list",
     "/routine <id> pause|resume|remove|now",
-    "(Portuguese works too: todo dia 08:00, segunda e quinta 9h, a cada 6 horas)"
+    "(Portuguese works too: todo dia 08:00, segunda e quinta 9h, a cada 6 horas)",
+    "/routine <id> skill <name>|none"
   ],
   "bad_time": "I didn't get the time: {error}.",
   "created": [
@@ -22,7 +23,10 @@
     "resumed": "▶️ Routine {id} resumed.",
     "removed": "🗑️ Routine {id} removed.",
     "run_now": "⏰ Routine {id} will run in the next minute.",
-    "usage_arg": "<when> <request> | <id> pause|resume|remove|now"
+    "usage_arg": "<when> <request> | <id> pause|resume|delete|now|skill",
+    "unknown_skill": "I don't have a skill '{skill}' (/skills).",
+    "skill_set": "🧠 Routine {id} now follows the skill {skill}.",
+    "skill_cleared": "Routine {id} no longer follows a skill."
   },
   "rotinas": {
     "description": "Scheduled recurring tasks",

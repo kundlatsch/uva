@@ -74,9 +74,10 @@ class Router:
         return self.services.registry
 
     async def handle_text(
-        self, text: str, user_id: int | None = None, photo: str | None = None
+        self, text: str, user_id: int | None = None, photo: str | None = None, skill: str | None = None
     ) -> Reply:
-        """Route a message; ``photo`` is a data URL when it came with an image."""
+        """Route a message; ``photo`` is a data URL when it came with an image;
+        ``skill`` names a skill to follow (routines, goals)."""
         await self._mark_busy()
         if photo is not None:
             self.services.last_photo.set(photo)
@@ -84,7 +85,7 @@ class Router:
         try:
             with trace():
                 await emit(EventType.MESSAGE_RECEIVED, text=text, photo=photo is not None)
-                reply = await self._safely(self._route(text.strip(), user_id, photo))
+                reply = await self._safely(self._route(text.strip(), user_id, photo, skill))
                 await self._remember(text + (" [photo]" if photo else ""), reply)
                 return self._first_page(reply)
         finally:
@@ -322,13 +323,19 @@ class Router:
         await emit(EventType.REPLY, length=len(reply.text), file=reply.document is not None)
         return reply
 
-    async def _route(self, text: str, user_id: int | None, photo: str | None = None) -> Reply:
+    async def _route(
+        self, text: str, user_id: int | None, photo: str | None = None, skill: str | None = None
+    ) -> Reply:
         # Teaching a sticker: its meaning, or "toda vez que eu mandar essa figurinha...".
         if photo is None and (reply := await self._try_sticker_text(text)) is not None:
             return reply
         # Tier 1: explicit command (captions too: "/decidir ..." uses the photo).
         if text.startswith("/"):
             return await self._dispatch_command(text, user_id)
+
+        # A skill named by the caller (a routine or goal that has one).
+        if skill and self.services.skills is not None and (found := self.services.skills.get(skill)):
+            return await self.agent.handle(text, image=photo, skill=found)
 
         # A message with a picture goes straight to the (vision) LLM.
         if photo is not None:
@@ -352,8 +359,10 @@ class Router:
         if reply := await self._try_similarity(text, user_id):
             return reply
 
-        # Tier 3: the LLM (within budget).
-        return await self.agent.handle(text)
+        # Tier 3: the LLM (within budget), with the skill whose name or trigger
+        # phrase is in the message, if any.
+        matched = self.services.skills.match(text) if self.services.skills is not None else None
+        return await self.agent.handle(text, skill=matched)
 
     async def _try_status_question(self, text: str) -> Reply | None:
         question = status_question(text)
@@ -451,7 +460,9 @@ class Router:
             raise KeyError(name)
         await emit(EventType.COMMAND, name=command.name, args=args)
         raw = " ".join(args) if raw_args is None else raw_args
-        ctx = CommandContext(args=args, services=self.services, user_id=user_id, raw_args=raw)
+        ctx = CommandContext(
+            args=args, services=self.services, user_id=user_id, raw_args=raw, ask=self.agent.handle
+        )
         reply = Reply.coerce(await command.handler(ctx))
         if reply.summary is None:
             first_line = reply.text.strip().splitlines()[0] if reply.text.strip() else ""

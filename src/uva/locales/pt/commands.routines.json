@@ -6,7 +6,8 @@
     "/rotina segunda e quinta 9h <pedido>",
     "/rotina a cada 6 horas <pedido>",
     "/rotinas — lista",
-    "/rotina <id> pausar|retomar|remover|agora"
+    "/rotina <id> pausar|retomar|remover|agora",
+    "/rotina <id> habilidade <nome>|nenhuma"
   ],
   "bad_time": "Não entendi o horário: {error}.",
   "created": [
@@ -21,7 +22,10 @@
     "resumed": "▶️ Rotina {id} retomada.",
     "removed": "🗑️ Rotina {id} removida.",
     "run_now": "⏰ Rotina {id} vai rodar no próximo minuto.",
-    "usage_arg": "<quando> <pedido> | <id> pausar|retomar|remover|agora"
+    "usage_arg": "<quando> <pedido> | <id> pausar|retomar|remover|agora|habilidade",
+    "unknown_skill": "Não tenho a habilidade '{skill}' (/habilidades).",
+    "skill_set": "🧠 A rotina {id} agora segue a habilidade {skill}.",
+    "skill_cleared": "A rotina {id} não segue mais nenhuma habilidade."
   },
   "rotinas": {
     "description": "Tarefas recorrentes agendadas",

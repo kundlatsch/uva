@@ -25,6 +25,7 @@ from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.replies import Reply
 from uva.services import Services
+from uva.skills import Skill, attach
 from uva.stm.refs import remember_ref, task_label
 
 # The Portuguese text, kept as a constant for importers; replies use llm_disabled().
@@ -57,8 +58,9 @@ class Agent:
         self.run_command = run_command
         self.history: deque[LLMMessage] = deque(maxlen=services.settings.llm_history_messages)
 
-    async def handle(self, text: str, image: str | None = None) -> Reply:
-        """Plan and act. With ``image`` the vision model sees the picture too."""
+    async def handle(self, text: str, image: str | None = None, skill: Skill | None = None) -> Reply:
+        """Plan and act. With ``image`` the vision model sees the picture too;
+        with ``skill`` its body goes along as how to do this request."""
         services = self.services
         if services.llm is None or services.actions is None:
             await emit(EventType.ROUTE, tier="llm_disabled")
@@ -80,10 +82,14 @@ class Agent:
             registry=services.registry,
             working_memory=await self._working_memory(),
         )
+        if skill is not None and services.skills is not None:
+            await services.skills.used(skill.name)
+            await emit(EventType.ROUTE, tier="skill", skill=skill.name)
         context = message_context(
             tz=services.tz,
             recent_context=recent_context,
             recalled=found.render() if found else "",
+            skill=attach(skill) if skill is not None else "",
         )
         images = (image,) if image else ()
         content = context + (text or "(image without caption)")

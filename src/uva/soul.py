@@ -1,5 +1,6 @@
 """Always-loaded documents: the personality (soul.md) and the user's profile
-(profile.md), put at the very start of every LLM system prompt.
+(profile.md), put at the very start of every LLM system prompt, followed by
+the skill index (names and descriptions only; see uva/skills.py).
 
 The files are re-read whenever their modification time changes, so edits (by
 Gustavo or by the bot itself) apply on the next message without a restart.
@@ -36,6 +37,8 @@ class Soul:
         self.path = path
         self.max_chars = max_chars
         self.profile = Soul(profile, max_chars=PROFILE_MAX_CHARS) if profile is not None else None
+        # Skill index (uva.skills.SkillLibrary), placed right after the soul.
+        self.skills = None
         self._mtime: float | None = None
         self._text = ""
 
@@ -58,6 +61,8 @@ class Soul:
             blocks.append(f"{PROFILE_PREAMBLE}{profile}")
         if soul := self.text():
             blocks.append(f"{PREAMBLE}{soul}")
+        if self.skills is not None and (index := self.skills.index_text()):
+            blocks.append(index)
         if not blocks:
             return system
         return ("\n\n---\n\n".join(blocks) + f"\n\n---\n\n{system or ''}").rstrip()

@@ -1,5 +1,13 @@
 {
-  "weekdays": ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"],
+  "weekdays": [
+    "seg",
+    "ter",
+    "qua",
+    "qui",
+    "sex",
+    "sáb",
+    "dom"
+  ],
   "schedule": {
     "day": "todo dia às {at}",
     "weekdays": "{days} às {at}",
@@ -16,5 +24,6 @@
   "errors": {
     "no_days": "agenda sem dias",
     "bad_time": "horário inválido"
-  }
+  },
+  "skill_line": "habilidade: {skill}"
 }

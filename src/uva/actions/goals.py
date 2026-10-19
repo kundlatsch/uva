@@ -27,6 +27,7 @@ class GoalCreateParams(BaseModel):
         ge=0.25,
         description="Interval between runs in hours (recorrente; e.g. 6 = 4 times a day, 24 = daily)",
     )
+    skill: str = Field(default="", description="A skill of yours to follow on every run (optional)")
 
 
 def register(registry: ActionRegistry) -> None:

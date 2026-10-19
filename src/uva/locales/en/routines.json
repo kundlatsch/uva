@@ -1,5 +1,13 @@
 {
-  "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  "weekdays": [
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun"
+  ],
   "schedule": {
     "day": "every day at {at}",
     "weekdays": "{days} at {at}",
@@ -16,5 +24,6 @@
   "errors": {
     "no_days": "schedule without days",
     "bad_time": "invalid time"
-  }
+  },
+  "skill_line": "skill: {skill}"
 }

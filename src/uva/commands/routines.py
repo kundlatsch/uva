@@ -14,10 +14,12 @@ ROUTINE_OPS = {
     "retomar": "retomar", "resume": "retomar",
     "remover": "remover", "apagar": "remover", "remove": "remover", "delete": "remover",
     "agora": "agora", "now": "agora",
+    "habilidade": "skill", "skill": "skill",
 }
+NO_SKILL = ("nenhuma", "nenhum", "none", "-")
 
 
-async def create_routine(services, text: str) -> str:
+async def create_routine(services, text: str, skill: str = "") -> str:
     """Shared by /rotina and the routine_create action."""
     if services.routines is None:
         return t("commands.routines.not_configured")
@@ -27,6 +29,10 @@ async def create_routine(services, text: str) -> str:
         return t("commands.routines.bad_time", error=exc)
     if routine is None or len(routine.request) < 3:
         return t("commands.routines.usage")
+    if skill:
+        if services.skills is None or services.skills.get(skill) is None:
+            return t("commands.routines.rotina.unknown_skill", skill=skill)
+        routine.skill = services.skills.get(skill).name
     routine = await schedule(services.routines, routine, services.tz)
     when = format_local(routine.next_run_at, services.tz, "%d/%m %H:%M")
     return t(
@@ -66,6 +72,8 @@ def register(registry: CommandRegistry) -> None:
             if op == "remover":
                 await store.delete(current.id)
                 return t("commands.routines.rotina.removed", id=current.id)
+            if op == "skill":
+                return await _set_skill(ctx, current, args[2] if len(args) > 2 else "")
             await store.update(current.id, next_run_at=_now())
             return t("commands.routines.rotina.run_now", id=current.id)
         text = (ctx.raw_args or " ".join(args)).strip()
@@ -91,6 +99,18 @@ def register(registry: CommandRegistry) -> None:
             f"{body}\n\n{t('commands.routines.usage')}",
             header=t("commands.routines.rotinas.header", count=len(items)),
         )
+
+
+async def _set_skill(ctx: CommandContext, routine, name: str) -> str:
+    store = ctx.services.routines
+    if not name or name.lower() in NO_SKILL:
+        await store.update(routine.id, skill="")
+        return t("commands.routines.rotina.skill_cleared", id=routine.id)
+    skill = ctx.services.skills.get(name) if ctx.services.skills is not None else None
+    if skill is None:
+        return t("commands.routines.rotina.unknown_skill", skill=name)
+    await store.update(routine.id, skill=skill.name)
+    return t("commands.routines.rotina.skill_set", id=routine.id, skill=skill.name)
 
 
 def _now():

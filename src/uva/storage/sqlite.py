@@ -71,6 +71,14 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (kind, ref)
     );
     """,
+    # 4: skill usage counters (the skills themselves are files in data/skills)
+    """
+    CREATE TABLE skill_usage (
+        name TEXT PRIMARY KEY,
+        uses INTEGER NOT NULL DEFAULT 0,
+        last_used_at TEXT
+    );
+    """,
 ]
 
 

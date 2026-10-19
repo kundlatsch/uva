@@ -21,6 +21,8 @@ class CommandContext:
     user_id: int | None = None
     # Everything after the command name, as typed (newlines kept), e.g. for /py.
     raw_args: str = ""
+    # Sends a request to the LLM agent: ask(text, skill=...) (set by the router).
+    ask: Callable[..., Awaitable[Reply]] | None = None
 
     @property
     def registry(self) -> CommandRegistry:

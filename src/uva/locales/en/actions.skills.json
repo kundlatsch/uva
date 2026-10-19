@@ -1,0 +1,14 @@
+{
+  "unavailable": "Skills are not available.",
+  "exists": "there is already a skill named {name}; read it and use skill_patch",
+  "invalid": "Invalid skill: {error}",
+  "missing": "I don't have a skill named {name}.",
+  "read_first": "Read the skill {name} with skill_read before changing it.",
+  "old_missing": "The text to replace is not in {name} (read it again with skill_read).",
+  "old_ambiguous": "The text to replace appears {count} times in {name}; give a longer, unique piece.",
+  "bad_reference": "Reference files go in references/<name>.md (asked: {path}).",
+  "failed": "I couldn't save the skill {name}: {error}",
+  "created": "🧠 New skill: {name} ({path}){commit}.",
+  "patched": "🧠 Skill {name} adjusted{commit}.",
+  "file": "🧠 Skill {name}: saved {path}{commit}."
+}

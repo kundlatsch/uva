@@ -1,0 +1,14 @@
+{
+  "unavailable": "Habilidades não estão disponíveis.",
+  "exists": "já existe uma habilidade chamada {name}; leia e use skill_patch",
+  "invalid": "Habilidade inválida: {error}",
+  "missing": "Não tenho uma habilidade chamada {name}.",
+  "read_first": "Leia a habilidade {name} com skill_read antes de mudar.",
+  "old_missing": "O texto a trocar não está em {name} (leia de novo com skill_read).",
+  "old_ambiguous": "O texto a trocar aparece {count} vezes em {name}; mande um trecho maior e único.",
+  "bad_reference": "Arquivos de referência vão em references/<nome>.md (pedido: {path}).",
+  "failed": "Não consegui salvar a habilidade {name}: {error}",
+  "created": "🧠 Habilidade nova: {name} ({path}){commit}.",
+  "patched": "🧠 Habilidade {name} ajustada{commit}.",
+  "file": "🧠 Habilidade {name}: salvei {path}{commit}."
+}

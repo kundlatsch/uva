@@ -95,7 +95,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/objetivos`, `/goals` | goals UVA works on by itself |
 | `/pausar`, `/pause` `<id>` · `/retomar`, `/resume` `<id>` · `/remover`, `/remove` `<id>` | manage a goal |
 | `/proativo`, `/proactive` `[on\|off\|agora\|now]` | proactive mode status and controls |
-| `/rotina`, `/routine` `<when> <request>` | creates a recurring task; `/rotina <id> pausar\|retomar\|remover\|agora` (or `pause\|resume\|delete\|now`) |
+| `/rotina`, `/routine` `<when> <request>` | creates a recurring task; `/rotina <id> pausar\|retomar\|remover\|agora` (or `pause\|resume\|delete\|now`); `/rotina <id> habilidade <name>\|nenhuma` (`skill`) |
 | `/rotinas`, `/routines` | lists routines |
 | `/gasto`, `/expense` `<amount> <category> [description]` | records an expense |
 | `/gastos`, `/expenses` `[hoje\|semana\|mes\|ano\|tudo]` | expenses by category (also `today\|week\|month\|year\|all`) |
@@ -107,6 +107,8 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/tarefas`, `/tasks` | recent background tasks |
 | `/cancelar`, `/cancel` `<id>` | cancels a task or project |
 | `/frases`, `/phrases` `[category]` | ready-made phrases |
+| `/skills`, `/habilidades` | skills UVA has, with uses and last use |
+| `/skill`, `/habilidade` `<name> [request]` | shows a skill, or does a request following it |
 | `/soul`, `/alma` | shows the personality (soul.md) |
 | `/perfil`, `/profile` `[consolidar\|consolidate]` | size of profile.md and soul.md against their limits; `consolidar` shrinks the profile (keeps a full copy) |
 | `/reverter`, `/undo` `[brain]` | reverts the bot's last change (also `/revert`, `/desfazer`) |
@@ -227,7 +229,7 @@ Every decision is logged with its score, so the thresholds can be tuned by looki
 ## LLM, search and budget
 
 - **Providers**: `LLM_PROVIDER=anthropic` (default; models `claude-haiku-5-5` and `claude-opus-5-5` if not configured) or `openai_compatible` (OpenAI, Ollama, OpenRouter... with `LLM_BASE_URL`). `LLM_MODEL_ROUTER` is the fast model, `LLM_MODEL_HEAVY` the strong one (summaries, goals, self-coding), `LLM_MODEL_VISION` the one for images.
-- **Actions**: `reply`, `run_command` (runs a bot command), `search`, `recall`, notes (`note_create`, `note_append`, `note_update`, `note_search`, `note_read`, `folder_create`), memory (`memory_save`, `memory_update`, `memory_forget`), `goal_create`, `routine_create`, `expense_add`, files (`file_read`, `file_write`, `file_append`), `feature_request`, `project_create`, `shell_run`, `python_run`, `task_status`, `retry`, `cancel`, `decide`, `image_save`, `history_search` (the conversation log) and `action_help` (full params of an action listed in one line). `/comandos` lists them with their parameters.
+- **Actions**: `reply`, `run_command` (runs a bot command), `search`, `recall`, notes (`note_create`, `note_append`, `note_update`, `note_search`, `note_read`, `folder_create`), memory (`memory_save`, `memory_update`, `memory_forget`), `goal_create`, `routine_create`, `expense_add`, files (`file_read`, `file_write`, `file_append`), `feature_request`, `project_create`, `shell_run`, `python_run`, `task_status`, `retry`, `cancel`, `decide`, `image_save`, `history_search` (the conversation log), skills (`skill_read`, `skill_create`, `skill_patch`, `skill_write_file`) and `action_help` (full params of an action listed in one line). `/comandos` lists them with their parameters.
 - **Search**: with Anthropic it uses Claude's own web search; with other providers it uses Wikipedia + DuckDuckGo (`SEARCH_BACKEND` changes this). "Pesquisa sobre X na Wikipédia" forces Wikipedia. The summary is written by the heavy model and includes the sources.
 - **Cost**: every call records model, tokens, estimated cost and duration (`/log 1d llm`). The price table knows the Anthropic models; for others, set `LLM_PRICES` (US$ per 1M tokens). Without a price, `LLM_DEFAULT_PRICE_*` is used (pessimistic). OpenAI cached prompt tokens are billed at 10% of the input price.
 - **Budget**: `LLM_DAILY_BUDGET_USD` (1) and `LLM_MONTHLY_BUDGET_USD` (20) for conversation, `PROACTIVE_DAILY_BUDGET_USD` (0.5) for proactive mode. When a limit is hit, the LLM tier turns off until the next day/month and the bot says so; commands keep working.
@@ -354,6 +356,20 @@ UVA's personality lives in [data/soul.md](../data/soul.md): ironic, playful, a b
 - Cost of the profile (~19 KB, about 4.3k tokens), measured on the router model: about US$ 0.0045 more per message while the cache is warm (cached tokens are billed at 10%), and about US$ 0.027 more on the first message after the cache expires (a few idle minutes).
 - Edit them freely: they are re-read when they change, without restarting anything.
 - `/soul` (`/alma`) shows the current personality.
+
+## Skills (how you want things done)
+
+Skills are UVA's procedural memory: how you want a kind of task done (how to record a book you read, where reflective thoughts go, how to deliver research). Facts about you stay in memory and the profile; skills hold procedures.
+
+- Each skill is a folder `data/skills/<name>/` with a `SKILL.md`: YAML front matter (`name`, `description` up to 120 characters, optional `triggers` with example phrases, `version`) and the sections **When to Use**, **Procedure**, **Pitfalls**, **Verification**; long details can go to `references/*.md`. They are written in English (only the LLM reads them).
+- The system prompt carries only the **index** (name + description, right after the soul); the body is loaded when needed:
+  - the LLM reads it with `skill_read` when a request fits a skill;
+  - a message that contains a skill's name or one of its trigger phrases (fuzzy match) gets the skill attached to the request automatically;
+  - `/skill <name> <request>` (`/habilidade`) does a request following that skill; `/skill <name>` shows it;
+  - a routine or goal can name a skill (`routine_create` / `goal_create` with `skill`, or `/rotina <id> habilidade <name>`), followed on every run.
+- UVA writes them itself: when you correct how it did something or say how you want a kind of task done, it creates a skill (`skill_create`) or fixes the existing one in place (`skill_patch`, which needs a `skill_read` of the same skill first). The prompt asks for lessons, not logs: no one-off details, no failed attempts as advice, no "tool X is broken".
+- Every change is a commit with `UVA-Self-Edit`, so `/reverter` undoes it. Usage (uses, last use) is counted in SQLite (`skill_usage`); `/skills` (`/habilidades`) lists them.
+- Three skills come with the repository: `reading-notes`, `reflective-thoughts` and `research-summary`.
 
 ## Self-editing
 

@@ -1,0 +1,18 @@
+{
+  "unavailable": "Habilidades não estão disponíveis.",
+  "skills": {
+    "description": "Habilidades que eu tenho (como você quer certas tarefas), com usos",
+    "empty": "Nenhuma habilidade ainda. Eu crio quando você me diz como quer um tipo de tarefa.",
+    "header": "🧠 Habilidades ({count}):",
+    "line": "- {name}: {description} · {uses} uso(s), último {last}{idle}",
+    "idle": " · parada",
+    "hint": "/habilidade <nome> mostra uma; /habilidade <nome> <pedido> faz um pedido com ela."
+  },
+  "skill": {
+    "description": "Mostra uma habilidade, ou faz um pedido seguindo ela",
+    "usage_arg": "<nome> [pedido]",
+    "usage": "Uso: /habilidade <nome> [pedido] (veja /habilidades)",
+    "unknown": "Não tenho a habilidade '{name}'. Veja /habilidades.",
+    "no_llm": "Fazer um pedido com uma habilidade precisa do LLM."
+  }
+}

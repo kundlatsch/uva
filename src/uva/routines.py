@@ -47,6 +47,8 @@ class Routine(BaseModel):
     next_run_at: datetime = Field(default_factory=utcnow)
     runs: int = 0
     last_result: str = ""
+    # A skill to follow when the request goes to the LLM (data/skills/<name>).
+    skill: str = ""
 
 
 class RoutineStore(Protocol):
@@ -104,6 +106,8 @@ def describe_schedule(routine: Routine) -> str:
 def describe(routine: Routine, tz: tzinfo) -> str:
     state = "" if routine.enabled else t("routines.paused")
     lines = [f"{routine.id} · {describe_schedule(routine)}{state}", f"   {routine.request[:150]}"]
+    if routine.skill:
+        lines.append("   " + t("routines.skill_line", skill=routine.skill))
     nxt = format_local(routine.next_run_at, tz, "%d/%m %H:%M")
     last = format_local(routine.last_run_at, tz, "%d/%m %H:%M") if routine.last_run_at else t("routines.never")
     lines.append(t("routines.next_line", next=nxt, last=last, runs=routine.runs))
@@ -218,7 +222,7 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
         late = now - routine.next_run_at > timedelta(minutes=10)
         router = router or Router(services)
         try:
-            reply = await router.handle_text(routine.request)
+            reply = await router.handle_text(routine.request, skill=routine.skill or None)
             result = reply.text
         except Exception as exc:  # a broken routine must not block the others
             reply, result = None, t("routines.failed", error=repr(exc))[:300]

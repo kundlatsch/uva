@@ -25,6 +25,7 @@ from uva.llm.budget import Scope
 from uva.llm.client import metered
 from uva.llm.plan import GOAL_PLAN_SCHEMA, GoalPlan, PlanError, parse_plan
 from uva.llm.prompts import goal_brief, goal_system_prompt
+from uva.skills import attach
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit, trace
 from uva.memory.service import render_memory
@@ -187,11 +188,15 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
         max_steps=settings.proactive_max_steps,
         working_memory=await _working_memory(services),
     )
+    skill = services.skills.get(goal.skill) if goal.skill and services.skills is not None else None
+    if skill is not None:
+        await services.skills.used(skill.name)
     brief = goal_brief(
         goal_title=goal.title,
         goal_description=goal.description,
         previous=_previous_results(goal, services),
         tz=services.tz,
+        skill=attach(skill) if skill is not None else "",
     )
     ctx = ActionContext(services, Scope.PROACTIVE)  # no run_command, no retries
     messages = [LLMMessage("user", brief)]

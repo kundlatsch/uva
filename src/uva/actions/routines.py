@@ -16,6 +16,7 @@ class RoutineCreateParams(BaseModel):
             "'a cada 6 horas <pedido>'. Keep the request in the user's own words."
         )
     )
+    skill: str = Field(default="", description="A skill of yours to follow on every run (optional)")
 
 
 def register(registry: ActionRegistry) -> None:
@@ -28,4 +29,6 @@ def register(registry: ActionRegistry) -> None:
     async def routine_create(params: RoutineCreateParams, ctx: ActionContext) -> ActionResult:
         from uva.commands.routines import create_routine  # avoid an import cycle
 
-        return ActionResult(text=await create_routine(ctx.services, params.schedule_and_request))
+        return ActionResult(
+            text=await create_routine(ctx.services, params.schedule_and_request, skill=params.skill)
+        )

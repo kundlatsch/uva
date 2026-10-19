@@ -256,6 +256,11 @@ class Settings(BaseSettings):
         return Path(self.soul_path) if self.soul_path else self.repo_dir / "data" / "soul.md"
 
     @property
+    def skills_dir(self) -> Path:
+        """Skills (procedural memory): <repo>/data/skills/<name>/SKILL.md."""
+        return self.repo_dir / "data" / "skills"
+
+    @property
     def profile_file(self) -> Path:
         """The user's profile (data/profile.md), always loaded like soul.md; gitignored."""
         return Path(self.profile_path) if self.profile_path else self.repo_dir / "data" / "profile.md"

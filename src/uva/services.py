@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from uva.memory.service import MemoryService
     from uva.projects.service import ProjectService
     from uva.shell.service import ShellService
+    from uva.skills import SkillLibrary
     from uva.routines import RoutineStore
     from uva.storage.stickers import StickerRepository
     from uva.selfmod.features import FeatureService
@@ -60,6 +61,8 @@ class Services:
     memory: MemoryService | None = None
     # Full-text index over notes, memory, goals and the conversation log.
     index: SearchIndex | None = None
+    # Procedural memory: data/skills/<name>/SKILL.md.
+    skills: SkillLibrary | None = None
     goals: GoalStore | None = None
     initiatives: InitiativeStore | None = None
     expenses: ExpenseRepository | None = None

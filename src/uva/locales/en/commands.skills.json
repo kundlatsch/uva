@@ -1,0 +1,18 @@
+{
+  "unavailable": "Skills are not available.",
+  "skills": {
+    "description": "Skills I have (how you want some tasks done), with uses",
+    "empty": "No skills yet. I create them when you tell me how you want a kind of task done.",
+    "header": "🧠 Skills ({count}):",
+    "line": "- {name}: {description} · {uses} use(s), last {last}{idle}",
+    "idle": " · idle",
+    "hint": "/skill <name> shows one; /skill <name> <request> does a request with it."
+  },
+  "skill": {
+    "description": "Shows a skill, or does a request following it",
+    "usage_arg": "<name> [request]",
+    "usage": "Usage: /skill <name> [request] (see /skills)",
+    "unknown": "I don't have a skill '{name}'. See /skills.",
+    "no_llm": "Doing a request with a skill needs the LLM."
+  }
+}

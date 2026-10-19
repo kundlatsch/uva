@@ -51,6 +51,8 @@ class Goal(BaseModel):
     last_attempt: str | None = None
     # Set when the goal needs a capability goal runs don't have (a new command).
     needs_feature: str | None = None
+    # A skill to follow on every run (data/skills/<name>).
+    skill: str = ""
 
     @property
     def min_interval(self) -> timedelta:
