@@ -2,7 +2,7 @@
 
 UVA is a personal AI assistant that talks to you on Telegram. It serves **a single user** (you) and runs in Docker on your own PC.
 
-This is the complete reference. For a quick overview, see the [README](../README.md). The original phase-by-phase plan (in Portuguese) is in [plano.md](plano.md).
+This is the complete reference. For a quick overview, see the [README](../README.md). The original phase-by-phase plan (in Portuguese) is in [plano.md](plano.md). How the memory layers fit together is described in [MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md).
 
 ## Contents
 
@@ -268,6 +268,8 @@ The brain is your content, so names stay in Portuguese even though everything in
 - `/brain renomear` (`/brain rename`) brings old notes to this pattern and updates every link. The brain has its own git repository, and `/reverter brain` (`/undo brain`) undoes its last change.
 
 ## Short-term memory
+
+See [MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md) for the technical view of short-term memory, long-term memory, promotion and recall together.
 
 UVA remembers what happened in the current conversation, including what **it** did: a Redis session (`stm:<your id>`), shared by bot and worker, with the last turns (summarized command outputs and messages it sent on its own), references to everything it started or created (searches, tasks, notes, goals, features, expenses) with the status kept up to date by the worker, and which of them is "in focus". Details (in Portuguese) in [memoria-curto-prazo.md](memoria-curto-prazo.md).
 
