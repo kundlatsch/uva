@@ -12,5 +12,10 @@
   "confirm_destructive": "⚠️ Ação DESTRUTIVA no servidor MCP {server}. Executo?\nFerramenta: {tool}\nArgumentos:\n{arguments}",
   "yes": "Sim, executar",
   "denied": "Ok, não executei.",
-  "changed_notice": "⚠️ A definição da(s) ferramenta(s) {tools} do servidor MCP {server} mudou, então desliguei. Confira e use /mcp aprovar {server} para aceitar a mudança."
+  "changed_notice": "⚠️ A definição da(s) ferramenta(s) {tools} do servidor MCP {server} mudou, então desliguei. Confira e use /mcp aprovar {server} para aceitar a mudança.",
+  "block": {
+    "resource": "[recurso {uri}]\n{text}",
+    "link": "[link] {name}: {uri}",
+    "other": "[{kind} {mime}, não mostrado]"
+  }
 }

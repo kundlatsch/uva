@@ -6,5 +6,6 @@
   "describe": "Describe the project, e.g.: /project a static recipe site with search",
   "already_running": "There's already a project being built ({id}); see /projects.",
   "budget": "Daily project budget used up (US$ {spent} of {limit}, PROJECT_DAILY_BUDGET_USD).",
-  "reason": "   reason: {error}"
+  "reason": "   reason: {error}",
+  "commits": "{count} commit(s)"
 }

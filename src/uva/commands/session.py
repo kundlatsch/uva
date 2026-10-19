@@ -8,12 +8,19 @@ from uva import modes
 from uva.clock import utcnow
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.i18n import t
+from uva.labels import voice_text
 from uva.replies import Button, Reply
 from uva.tasks.queue import TaskStatus
 
 # Background tasks started this recently can be stopped by /parar.
 RECENT_TASKS = timedelta(minutes=15)
 REDO_SKIP = ("/refazer", "/retry", "/desfazer_turno", "/undo_turn", "/parar", "/stop")
+
+
+def _spoken(text: str) -> str:
+    """A voice turn is redone from its transcript."""
+    found = voice_text(text)
+    return text if found is None else found
 
 
 async def stoppable(services) -> list[tuple[str, str, str]]:
@@ -133,9 +140,9 @@ async def last_user_text(services) -> str | None:
         if session is not None:
             for turn in reversed(session.turns):
                 if turn.role == "user" and not turn.text.lower().startswith(REDO_SKIP):
-                    return turn.text.removeprefix("[voice] ")
+                    return _spoken(turn.text)
     if services.index is not None:
         for turn in reversed(await services.index.turns(limit=20)):
             if turn.role == "user" and not turn.text.lower().startswith(REDO_SKIP):
-                return turn.text.removeprefix("[voice] ")
+                return _spoken(turn.text)
     return None

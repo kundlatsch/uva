@@ -174,8 +174,8 @@ def test_render_result_and_mask():
         {"type": "resource_link", "uri": "https://x", "name": "x"},
         {"type": "image", "mime_type": "image/png"},
     ]})
-    assert "a" in text and "[resource file:///x]\nbody" in text and "[link] x: https://x" in text
-    assert "[image image/png, not shown]" in text
+    assert "a" in text and "[recurso file:///x]\nbody" in text and "[link] x: https://x" in text
+    assert "[image image/png, não mostrado]" in text
     assert render_result({"content": [], "structured": {"n": 1}}) == '{"n": 1}'
     assert mask({"query": "q", "api_key": "k", "nested": {"Password": "p"}}) == {
         "query": "q", "api_key": "***", "nested": {"Password": "***"}

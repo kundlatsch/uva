@@ -116,7 +116,7 @@ def describe_project(record: ProjectRecord, tz: tzinfo, host_path: str) -> str:
     if record.cost_usd:
         details.append(f"US$ {record.cost_usd:.2f}")
     if record.commits:
-        details.append(f"{record.commits} commit(s)")
+        details.append(t("projects.service.commits", count=record.commits))
     if record.status is ProjectStatus.DONE:
         details.append(host_path)
     lines.append("   " + " · ".join(details))

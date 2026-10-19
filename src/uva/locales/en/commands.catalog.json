@@ -9,5 +9,6 @@
   "comandos": {
     "description": "Lists every command and LLM action (debug)",
     "filename": "commands.md"
-  }
+  },
+  "params": "  params: {params}"
 }

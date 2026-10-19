@@ -98,5 +98,5 @@ def register(registry: CommandRegistry) -> None:
         try:
             answers = await services.decisions.decide(evidence, questions, image_data_url=photo)
         except DecisionsError as exc:
-            return f"{services.say('llm_erro')}\n(Decisions: {exc})"
+            return t("commands.decide.decisions_error", phrase=services.say("llm_erro"), error=exc)
         return format_answers(answers, questions)

@@ -32,7 +32,7 @@ class ExpenseRepository:
         spent_at: datetime | None = None,
     ) -> Expense:
         if amount_cents <= 0:
-            raise ValueError("o valor precisa ser positivo")
+            raise ValueError("the amount must be positive")
         category = normalize_category(category)
         spent_at = spent_at or utcnow()
 
@@ -94,7 +94,7 @@ def parse_amount(text: str) -> int:
     cleaned = text.strip().replace(" ", "")
     match = _AMOUNT.match(cleaned)
     if not match:
-        raise ValueError(f"valor inválido: {text!r}")
+        raise ValueError(f"invalid amount: {text!r}")
     whole = int(match[1].replace(".", ""))
     cents = int((match[2] or "0").ljust(2, "0"))
     return whole * 100 + cents

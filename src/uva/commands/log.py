@@ -65,7 +65,7 @@ def parse_log_args(args: list[str], tz: tzinfo, now: datetime | None = None) -> 
     if words and words[0] == "trace":
         if len(words) != 2:
             raise LogArgsError(usage())
-        return LogRequest(EventQuery(trace_id=words[1]), f"trace {words[1]}", detail=True)
+        return LogRequest(EventQuery(trace_id=words[1]), t("commands.log.trace_period", id=words[1]), detail=True)
 
     since, until, period = now - timedelta(hours=1), None, t("commands.log.period.last_hour")
     types: set[EventType] | None = None
@@ -208,7 +208,7 @@ def _summarize_trace(trace_id: str, group: list[Event], tz: tzinfo) -> str:
     if actions:
         parts.append(t("commands.log.summary.actions", actions=", ".join(actions)))
     if llm_calls:
-        parts.append(f"llm: {llm_calls}x ${llm_cost:.4f}")
+        parts.append(t("commands.log.summary.llm", calls=llm_calls, cost=f"{llm_cost:.4f}"))
     return f"{head} " + (" → ".join(parts) if parts else group[0].type.value)
 
 

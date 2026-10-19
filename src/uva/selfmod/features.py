@@ -86,7 +86,7 @@ def describe_feature(record: FeatureRecord) -> str:
     if record.cost_usd:
         details.append(f"US$ {record.cost_usd:.3f}")
     if record.commit:
-        details.append(f"commit {record.commit[:7]}")
+        details.append(t("selfmod.features.commit", sha=record.commit[:7]))
     if details:
         lines.append("   " + " · ".join(details))
     if record.error and record.status is not FeatureStatus.MERGED:

@@ -17,6 +17,7 @@
     "no_price": "⚠️ No price configured for {models}; using US$ {input}/{output} per 1M tokens (set LLM_PRICES)",
     "search": "Search: {search}",
     "no_search": "none",
-    "fallback": "Fallback (when the main one fails): {provider} / {model}"
+    "fallback": "Fallback (when the main one fails): {provider} / {model}",
+    "base_url": "URL: {url}"
   }
 }

@@ -12,5 +12,10 @@
   "confirm_destructive": "⚠️ DESTRUCTIVE action on the MCP server {server}. Run it?\nTool: {tool}\nArguments:\n{arguments}",
   "yes": "Yes, run",
   "denied": "Ok, I didn't run it.",
-  "changed_notice": "⚠️ The definition of tool(s) {tools} on the MCP server {server} changed, so I turned them off. Check it and use /mcp approve {server} to accept the change."
+  "changed_notice": "⚠️ The definition of tool(s) {tools} on the MCP server {server} changed, so I turned them off. Check it and use /mcp approve {server} to accept the change.",
+  "block": {
+    "resource": "[resource {uri}]\n{text}",
+    "link": "[link] {name}: {uri}",
+    "other": "[{kind} {mime}, not shown]"
+  }
 }

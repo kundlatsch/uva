@@ -27,7 +27,7 @@ def render_catalog(services: Services) -> str:
         flags = [f for f, attr in flag_names if getattr(action, attr)]
         suffix = f" [{', '.join(flags)}]" if flags else ""
         lines.append(f"- {action.name}{suffix}: {action.description}")
-        lines.append(f"  params: {describe_params(action.params_model)}")
+        lines.append(t("commands.catalog.params", params=describe_params(action.params_model)))
     return "\n".join(lines)
 
 

@@ -6,5 +6,6 @@
   "describe": "Descreva o projeto, ex.: /projeto um site estático de receitas com busca",
   "already_running": "Já tem um projeto em construção ({id}); veja /projetos.",
   "budget": "Orçamento diário de projetos esgotado (US$ {spent} de {limit}, PROJECT_DAILY_BUDGET_USD).",
-  "reason": "   motivo: {error}"
+  "reason": "   motivo: {error}",
+  "commits": "{count} commit(s)"
 }

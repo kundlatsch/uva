@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 
 from uva.clock import format_local
+from uva.labels import label
 from uva.safety import as_data, sanitize_untrusted
 
 MAX_MESSAGES = 12
@@ -59,6 +60,8 @@ class Inbound:
     forward: str = ""  # "Forwarded from X, 13/10 10:00" (for the LLM, English)
     quoted: Quoted | None = None
     album: str | None = None  # Telegram media_group_id
+    # (name, when) of a forward's origin, for the labels he sees (in his language).
+    origin: tuple[str, str] | None = None
     received: float = field(default_factory=time.monotonic)
     payload: object = None  # the Telegram message (albums: to download the photo)
 
@@ -166,10 +169,19 @@ def _media_kind(message) -> str:
 
 
 def forward_label(message, tz: tzinfo) -> str:
-    """'Forwarded from <name/channel>, <date>' ('' when it is not a forward)."""
+    """'Forwarded from <name/channel>, <date>' for the LLM ('' when it is not a forward)."""
+    found = forward_origin(message, tz)
+    if found is None:
+        return ""
+    name, when = found
+    return f"Forwarded from {name or 'someone'}, {when}"
+
+
+def forward_origin(message, tz: tzinfo) -> tuple[str, str] | None:
+    """(name or channel, date) of a forward's origin; None when it is not a forward."""
     origin = getattr(message, "forward_origin", None)
     if origin is None:
-        return ""
+        return None
     name = ""
     if (user := getattr(origin, "sender_user", None)) is not None:
         name = " ".join(x for x in (user.first_name, user.last_name) if x) or user.username or ""
@@ -180,7 +192,7 @@ def forward_label(message, tz: tzinfo) -> str:
         if signature := getattr(origin, "author_signature", None):
             name = f"{name} ({signature})"
     when = format_local(origin.date, tz, "%d/%m/%Y %H:%M") if getattr(origin, "date", None) else "?"
-    return f"Forwarded from {name or 'someone'}, {when}"
+    return name, when
 
 
 # --- a batch for the router ----------------------------------------------------------
@@ -203,6 +215,15 @@ class Composed:
     message_ids: list[int] = field(default_factory=list)
 
 
+def _origin(item: Inbound) -> dict[str, str]:
+    """name/when of a forward for its labels (from the English line when that is all there is)."""
+    if item.origin is not None:
+        name, when = item.origin
+    else:
+        name, _, when = item.forward.removeprefix("Forwarded from ").rpartition(", ")
+    return {"name": name or label("someone"), "when": when or "?"}
+
+
 def compose(items: list[Inbound], tz: tzinfo) -> Composed:
     own = [i.text for i in items if not i.forward and i.text]
     forwards = [i for i in items if i.forward]
@@ -215,9 +236,9 @@ def compose(items: list[Inbound], tz: tzinfo) -> Composed:
         context.append(f"{item.forward}:\n" + as_data("forwarded message", clean))
     text = "\n".join(own)
     labels = [*own] + [
-        f"[{item.forward}] {item.text[:LABEL_FORWARD_CHARS]}".rstrip() for item in forwards
+        label("forwarded", **_origin(item), text=item.text[:LABEL_FORWARD_CHARS]).rstrip() for item in forwards
     ]
-    external = "\n\n".join(f"{item.forward}:\n{item.text}" for item in forwards)
+    external = "\n\n".join(label("forwarded_full", **_origin(item), text=item.text) for item in forwards)
     return Composed(
         text=text, context="\n\n".join(context), label="\n".join(labels), external=external, quoted=quote,
         message_ids=[i.message_id for i in items if i.message_id is not None],

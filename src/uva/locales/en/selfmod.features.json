@@ -8,5 +8,6 @@
     "reverted": "↩️ reverted"
   },
   "attempts": "{n} attempt(s)",
-  "reason": "   reason: {error}"
+  "reason": "   reason: {error}",
+  "commit": "commit {sha}"
 }

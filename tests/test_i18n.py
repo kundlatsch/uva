@@ -190,3 +190,107 @@ def test_fallback_phrases_have_the_same_categories_and_placeholders():
     assert set(pt) == set(en)
     for category in pt:
         assert {f for p in pt[category] for f in fields(p)} == {f for p in en[category] for f in fields(p)}, category
+
+
+# --- stricter checks: short literals, f-strings, handler returns, turn labels ------------
+
+# Words that read the same in every language (technical, units, names).
+TECHNICAL_WORDS = {
+    "url", "id", "llm", "mcp", "http", "https", "json", "api", "usd", "sha", "pid", "cpu", "ram", "ssh",
+    "uva", "telegram", "openai", "anthropic", "claude", "mongo", "mongodb", "redis", "sqlite", "celery",
+    "decisions", "trace", "commit", "commits", "docker", "github", "python", "bash", "markdown", "html",
+}
+# Calls whose first argument (or text=) is something the user reads.
+SHOWN_CALLS = {"Reply", "ActionResult", "Button", "notify", "send_reply", "placeholder"}
+# Calls whose argument is a turn label kept and shown later (/contexto, /historico, /parar, /log).
+LABEL_CALLS = {"_remember": 0, "add_exchange": 0, "turn": 3}
+# Modules whose functions build replies line by line.
+REPLY_MODULES = ("commands/", "reminders.py", "projects/service.py", "selfmod/features.py", "journal.py")
+
+
+def _literal_words(node) -> set[str]:
+    """Words (3+ letters, not technical) in a literal or in the literal parts of an f-string."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        text = node.value
+    elif isinstance(node, ast.JoinedStr):
+        text = " ".join(v.value for v in node.values if isinstance(v, ast.Constant) and isinstance(v.value, str))
+    else:
+        return set()
+    if text.startswith(("/", "data:", "uva.", "http")) or re.fullmatch(r"[\w.:/-]+", text.strip()):
+        return set()  # a command, a key, a path, an identifier
+    if re.match(r"\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|PRAGMA)\b", text):
+        return set()  # SQL
+    return {w for w in re.findall(r"[A-Za-zÀ-ú]{3,}", text) if w.lower() not in TECHNICAL_WORDS}
+
+
+def _shown_strings(tree):
+    """(node, why) for literals that end up in front of the user."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = _call_name(node)
+        if name in SHOWN_CALLS:
+            yield from ((a, name) for a in node.args[:1])
+            yield from ((k.value, name) for k in node.keywords if k.arg == "text")
+        if name in LABEL_CALLS:
+            index = LABEL_CALLS[name]
+            if len(node.args) > index:
+                yield node.args[index], f"{name} label"
+        if name == "emit":
+            yield from ((k.value, "event text") for k in node.keywords if k.arg == "text")
+
+
+def test_no_hard_coded_words_in_what_the_user_sees():
+    """Not even one word: f-strings like f"commit {sha}" or f"[photo] {x}" go through t()."""
+    found = []
+    for path, tree in _sources():
+        rel = str(path.relative_to(SRC)).replace("\\", "/")
+        if rel.startswith("plugins/"):
+            continue
+        for node, why in _shown_strings(tree):
+            for candidate in ([node.body, node.orelse] if isinstance(node, ast.IfExp) else [node]):
+                if words := _literal_words(candidate):
+                    found.append(f"{rel}:{candidate.lineno} [{why}] {sorted(words)}")
+    assert found == []
+
+
+def _functions(tree):
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            yield node
+
+
+def test_command_modules_build_replies_from_t():
+    """In commands/: what a function returns, and the lines it appends, are t() texts."""
+    found = []
+    for path, tree in _sources():
+        rel = str(path.relative_to(SRC)).replace("\\", "/")
+        if not rel.startswith(REPLY_MODULES):
+            continue
+        for function in _functions(tree):
+            for node in ast.walk(function):
+                values = []
+                if isinstance(node, ast.Return) and node.value is not None:
+                    values = [node.value]
+                elif isinstance(node, ast.Call) and _call_name(node) in ("append", "extend") and node.args:
+                    values = node.args[:1]
+                for value in values:
+                    for candidate in ast.walk(value):
+                        if isinstance(candidate, ast.Call) and _call_name(candidate) in ("t", "t_list", "say"):
+                            break
+                        if words := _literal_words(candidate):
+                            found.append(f"{rel}:{candidate.lineno} {sorted(words)}")
+                            break
+    assert found == []
+
+
+def test_turn_labels_are_translated():
+    """The labels kept for photos, audio, buttons... exist in both languages."""
+    from uva import labels
+
+    for lang in ("en", "pt"):
+        i18n.set_language(lang)
+        assert labels.voice_text(labels.label("voice", text="oi")) == "oi"
+    i18n.set_language("pt")
+    assert labels.voice_text(i18n.t("labels.voice", lang="en", text="hi")) == "hi"  # either language
+    assert labels.voice_text("plain text") is None

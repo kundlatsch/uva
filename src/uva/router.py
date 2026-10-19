@@ -23,6 +23,7 @@ from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
 from uva.llm.base import LLMError, LLMMessage
 from uva import documents, provenance, sent
+from uva.labels import label
 from uva.inbound import FORWARD_ONLY_REQUEST, Composed
 from uva.media import current_photo, mentions_image
 from uva.safety import as_data, sanitize_untrusted
@@ -43,6 +44,13 @@ PAGES_KEPT = 20
 HEARD_CHARS = 800
 # A document's text kept in the conversation log (the whole text is in its note).
 EXTERNAL_LOG_CHARS = 2000
+
+
+def sticker_label(sticker) -> str:
+    """A known sticker as a turn label (the LLM gets stickers.as_message)."""
+    if sticker.meaning:
+        return label("sticker_meaning", emoji=sticker.emoji, meaning=sticker.meaning)
+    return label("sticker", emoji=sticker.emoji)
 
 
 def describe_prompt(count: int = 1) -> str:
@@ -98,10 +106,10 @@ class Router:
         if photo is not None:
             self.services.last_photo.set(photo)
         token = current_photo.set(photo)
-        label = inbound.label if inbound is not None and inbound.label else text
+        shown = inbound.label if inbound is not None and inbound.label else text
         try:
             with trace():
-                await emit(EventType.MESSAGE_RECEIVED, text=label, photo=photo is not None)
+                await emit(EventType.MESSAGE_RECEIVED, text=shown, photo=photo is not None)
                 if inbound is not None:
                     await self._focus_quoted(inbound)
                     note = "\n\n".join(x for x in (inbound.context, note) if x)
@@ -113,8 +121,10 @@ class Router:
                 with provenance.incoming("forward" if inbound is not None and inbound.external else ""):
                     reply = await self._safely(work)
                 external = inbound.external if inbound is not None else ""
-                own = (inbound.text if inbound is not None else text) + (" [photo]" if photo else "")
-                await self._remember(label + (" [photo]" if photo else ""), reply, logged=own, external=external)
+                own = inbound.text if inbound is not None else text
+                if photo:
+                    shown, own = label("with_photo", text=shown).strip(), label("with_photo", text=own).strip()
+                await self._remember(shown, reply, logged=own, external=external)
                 return self._first_page(reply)
         finally:
             current_photo.reset(token)
@@ -150,10 +160,10 @@ class Router:
         services = self.services
         services.last_photo.set(photo)
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text="[photo]", photo=True, album=len(images) + 1)
+            await emit(EventType.MESSAGE_RECEIVED, text=label("photo"), photo=True, album=len(images) + 1)
             reply = await self._safely(self._describe_photo(photo, images))
-            label = "[photo without caption]" if not images else f"[album of {len(images) + 1} photos]"
-            await self._remember(label, reply)
+            shown = label("photo_no_caption") if not images else label("album", count=len(images) + 1)
+            await self._remember(shown, reply)
             return reply
 
     async def handle_document(
@@ -164,13 +174,13 @@ class Router:
         text in a note; the caption (or "summarize it") goes to the router with
         the first part of the text."""
         await self._mark_busy()
-        label = f"[document {filename}] {caption}".strip()
+        shown = label("document", name=filename, caption=caption).strip()
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text=label, kind="document")
+            await emit(EventType.MESSAGE_RECEIVED, text=shown, kind="document")
             external: list[str] = []
             with provenance.incoming("document"):
                 reply = await self._safely(self._document(filename, data, caption, user_id, inbound, external))
-            await self._remember(label, reply, external="\n\n".join(external))
+            await self._remember(shown, reply, external="\n\n".join(external))
             return self._first_page(reply)
 
     async def _document(
@@ -193,7 +203,8 @@ class Router:
         await emit(EventType.ROUTE, tier="document", file=filename, chars=len(extracted.text),
                    truncated=extracted.truncated, note=note.path)
         if external is not None:  # the document's text goes to the log as outside content
-            external.append(f"Document {filename} ({note.path}):\n{extracted.text[:EXTERNAL_LOG_CHARS]}")
+            external.append(label("document_text", name=filename, path=note.path,
+                                  text=extracted.text[:EXTERNAL_LOG_CHARS]))
         shown, _ = sanitize_untrusted(extracted.text[: settings.document_context_chars])
         pages = f"{extracted.pages} pages, " if extracted.pages else ""
         clipped = f", clipped at {settings.document_max_chars}" if extracted.truncated else ""
@@ -229,9 +240,10 @@ class Router:
         their action; a new one makes the bot ask what it means."""
         await self._mark_busy()
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[sticker {emoji}]", kind="sticker", sticker=unique_id)
-            reply, label = await self._sticker_reply(unique_id, file_id, emoji, set_name, user_id)
-            await self._remember(label, reply)
+            await emit(EventType.MESSAGE_RECEIVED, text=label("sticker", emoji=emoji), kind="sticker",
+                       sticker=unique_id)
+            reply, shown = await self._sticker_reply(unique_id, file_id, emoji, set_name, user_id)
+            await self._remember(shown, reply)
             return self._first_page(reply)
 
     async def _sticker_reply(
@@ -239,7 +251,7 @@ class Router:
     ) -> tuple[Reply, str]:
         repo = self.services.stickers
         if repo is None:
-            return Reply(t("router.sticker.no_storage", emoji=emoji or "🙂")), f"[sticker {emoji}]"
+            return Reply(t("router.sticker.no_storage", emoji=emoji or "🙂")), label("sticker", emoji=emoji)
         try:
             sticker = await repo.get(unique_id)
             if sticker is None:
@@ -247,19 +259,19 @@ class Router:
             await repo.used(unique_id)
         except Exception as exc:
             await emit(EventType.ERROR, where="stickers", error=repr(exc))
-            return Reply(self.services.say("erro_generico")), f"[sticker {emoji}]"
+            return Reply(self.services.say("erro_generico")), label("sticker", emoji=emoji)
         self._sticker = StickerFocus(unique_id, sticker.emoji or emoji, utcnow(), asking=not sticker.meaning)
         if sticker.action:
             await emit(EventType.ROUTE, tier="sticker_action", sticker=sticker.id, action=sticker.action)
             reply = await self._safely(self._route(action_message(sticker), user_id))
-            return reply, f"{as_message(sticker) if sticker.meaning else f'[sticker {sticker.emoji}]'} → {sticker.action}"
+            return reply, label("sticker_action", sticker=sticker_label(sticker), action=sticker.action)
         if sticker.meaning:
             await emit(EventType.ROUTE, tier="sticker", sticker=sticker.id)
             reply = await self._safely(self.agent.handle(as_message(sticker)))
-            return reply, as_message(sticker)
+            return reply, sticker_label(sticker)
         await emit(EventType.ROUTE, tier="sticker_new", sticker=sticker.id)
         reply = Reply(t("router.sticker.new", emoji=sticker.emoji))
-        return reply, f"[new sticker {sticker.emoji}]"
+        return reply, label("sticker_new", emoji=sticker.emoji)
 
     async def _try_sticker_text(self, text: str) -> Reply | None:
         """The meaning of the sticker just asked about, or "toda vez que eu mandar
@@ -335,7 +347,7 @@ class Router:
         await self._mark_busy()
         services = self.services
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text="[audio]", kind="voice", seconds=seconds)
+            await emit(EventType.MESSAGE_RECEIVED, text=label("audio_turn"), kind="voice", seconds=seconds)
             if services.transcriber is None:
                 return [Reply(t("router.audio.no_transcriber"))]
             if services.budget is not None:
@@ -355,7 +367,7 @@ class Router:
             reply = await self._safely(self._route(transcript.text.strip(), user_id))
             if services.budget is not None and not (await services.budget.check(Scope.INTERACTIVE)).allowed:
                 reply.text += "\n" + t("router.audio.kept_transcript")
-            await self._remember(f"[voice] {transcript.text}", reply)
+            await self._remember(label("voice", text=transcript.text), reply)
             return [heard, reply]
 
     async def _remember(self, text: str, reply: Reply, *, logged: str | None = None, external: str = "") -> None:
@@ -427,23 +439,23 @@ class Router:
         if verb in ("rmdok", "rmd1h", "rmdtm"):  # under a reminder's notice
             from uva.reminders import handle_button
 
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
+            await emit(EventType.MESSAGE_RECEIVED, text=label("button", verb=verb), kind="callback")
             reply = await self._safely(self._text_reply(handle_button(self.services, verb, token)))
-            await self._remember(f"[button] {verb}", reply)
+            await self._remember(label("button", verb=verb), reply)
             return reply
         if verb in ("wrok", "wrno"):
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
+            await emit(EventType.MESSAGE_RECEIVED, text=label("button", verb=verb), kind="callback")
             reply = await self._safely(self._resolve_write(verb, token))
-            await self._remember(f"[button] {verb}", reply)
+            await self._remember(label("button", verb=verb), reply)
             return reply
         if verb in ("shok", "shno", "shal") and self.services.shell is not None:
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
+            await emit(EventType.MESSAGE_RECEIVED, text=label("button", verb=verb), kind="callback")
             reply = await self._safely(self.services.shell.resolve(verb, token))
-            await self._remember(f"[button] {verb}", reply)
+            await self._remember(label("button", verb=verb), reply)
             return self._first_page(reply)
         pending = self._pending.pop(token, None)
         with trace(pending.trace_id if pending else None):
-            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
+            await emit(EventType.MESSAGE_RECEIVED, text=label("button", verb=verb), kind="callback")
             return await self._safely(self._resolve_confirmation(verb, pending, user_id))
 
     async def _recover(self, verb: str, token: str, user_id: int | None) -> Reply:

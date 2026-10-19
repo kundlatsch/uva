@@ -115,7 +115,7 @@ async def test_conversation_log_origins(mem, tmp_path):
     await Router(mem).handle_text(composed.text, inbound=composed)
     turns = await mem.index.turns()
     assert [(t.role, t.origin) for t in turns] == [("user", "external"), ("user", "owner"), ("bot", "agent")]
-    assert turns[0].text.startswith("Forwarded from Loja") and turns[1].text == "olha isso"
+    assert turns[0].text.startswith("Encaminhada de Loja") and turns[1].text == "olha isso"
 
 
 def test_migration_backfills_origins(tmp_path):

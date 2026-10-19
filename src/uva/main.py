@@ -19,7 +19,8 @@ from telegram.ext import (
 
 from uva import documents, feedback
 from uva.bootstrap import build_services, setup_storage
-from uva.inbound import Inbound, InboundBuffer, compose, forward_label, quoted
+from uva.inbound import Inbound, InboundBuffer, compose, forward_label, forward_origin, quoted
+from uva.labels import label
 from uva.journal import DONE, FAILED, PROCESSING, journal_for, recovery_question
 from uva.config import Settings, get_settings
 from uva.i18n import t
@@ -96,7 +97,7 @@ def build_application(settings: Settings, services: Services) -> Application:
                 last = composed.message_ids[-1] if composed.message_ids else None
                 work = router.handle_text(composed.text, user_id=user_id, inbound=composed)
                 try:
-                    await turn(bot, chat_id, work, composed.label or "[forward]", message_id=last,
+                    await turn(bot, chat_id, work, composed.label or label("forward"), message_id=last,
                                react_to=last if settings.telegram_reactions else None)
                 except Exception as exc:  # runs in a timer task: log, never lose it silently
                     log.error("batch_failed", error=repr(exc))
@@ -123,7 +124,7 @@ def build_application(settings: Settings, services: Services) -> Application:
     def single(message, bot) -> Inbound:
         """A message's quote/forward context (for photos and documents)."""
         return Inbound(message.caption or "", message.message_id, forward=forward_label(message, tz),
-                       quoted=quoted(message, bot.id))
+                       quoted=quoted(message, bot.id), origin=forward_origin(message, tz))
 
     async def album_turn(bot, chat_id: int, user_id: int | None, group: list[Inbound]) -> None:
         caption = next((item.text for item in group if item.text), "")
@@ -140,7 +141,7 @@ def build_application(settings: Settings, services: Services) -> Application:
                 inbound=context if context.context else None,
             )
 
-        await turn(bot, chat_id, work(), caption or "[album]", activity="olhando", kind="album",
+        await turn(bot, chat_id, work(), caption or label("album_turn"), activity="olhando", kind="album",
                    message_id=first.message_id, react_to=reaction_target(first))
 
     journal = journal_for(services)
@@ -220,6 +221,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             return
         await buffer.add(Inbound(
             text, message.message_id, forward=forward_label(message, tz), quoted=quoted(message, context.bot.id),
+            origin=forward_origin(message, tz),
         ))
 
     async def on_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -241,7 +243,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             return await router.handle_photo(photo, message.caption or "", user_id=user_id,
                                              inbound=extra if extra.context else None)
 
-        await turn(context.bot, message.chat_id, work(), message.caption or "[photo]", activity="olhando",
+        await turn(context.bot, message.chat_id, work(), message.caption or label("photo"), activity="olhando",
                    kind="photo", message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_image_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -262,7 +264,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             photo = to_data_url(bytes(await file.download_as_bytearray()), document.mime_type or "image/jpeg")
             return await router.handle_photo(photo, message.caption or "", user_id=user_id)
 
-        await turn(context.bot, message.chat_id, work(), message.caption or "[image]", activity="olhando",
+        await turn(context.bot, message.chat_id, work(), message.caption or label("image"), activity="olhando",
                    kind="photo", message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -291,7 +293,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             return await router.handle_document(name, data, message.caption or "", user_id=user_id,
                                                 inbound=extra if extra.context else None)
 
-        await turn(context.bot, message.chat_id, work(), f"[document {name}]", activity="lendo",
+        await turn(context.bot, message.chat_id, work(), label("document", name=name, caption="").strip(), activity="lendo",
                    kind="document", message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -313,7 +315,7 @@ def build_application(settings: Settings, services: Services) -> Application:
 
         # Download + transcription take a few seconds: say we're on it right away.
         now = services.say("transcrevendo") if services.transcriber is not None else None
-        await turn(context.bot, message.chat_id, work(), "[voice]", activity="pensando", now=now,
+        await turn(context.bot, message.chat_id, work(), label("audio_turn"), activity="pensando", now=now,
                    voice_in=True, kind="voice", message_id=message.message_id)
 
     async def on_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -327,7 +329,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             sticker.file_unique_id, file_id=sticker.file_id, emoji=sticker.emoji or "",
             set_name=sticker.set_name or "", user_id=user_id,
         )
-        await turn(context.bot, message.chat_id, work, f"[sticker {sticker.emoji or ''}]", kind="sticker",
+        await turn(context.bot, message.chat_id, work, label("sticker", emoji=sticker.emoji or ""), kind="sticker",
                    message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -354,7 +356,7 @@ def build_application(settings: Settings, services: Services) -> Application:
             asyncio.get_running_loop().create_task(buffer.flush())
             return
         await turn(
-            context.bot, query.message.chat.id, work, f"[button] {verb}", kind="button",
+            context.bot, query.message.chat.id, work, label("button", verb=verb), kind="button",
             activity="executando" if verb in ("shok", "shal", "confirm", "wrok", "rcvok") else "pensando",
         )
 

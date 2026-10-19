@@ -17,5 +17,6 @@
   "title": {
     "predicate": "Isto é verdade? {statement}",
     "score": "Avalie: {criterion}"
-  }
+  },
+  "decisions_error": "{phrase}\n(Decisions: {error})"
 }

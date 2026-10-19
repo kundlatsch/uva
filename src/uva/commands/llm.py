@@ -49,7 +49,7 @@ def register(registry: CommandRegistry) -> None:
         s = services.settings
         lines = [t("commands.llm.llm.provider", provider=s.llm_provider.value)]
         if s.llm_base_url:
-            lines.append(f"URL: {s.llm_base_url}")
+            lines.append(t("commands.llm.llm.base_url", url=s.llm_base_url))
         if services.llm is None:
             lines.append(t("commands.llm.llm.disabled"))
         else:

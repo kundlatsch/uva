@@ -89,11 +89,11 @@ def render_result(result: dict[str, Any]) -> str:
         if kind == "text":
             parts.append(block.get("text") or "")
         elif kind == "resource":
-            parts.append(f"[resource {block.get('uri')}]\n{block.get('text') or ''}".rstrip())
+            parts.append(t("mcp.block.resource", uri=block.get("uri"), text=block.get("text") or "").rstrip())
         elif kind == "resource_link":
-            parts.append(f"[link] {block.get('name') or ''}: {block.get('uri')}")
+            parts.append(t("mcp.block.link", name=block.get("name") or "", uri=block.get("uri")))
         else:
-            parts.append(f"[{kind} {block.get('mime_type') or ''}, not shown]")
+            parts.append(t("mcp.block.other", kind=kind, mime=block.get("mime_type") or ""))
     if not any(parts) and result.get("structured") is not None:
         parts.append(json.dumps(result["structured"], ensure_ascii=False))
     return "\n\n".join(p for p in parts if p)

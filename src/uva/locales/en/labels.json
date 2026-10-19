@@ -1,0 +1,21 @@
+{
+  "photo": "[photo]",
+  "with_photo": "{text} [photo]",
+  "photo_no_caption": "[photo without caption]",
+  "album": "[album of {count} photos]",
+  "album_turn": "[album]",
+  "image": "[image]",
+  "document": "[document {name}] {caption}",
+  "document_text": "Document {name} ({path}):\n{text}",
+  "voice": "[voice] {text}",
+  "audio_turn": "[voice]",
+  "button": "[button] {verb}",
+  "sticker": "[sticker {emoji}]",
+  "sticker_meaning": "[sticker {emoji}: {meaning}]",
+  "sticker_new": "[new sticker {emoji}]",
+  "sticker_action": "{sticker} → {action}",
+  "forward": "[forward]",
+  "forwarded": "[forwarded from {name}, {when}] {text}",
+  "forwarded_full": "Forwarded from {name}, {when}:\n{text}",
+  "someone": "someone"
+}

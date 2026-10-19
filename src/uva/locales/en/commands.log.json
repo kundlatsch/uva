@@ -25,7 +25,8 @@
     "goal": "goal '{title}' ({status}{reason})",
     "error": "ERROR: {error}",
     "actions": "actions: {actions}",
-    "mcp": "mcp {tool} {ok}"
+    "mcp": "mcp {tool} {ok}",
+    "llm": "llm: {calls}x ${cost}"
   },
   "route": {
     "command": "command /{command}",
@@ -41,5 +42,6 @@
     "unknown_command": "unknown command /{command}"
   },
   "event_list": "Log ({label}): {events} events",
-  "trace": "Trace {id}: {events} events"
+  "trace": "Trace {id}: {events} events",
+  "trace_period": "trace {id}"
 }
