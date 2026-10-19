@@ -1,0 +1,14 @@
+{
+  "usage": "{name}: {chars}/{limit} characters ({percent}%)",
+  "usage_over": "⚠️ {name}: {chars}/{limit} characters ({percent}%), over the limit",
+  "consolidate": {
+    "missing": "There is no profile (data/profile.md) to consolidate.",
+    "fits": "The profile already fits: {chars}/{limit} characters. Nothing to do.",
+    "no_llm": "Consolidating needs the LLM, which is not configured.",
+    "no_budget": "No LLM budget for that now ({reason}).",
+    "failed": "I couldn't consolidate the profile: {error}",
+    "too_long": "The rewritten profile still had {chars} characters (limit {limit}); I left it as it was. Try again.",
+    "pointer": "Full profile: [[perfil_detalhado|Perfil detalhado]] ({note}).",
+    "done": "✅ Profile consolidated: {before} → {after} characters (limit {limit}).\nFull previous text: {backup} and the brain note {note} (I find it when it matters)."
+  }
+}

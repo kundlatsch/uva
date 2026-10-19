@@ -2,5 +2,11 @@
   "soul": {
     "description": "Shows my personality (soul.md)",
     "missing": "I couldn't find soul.md ({path})."
+  },
+  "perfil": {
+    "description": "Size of the profile and soul (they go into every prompt); 'consolidate' shrinks the profile",
+    "usage_arg": "[consolidate]",
+    "header": "📏 Always-loaded files:",
+    "hint": "The profile is over its limit: /profile consolidate rewrites it into a core that fits (the full text is kept)."
   }
 }

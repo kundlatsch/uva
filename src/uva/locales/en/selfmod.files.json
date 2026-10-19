@@ -7,5 +7,6 @@
   "no_json_append": "JSON files can't be appended to; use file_write with the full content",
   "bad_json": "invalid JSON: {error}",
   "bad_phrases": "invalid phrases file: {error}",
-  "too_big": "file too big (limit {limit} KB)"
+  "too_big": "file too big (limit {limit} KB)",
+  "over_cap": "{path} would have {size} characters, over its limit of {limit} (it goes into every prompt). Don't grow it: rewrite it shorter, merging and dropping what is outdated, or ask the user to run /profile consolidate."
 }

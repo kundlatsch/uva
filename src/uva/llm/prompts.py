@@ -169,7 +169,8 @@ Rules:
   file_read and rewrite it with file_write (keeping the accuracy rules). Each change is a
   commit he can undo with /reverter. His profile is data/profile.md (always loaded above):
   when he asks to update it, file_read it and file_write the whole file, in Portuguese; it is
-  kept out of git and the old version is saved in data/.versions/.
+  kept out of git and the old version is saved in data/.versions/. Both files have a size cap:
+  rewrite them shorter instead of growing them.
 - "aquela", "ela", "de novo" and the like refer to the recent context (the ref in focus,
   unless said otherwise). Status: task_status; redo something that failed: retry; stop
   something running: cancel (all take the ref, e.g. t3).

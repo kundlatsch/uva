@@ -2,5 +2,11 @@
   "soul": {
     "description": "Mostra minha personalidade (soul.md)",
     "missing": "Não achei o soul.md ({path})."
+  },
+  "perfil": {
+    "description": "Tamanho do perfil e da alma (vão em todo prompt); 'consolidar' encolhe o perfil",
+    "usage_arg": "[consolidar]",
+    "header": "📏 Arquivos sempre carregados:",
+    "hint": "O perfil passou do limite: /perfil consolidar reescreve ele num núcleo que cabe (o texto completo fica guardado)."
   }
 }

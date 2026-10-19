@@ -160,6 +160,10 @@ class Settings(BaseSettings):
     soul_path: str = ""
     # User profile, always in the prompt; empty means <repo>/data/profile.md.
     profile_path: str = ""
+    # Size caps for the always-loaded files: writes (self-edit) that would go
+    # over are refused; /perfil consolidar shrinks the profile to fit.
+    profile_max_chars: int = 4000
+    soul_max_chars: int = 3000
     # Self-coding (/feature): plugins written, tested and merged by the bot.
     selfcode_daily_budget_usd: float = 2.0
     selfcode_max_attempts: int = 3

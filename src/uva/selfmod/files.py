@@ -48,12 +48,20 @@ class Change:
 
 
 class FileAccess:
-    def __init__(self, repo_dir: Path, brain_dir: Path | None, git: GitRepo | None) -> None:
+    def __init__(
+        self,
+        repo_dir: Path,
+        brain_dir: Path | None,
+        git: GitRepo | None,
+        caps: dict[str, int] | None = None,
+    ) -> None:
         self.roots: dict[str, Path] = {"data": repo_dir / "data"}
         if brain_dir is not None:
             self.roots["brain"] = brain_dir
         self.repo_dir = repo_dir
         self.git = git
+        # Max characters per file ("data/profile.md": 4000): always-loaded files.
+        self.caps = caps or {}
 
     def resolve(self, raw: str) -> Target:
         rel = PurePosixPath(raw.strip().replace("\\", "/"))
@@ -88,6 +96,7 @@ class FileAccess:
     async def write(self, raw: str, content: str, reason: str) -> Change:
         target = self.resolve(raw)
         _check_size(content)
+        self._check_cap(target, content)
         if target.root == "brain" and target.path.exists():
             raise FileAccessError(t("selfmod.files.no_overwrite"))
         if target.path.suffix == ".json":
@@ -107,11 +116,21 @@ class FileAccess:
             raise FileAccessError(t("selfmod.files.no_json_append"))
         existing = target.path.read_text(encoding="utf-8") if target.path.exists() else ""
         _check_size(existing + content)
+        self._check_cap(target, existing + content)
         target.path.parent.mkdir(parents=True, exist_ok=True)
         self._backup_untracked(target)
         with target.path.open("a", encoding="utf-8") as fh:
             fh.write(("\n" if existing and not existing.endswith("\n") else "") + content)
         return Change(target, await self._commit(target, "append", reason))
+
+    def _check_cap(self, target: Target, content: str) -> None:
+        """Always-loaded files have a budget: refuse a write that goes over it,
+        saying the size and asking to consolidate instead of growing."""
+        limit = self.caps.get(target.display)
+        if limit is not None and len(content) > limit:
+            raise FileAccessError(
+                t("selfmod.files.over_cap", path=target.display, size=len(content), limit=limit)
+            )
 
     def _backup_untracked(self, target: Target) -> None:
         """Files outside git (data/profile.md is gitignored): keep the old version."""

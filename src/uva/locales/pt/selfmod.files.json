@@ -7,5 +7,6 @@
   "no_json_append": "arquivos JSON não aceitam append; use file_write com o conteúdo completo",
   "bad_json": "JSON inválido: {error}",
   "bad_phrases": "arquivo de frases inválido: {error}",
-  "too_big": "arquivo grande demais (limite {limit} KB)"
+  "too_big": "arquivo grande demais (limite {limit} KB)",
+  "over_cap": "{path} ficaria com {size} caracteres, acima do limite de {limit} (vai em todo prompt). Não aumente: reescreva mais curto, juntando e tirando o que está desatualizado, ou peça ao usuário para rodar /perfil consolidar."
 }

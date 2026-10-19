@@ -1,0 +1,14 @@
+{
+  "usage": "{name}: {chars}/{limit} caracteres ({percent}%)",
+  "usage_over": "⚠️ {name}: {chars}/{limit} caracteres ({percent}%), acima do limite",
+  "consolidate": {
+    "missing": "Não há perfil (data/profile.md) para consolidar.",
+    "fits": "O perfil já cabe: {chars}/{limit} caracteres. Nada a fazer.",
+    "no_llm": "Consolidar precisa do LLM, que não está configurado.",
+    "no_budget": "Sem orçamento de LLM para isso agora ({reason}).",
+    "failed": "Não consegui consolidar o perfil: {error}",
+    "too_long": "O perfil reescrito ainda ficou com {chars} caracteres (limite {limit}); deixei como estava. Tenta de novo.",
+    "pointer": "Perfil completo: [[perfil_detalhado|Perfil detalhado]] ({note}).",
+    "done": "✅ Perfil consolidado: {before} → {after} caracteres (limite {limit}).\nTexto anterior completo: {backup} e a nota do brain {note} (eu acho ela quando importa)."
+  }
+}

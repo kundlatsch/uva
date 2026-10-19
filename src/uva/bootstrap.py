@@ -88,7 +88,10 @@ def build_services(settings: Settings) -> Services:
     repo_dir = settings.repo_dir
     if (repo_dir / ".git").exists():
         services.repo = GitRepo(repo_dir, settings.git_author_name, settings.git_author_email)
-    services.files = FileAccess(repo_dir, services.vault.root, services.repo)
+    services.files = FileAccess(
+        repo_dir, services.vault.root, services.repo,
+        caps={"data/profile.md": settings.profile_max_chars, "data/soul.md": settings.soul_max_chars},
+    )
     services.brain_repo = GitRepo(services.vault.root, settings.git_author_name, settings.git_author_email)
     feature_store = mongo.MongoFeatureStore(db)
     services.features = FeatureService(feature_store, _enqueue_selfcode)

@@ -33,6 +33,9 @@ async def collect_status(services: Services) -> list[str]:
             lines.append(t("commands.status.queue_unavailable"))
 
     lines.extend(await describe_spend(services))
+    from uva.profile import usage
+
+    lines += [u.line() for u in usage(services)]
     return lines
 
 

@@ -210,6 +210,10 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
             counts[t("dashboard.app.counts.projects")] = (
                 len(await s.projects.store.recent(500)) if s.projects else None
             )
+            from uva.profile import usage
+
+            for u in usage(s):
+                counts[u.name] = f"{u.chars}/{u.limit}" + (" ⚠️" if u.over else "")
         except Exception:
             pass
         errors = [event_json(e, s.tz) for e in recent if e.type is EventType.ERROR][-10:]

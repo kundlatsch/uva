@@ -108,6 +108,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/cancelar`, `/cancel` `<id>` | cancels a task or project |
 | `/frases`, `/phrases` `[category]` | ready-made phrases |
 | `/soul`, `/alma` | shows the personality (soul.md) |
+| `/perfil`, `/profile` `[consolidar\|consolidate]` | size of profile.md and soul.md against their limits; `consolidar` shrinks the profile (keeps a full copy) |
 | `/reverter`, `/undo` `[brain]` | reverts the bot's last change (also `/revert`, `/desfazer`) |
 | `/feature`, `/funcionalidade` `<description>` | asks UVA to code a new command |
 | `/features`, `/funcionalidades` | self-coding attempts |
@@ -348,6 +349,8 @@ UVA's personality lives in [data/soul.md](../data/soul.md): ironic, playful, a b
 `data/profile.md` is your profile: context about you, compiled from past conversations. It is personal, so it is **gitignored**.
 
 - Both files go at the very start of the system prompt of every LLM call (conversation, search summaries, goals): profile first, then soul, then the rest of the system prompt. Nothing in the system prompt changes per message (the per-message context goes in the user message), so the provider's prompt cache covers all of it.
+- **Size budget.** Both files go into every call, so they have a cap: `PROFILE_MAX_CHARS` (4000) and `SOUL_MAX_CHARS` (3000). A self-edit (`file_write` / `file_append`) that would take either file over its cap is refused with the size and the limit, asking to rewrite it shorter instead of growing it. `/perfil` (`/profile`) shows both sizes against their limits (also in `/status` and on the dashboard).
+- **Consolidation.** `/perfil consolidar` (`/profile consolidate`) asks the heavy model to rewrite the profile into a core that fits the cap (who you are, people, work, lasting preferences; merging repetitions and dropping what is outdated). The full previous text is kept in `data/.versions/` and in the brain note `02-areas/Gustavo/perfil_detalhado.md`, which is indexed, so recall still finds the details when a message is about them; the new profile ends with a link to that note. If the rewrite doesn't fit, nothing changes. It **never runs on its own**: you trigger it. Until then the current file is loaded as it is (up to 30000 characters).
 - Cost of the profile (~19 KB, about 4.3k tokens), measured on the router model: about US$ 0.0045 more per message while the cache is warm (cached tokens are billed at 10%), and about US$ 0.027 more on the first message after the cache expires (a few idle minutes).
 - Edit them freely: they are re-read when they change, without restarting anything.
 - `/soul` (`/alma`) shows the current personality.
