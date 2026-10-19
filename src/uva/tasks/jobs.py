@@ -78,6 +78,9 @@ def memory_maintenance() -> dict:
             from uva.reminders import purge
 
             result["reminders_purged"] = await purge(services.routines)
+            from uva import sent
+
+            result["sent_purged"] = await sent.purge(services.sqlite)
         return result
 
     try:

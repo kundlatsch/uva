@@ -1,0 +1,5 @@
+{
+  "unsupported": "I can't read {ext} files yet. I read: {types}.",
+  "unreadable": "I couldn't read this file ({error}). Is it password-protected or damaged?",
+  "empty": "I found no text in this file (a scanned PDF? send it as photos and I'll read the images)."
+}

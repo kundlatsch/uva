@@ -119,6 +119,17 @@ MIGRATIONS: list[str] = [
     );
     ALTER TABLE conversation_turns ADD COLUMN undone INTEGER NOT NULL DEFAULT 0;
     """,
+    # 9: messages UVA sent on its own, by Telegram message id (what a quoted reply
+    # or a reaction refers to; see uva/sent.py)
+    """
+    CREATE TABLE sent_messages (
+        message_id INTEGER PRIMARY KEY,
+        kind TEXT NOT NULL DEFAULT '',   -- task | routine | goal | initiative | review | notice
+        ref TEXT NOT NULL DEFAULT '',    -- task, routine or goal id ('' when none)
+        at TEXT NOT NULL
+    );
+    CREATE INDEX idx_sent_at ON sent_messages (at);
+    """,
 ]
 
 

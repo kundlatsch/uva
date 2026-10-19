@@ -144,8 +144,12 @@ class Vault:
         tags: list[str] | tuple[str, ...] = (),
         links: list[str] | tuple[str, ...] = (),
         now: datetime | None = None,
+        check: bool = True,
     ) -> Note:
-        check_no_placeholders(body)
+        """``check``: refuse LLM placeholders like "<texto anterior aqui>" (off for
+        text that came from a file, e.g. a document's)."""
+        if check:
+            check_no_placeholders(body)
         title = clean_title(title)
         directory = self.folder_path(folder, subfolder)
         directory.mkdir(parents=True, exist_ok=True)

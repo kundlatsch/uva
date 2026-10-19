@@ -1,0 +1,5 @@
+{
+  "not_a_document": "{path} não é um documento que eu guardei (eles ficam em 05-anexos).",
+  "continues": "(continua: offset {offset} de {total})",
+  "end": "(fim do documento)"
+}

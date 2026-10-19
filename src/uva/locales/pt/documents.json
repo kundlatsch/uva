@@ -1,0 +1,5 @@
+{
+  "unsupported": "Ainda não leio arquivos {ext}. Eu leio: {types}.",
+  "unreadable": "Não consegui ler esse arquivo ({error}). Ele tem senha ou está corrompido?",
+  "empty": "Não achei texto nesse arquivo (um PDF escaneado? manda como foto que eu leio as imagens)."
+}

@@ -47,5 +47,8 @@
     "refused": "⚠️ Não salvei ({action}): parece instrução para um assistente ({findings}).",
     "yes": "Sim, salvar",
     "no": "Não"
+  },
+  "document": {
+    "no_vault": "Preciso do second brain para guardar documentos, e ele não está configurado."
   }
 }

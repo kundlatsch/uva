@@ -162,6 +162,14 @@ class Settings(BaseSettings):
 
     # Telegram: reactions on your message as feedback (👀 received, 👍 done, 👎 error).
     telegram_reactions: bool = True
+    # Plain messages sent in a row wait this long of quiet and go to the router as
+    # one turn (long pastes, forwards and albums wait a bit more); 0 turns it off.
+    inbound_debounce_ms: int = 300
+    # Documents sent on Telegram (PDF, DOCX, TXT, MD, CSV, JSON).
+    document_max_mb: float = 10
+    document_max_chars: int = 60000
+    # How much of a document's text goes with the message (document_read reads the rest).
+    document_context_chars: int = 8000
     # Voice replies: off | voice_in (when you sent a voice note) | always.
     voice_replies: Literal["off", "voice_in", "always"] = "off"
     tts_model: str = "gpt-4o-mini-tts"

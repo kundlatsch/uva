@@ -50,7 +50,14 @@ async def notify(reply: Reply) -> None:
     if _bot is None:
         _bot = Bot(settings.telegram_bot_token.get_secret_value())
         await _bot.initialize()
-    await send_reply(_bot, settings.allowed_telegram_user_id, reply)
+    message_ids = await send_reply(_bot, settings.allowed_telegram_user_id, reply)
+    if _services is not None and _services.sqlite is not None:
+        from uva import sent
+
+        try:  # what a quoted reply or a reaction to this message is about
+            await sent.record(_services.sqlite, message_ids, reply.kind or "notice", reply.ref)
+        except Exception:
+            pass
     # The bot should know what it told the user on its own (short-term memory
     # and the conversation log).
     if _services is not None and _services.index is not None:

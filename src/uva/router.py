@@ -11,6 +11,7 @@ Every message runs under its own trace id; each step is recorded as an event.
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -21,7 +22,10 @@ from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
 from uva.llm.base import LLMError, LLMMessage
+from uva import documents, sent
+from uva.inbound import FORWARD_ONLY_REQUEST, Composed
 from uva.media import current_photo, mentions_image
+from uva.safety import as_data
 from uva.stickers import SKIP, StickerFocus, action_message, action_request, as_message
 from uva.stm.refs import remember_ref
 from uva.text import normalize
@@ -39,12 +43,17 @@ PAGES_KEPT = 20
 HEARD_CHARS = 800
 
 
-def describe_prompt() -> str:
+def describe_prompt(count: int = 1) -> str:
     # The description is shown to the user: written in the configured language.
+    what = "this image" if count == 1 else f"these {count} images (one short paragraph each)"
     return (
-        f"Describe this image in {language_name()}, in 1 to 3 objective sentences. If there is "
+        f"Describe {what} in {language_name()}, in 1 to 3 objective sentences. If there is "
         "legible text, transcribe it in quotes (in its original language)."
     )
+
+
+# What the LLM is asked when a document comes without a caption.
+DOCUMENT_REQUEST = "(No caption: summarize the document in a few lines and say where it was saved.)"
 
 
 def _clip(text: str, limit: int) -> str:
@@ -77,40 +86,130 @@ class Router:
 
     async def handle_text(
         self, text: str, user_id: int | None = None, photo: str | None = None, skill: str | None = None,
-        note: str = "",
+        note: str = "", inbound: Composed | None = None, images: tuple[str, ...] = (),
     ) -> Reply:
-        """Route a message; ``photo`` is a data URL when it came with an image;
-        ``skill`` names a skill to follow and ``note`` is extra context for the
-        LLM (both used by routines)."""
+        """Route a message; ``photo`` is a data URL when it came with an image
+        (``images``: the rest of an album); ``skill`` names a skill to follow and
+        ``note`` is extra context for the LLM (both used by routines);
+        ``inbound`` is a batch from Telegram (quoted reply, forwards)."""
         await self._mark_busy()
         if photo is not None:
             self.services.last_photo.set(photo)
         token = current_photo.set(photo)
+        label = inbound.label if inbound is not None and inbound.label else text
         try:
             with trace():
-                await emit(EventType.MESSAGE_RECEIVED, text=text, photo=photo is not None)
-                reply = await self._safely(self._route(text.strip(), user_id, photo, skill, note))
-                await self._remember(text + (" [photo]" if photo else ""), reply)
+                await emit(EventType.MESSAGE_RECEIVED, text=label, photo=photo is not None)
+                if inbound is not None:
+                    await self._focus_quoted(inbound)
+                    note = "\n\n".join(x for x in (inbound.context, note) if x)
+                if inbound is not None and not text.strip() and inbound.context:
+                    # Only forwards: the LLM decides what to do with them.
+                    work = self.agent.handle(FORWARD_ONLY_REQUEST, image=photo, images=images, note=note)
+                else:
+                    work = self._route(text.strip(), user_id, photo, skill, note, images)
+                reply = await self._safely(work)
+                await self._remember(label + (" [photo]" if photo else ""), reply)
                 return self._first_page(reply)
         finally:
             current_photo.reset(token)
 
+    async def _focus_quoted(self, inbound: Composed) -> None:
+        """A reply quoting one of UVA's notices: focus moves to what it was about."""
+        quote, services = inbound.quoted, self.services
+        if quote is None or not quote.from_bot or services.stm is None or services.sqlite is None:
+            return
+        try:
+            found = await sent.lookup(services.sqlite, quote.message_id)
+            if found is None or not found.ref:
+                return
+            session = await services.stm.session()
+            ref = next((r for r in reversed(session.refs) if r.id == found.ref), None)
+            if ref is not None:
+                await services.stm.set_focus(ref.ref)
+                await emit(EventType.ROUTE, tier="quote_focus", ref=ref.ref, kind=found.kind)
+        except Exception as exc:
+            await emit(EventType.ERROR, where="quote_focus", error=repr(exc))
+
     async def handle_photo(
-        self, photo: str, caption: str = "", user_id: int | None = None
+        self, photo: str, caption: str = "", user_id: int | None = None, images: tuple[str, ...] = (),
+        inbound: Composed | None = None,
     ) -> Reply:
-        """A picture: with a caption it's a message with an image; without one,
-        the bot describes it and keeps it for follow-ups ("o que tá escrito aí?")."""
-        if caption.strip():
-            return await self.handle_text(caption, user_id=user_id, photo=photo)
+        """A picture (``images``: the rest of an album): with a caption it's a
+        message with an image; without one, the bot describes it and keeps it for
+        follow-ups ("o que tá escrito aí?")."""
+        if caption.strip() or (inbound is not None and inbound.context):
+            return await self.handle_text(caption, user_id=user_id, photo=photo, images=images, inbound=inbound)
 
         await self._mark_busy()
         services = self.services
         services.last_photo.set(photo)
         with trace():
-            await emit(EventType.MESSAGE_RECEIVED, text="[photo]", photo=True)
-            reply = await self._safely(self._describe_photo(photo))
-            await self._remember("[photo without caption]", reply)
+            await emit(EventType.MESSAGE_RECEIVED, text="[photo]", photo=True, album=len(images) + 1)
+            reply = await self._safely(self._describe_photo(photo, images))
+            label = "[photo without caption]" if not images else f"[album of {len(images) + 1} photos]"
+            await self._remember(label, reply)
             return reply
+
+    async def handle_document(
+        self, filename: str, data: bytes, caption: str = "", user_id: int | None = None,
+        inbound: Composed | None = None,
+    ) -> Reply:
+        """A document (PDF, DOCX, TXT...): kept in the brain's 05-anexos with its
+        text in a note; the caption (or "summarize it") goes to the router with
+        the first part of the text."""
+        await self._mark_busy()
+        label = f"[document {filename}] {caption}".strip()
+        with trace():
+            await emit(EventType.MESSAGE_RECEIVED, text=label, kind="document")
+            reply = await self._safely(self._document(filename, data, caption, user_id, inbound))
+            await self._remember(label, reply)
+            return self._first_page(reply)
+
+    async def _document(
+        self, filename: str, data: bytes, caption: str, user_id: int | None, inbound: Composed | None
+    ) -> Reply:
+        services = self.services
+        settings = services.settings
+        if services.vault is None:
+            return Reply(t("router.document.no_vault"))
+        try:
+            extracted = await asyncio.to_thread(
+                documents.extract, filename, data, max_chars=settings.document_max_chars
+            )
+        except documents.DocumentError as exc:
+            await emit(EventType.ROUTE, tier="document_refused", file=filename, error=str(exc))
+            return Reply(str(exc))
+        attachment, note = await asyncio.to_thread(self._save_document, filename, data, extracted)
+        await remember_ref(services, "nota", note.path, f"document: {filename}")
+        await emit(EventType.ROUTE, tier="document", file=filename, chars=len(extracted.text),
+                   truncated=extracted.truncated, note=note.path)
+        shown = extracted.text[: settings.document_context_chars]
+        pages = f"{extracted.pages} pages, " if extracted.pages else ""
+        clipped = f", clipped at {settings.document_max_chars}" if extracted.truncated else ""
+        context = (
+            f"Document the user just sent: {filename} ({pages}{len(extracted.text)} chars{clipped}). "
+            f"Saved as {attachment}, with its text in the note {note.path}.\n"
+            + as_data("document", shown)
+        )
+        if len(shown) < len(extracted.text):
+            context += f'\n(The rest: document_read with "path": "{note.path}" and "offset": {len(shown)}.)'
+        if inbound is not None and inbound.context:
+            context = f"{inbound.context}\n\n{context}"
+        if caption.strip():
+            return await self._route(caption.strip(), user_id, note=context)
+        return await self.agent.handle(DOCUMENT_REQUEST, note=context)
+
+    def _save_document(self, filename: str, data: bytes, extracted: documents.Extracted):
+        vault = self.services.vault
+        day = utcnow().astimezone(self.services.tz).strftime("%Y-%m-%d")
+        stem, _, ext = filename.rpartition(".") if "." in filename else (filename, "", "bin")
+        attachment = vault.save_attachment(data, ext.lower() or "bin", f"{day} {stem}")
+        note = vault.create_note(
+            f"{day} {filename}", documents.note_body(attachment, extracted), folder="anexos",
+            tags=["documento"], check=False,
+        )
+        return attachment, note
 
     async def handle_sticker(
         self, unique_id: str, *, file_id: str = "", emoji: str = "", set_name: str = "",
@@ -175,7 +274,7 @@ class Router:
         await emit(EventType.ROUTE, tier="sticker_learn", sticker=sticker.id, field="meaning")
         return Reply(t("router.sticker.learned", emoji=sticker.emoji, meaning=sticker.meaning))
 
-    async def _describe_photo(self, photo: str) -> Reply:
+    async def _describe_photo(self, photo: str, images: tuple[str, ...] = ()) -> Reply:
         services = self.services
         llm = services.llm
         if llm is None:
@@ -188,7 +287,7 @@ class Router:
                 )
         try:
             response = await llm.complete(
-                [LLMMessage("user", describe_prompt(), images=(photo,))],
+                [LLMMessage("user", describe_prompt(len(images) + 1), images=(photo, *images))],
                 purpose="vision_describe",
                 scope=Scope.INTERACTIVE,
                 model=llm.vision_model,
@@ -383,7 +482,7 @@ class Router:
 
     async def _route(
         self, text: str, user_id: int | None, photo: str | None = None, skill: str | None = None,
-        note: str = "",
+        note: str = "", images: tuple[str, ...] = (),
     ) -> Reply:
         # Teaching a sticker: its meaning, or "toda vez que eu mandar essa figurinha...".
         if photo is None and (reply := await self._try_sticker_text(text)) is not None:
@@ -394,10 +493,10 @@ class Router:
 
         # A skill named by the caller (a routine or goal that has one).
         if skill and self.services.skills is not None and (found := self.services.skills.get(skill)):
-            return await self.agent.handle(text, image=photo, skill=found, note=note)
+            return await self.agent.handle(text, image=photo, images=images, skill=found, note=note)
         # A message with a picture goes straight to the (vision) LLM.
         if photo is not None:
-            return await self.agent.handle(text, image=photo)
+            return await self.agent.handle(text, image=photo, images=images, note=note)
 
         # Small talk ("oi", "valeu", "falou") is answered without the LLM.
         if category := small_talk(text):

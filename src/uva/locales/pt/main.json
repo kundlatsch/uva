@@ -13,5 +13,6 @@
     "rmdtm": "⏰ Amanhã"
   },
   "file_too_big": "{phrase}\n(o arquivo passa de 20 MB, o limite do Telegram para bots)",
-  "audio_too_big": "{phrase}\n(o áudio passa de 20 MB, o limite do Telegram para bots)"
+  "audio_too_big": "{phrase}\n(o áudio passa de 20 MB, o limite do Telegram para bots)",
+  "document_too_big": "O arquivo passa de {mb} MB, meu limite para documentos (DOCUMENT_MAX_MB)."
 }

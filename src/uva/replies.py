@@ -42,6 +42,10 @@ class Reply:
     # A picture to send (Telegram compresses it, unless the reply asks for a file).
     image: bytes | None = None
     image_name: str = "imagem.jpg"
+    # A message UVA sends on its own: what it is (task, routine, goal...) and the id
+    # it is about, kept by Telegram message id (uva/sent.py) for quotes and reactions.
+    kind: str = ""
+    ref: str = ""
 
     @classmethod
     def paginated(cls, text: str, header: str = "") -> Reply:

@@ -423,15 +423,17 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
             when = format_local(routine.next_run_at, tz, "%d/%m %H:%M")
             head += "\n" + t("routines.notice.late", when=when)
         if routine.reminder:
-            await notify(Reply(head, buttons=buttons))
+            await notify(Reply(head, buttons=buttons, kind="routine", ref=routine.id))
         elif outcome.status == "failed":
-            await notify(Reply(f"{head}\n{t('routines.notice.failed', error=outcome.text or '?')}", buttons=buttons))
+            failed = t("routines.notice.failed", error=outcome.text or "?")
+            await notify(Reply(f"{head}\n{failed}", buttons=buttons, kind="routine", ref=routine.id))
         elif outcome.reply is None:
-            await notify(Reply(f"{head}\n{outcome.text}", buttons=buttons))
+            await notify(Reply(f"{head}\n{outcome.text}", buttons=buttons, kind="routine", ref=routine.id))
         else:
             reply = outcome.reply
             parts = [head, *(reply.parts or [reply.text])]
             out = Reply.from_parts(parts)
             out.buttons = [*reply.buttons, *buttons]
+            out.kind, out.ref = "routine", routine.id
             await notify(out)
     return ran

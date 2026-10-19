@@ -47,5 +47,8 @@
     "refused": "⚠️ I didn't save it ({action}): it looks like instructions to an assistant ({findings}).",
     "yes": "Yes, save",
     "no": "No"
+  },
+  "document": {
+    "no_vault": "I need the second brain to keep documents, and it isn't configured."
   }
 }

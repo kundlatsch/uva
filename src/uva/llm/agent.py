@@ -62,10 +62,12 @@ class Agent:
         self.history: deque[LLMMessage] = deque(maxlen=services.settings.llm_history_messages)
 
     async def handle(
-        self, text: str, image: str | None = None, skill: Skill | None = None, note: str = ""
+        self, text: str, image: str | None = None, skill: Skill | None = None, note: str = "",
+        images: tuple[str, ...] = (),
     ) -> Reply:
-        """Plan and act. With ``image`` the vision model sees the picture too;
-        with ``skill`` its body goes along as how to do this request."""
+        """Plan and act. With ``image`` the vision model sees the picture too
+        (``images``: more pictures, e.g. an album); with ``skill`` its body goes
+        along as how to do this request."""
         services = self.services
         if services.llm is None or services.actions is None:
             await emit(EventType.ROUTE, tier="llm_disabled")
@@ -105,7 +107,7 @@ class Agent:
             skill=attach(skill) if skill is not None else "",
             note=note,
         )
-        images = (image,) if image else ()
+        images = (image, *images) if image else ()
         content = context + (text or "(image without caption)")
         messages = [*history, LLMMessage("user", content, images=images)]
         ctx = ActionContext(services, INTERACTIVE, self.run_command)

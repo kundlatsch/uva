@@ -43,28 +43,32 @@ def keyboard(reply: Reply) -> InlineKeyboardMarkup | None:
     return InlineKeyboardMarkup([row])
 
 
-async def send_reply(bot: Bot, chat_id: int, reply: Reply) -> None:
-    """Send a reply; multi-part replies become several messages, in order."""
+async def send_reply(bot: Bot, chat_id: int, reply: Reply) -> list[int]:
+    """Send a reply; multi-part replies become several messages, in order.
+    Returns the Telegram message ids."""
+    ids = []
     for message in reply.messages():
-        await _send_one(bot, chat_id, message)
+        sent = await _send_one(bot, chat_id, message)
+        if isinstance(getattr(sent, "message_id", None), int):
+            ids.append(sent.message_id)
+    return ids
 
 
-async def _send_one(bot: Bot, chat_id: int, reply: Reply) -> None:
+async def _send_one(bot: Bot, chat_id: int, reply: Reply):
     markup = keyboard(reply)
     if reply.image is not None and reply.document is None:
-        await bot.send_photo(
+        return await bot.send_photo(
             chat_id=chat_id, photo=io.BytesIO(reply.image), caption=reply.text[:1024] or None, reply_markup=markup
         )
     elif reply.document is not None:
-        await bot.send_document(
+        return await bot.send_document(
             chat_id=chat_id,
             document=io.BytesIO(reply.document),
             filename=reply.filename,
             caption=reply.text[:1024],  # caption limit
             reply_markup=markup,
         )
-    else:
-        await send_text(bot.send_message, text=reply.text, reply_markup=markup, chat_id=chat_id)
+    return await send_text(bot.send_message, text=reply.text, reply_markup=markup, chat_id=chat_id)
 
 
 async def send_text(send, *, text: str, **kwargs):

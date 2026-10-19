@@ -31,6 +31,7 @@ This is the complete reference. For a quick overview, see the [README](../README
 - [MCP servers](#mcp-servers)
 - [Stickers](#stickers)
 - [Audio](#audio)
+- [Telegram input: batches, quotes, forwards, documents](#telegram-input-batches-quotes-forwards-documents)
 - [Images](#images)
 - [Decisions (OpenAI Decisions)](#decisions-openai-decisions)
 - [Conversation controls](#conversation-controls)
@@ -75,6 +76,9 @@ src/uva/
   initiatives.py  # messages UVA sends on its own
   routines.py     # recurring requests on a schedule
   reminders.py    # one-shot reminders: the time parser (pt/en), snooze, cleanup
+  inbound.py      # Telegram input: batching, quoted replies, forwards
+  documents.py    # text out of PDF/DOCX/TXT/MD/CSV/JSON documents
+  sent.py         # messages UVA sent on its own, by Telegram message id
   tasks/          # Celery: app, tasks, queue, "busy" lock
   storage/        # Mongo, SQLite (expenses, stickers, index, incidents, allowlist...)
   selfmod/        # self-editing, self-coding, plugin loading, git
@@ -398,7 +402,7 @@ A reminder is a routine that runs once (`every: once`, `once_at` in UTC, in the 
 
 Data with a fixed shape lives in SQLite at `SQLITE_PATH` (volume `sqlite-data`), in WAL mode. Migrations are in `src/uva/storage/sqlite.py` (`MIGRATIONS` list; the applied number is in `PRAGMA user_version`). To change the schema, append a new migration at the end; never edit old ones.
 
-Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`) and routine failure incidents (`routine_incidents`).
+Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`), routine failure incidents (`routine_incidents`) and the messages UVA sent on its own (`sent_messages`, by Telegram message id, kept 30 days).
 
 Example: expenses.
 
@@ -584,6 +588,18 @@ Send audio (voice message, audio file or round video) and UVA transcribes it wit
 - The key is `TRANSCRIBE_API_KEY`, or `LLM_API_KEY` when the main provider is already OpenAI. `TRANSCRIBE_LANGUAGE` defaults to `pt`.
 
 **Voice replies** (optional, `VOICE_REPLIES`): `off` (default), `voice_in` (the answer to a voice message also comes as a voice note) or `always`. It uses OpenAI TTS (`TTS_MODEL`, default `gpt-4o-mini-tts`; `TTS_VOICE`, default `alloy`), reads up to ~1500 characters without Markdown or links, and the cost (`TTS_PRICE_PER_1K_CHARS`) counts toward the daily budget (it is skipped when the budget is spent). The key is `TTS_API_KEY`, else `TRANSCRIBE_API_KEY`, else `LLM_API_KEY` when the LLM is OpenAI itself.
+
+## Telegram input: batches, quotes, forwards, documents
+
+**Batches.** Plain messages sent in a row wait `INBOUND_DEBOUNCE_MS` (300 ms) of quiet and go to the router as **one** turn (joined by newlines; the short-term memory and the conversation log keep one user turn). A message of 4000+ characters (a long paste Telegram split) waits up to 1.5 s, a forward 1 s; a batch never waits more than 7.5 s from its first message, and 12 messages or 50 000 characters send it at once. Commands, button presses, photos, audio, stickers and documents send what was waiting first, so the order is kept; `/parar` acts at once and the waiting messages go right after. `INBOUND_DEBOUNCE_MS=0` turns batching off (`uva/inbound.py`).
+
+**Photo albums.** The photos of one album (Telegram `media_group_id`) arrive as separate messages; they wait 0.5 s and become one turn: the caption with every photo, or a description of all of them.
+
+**Quoted replies.** When you reply to a message, the LLM gets `Replying to (<who>, <time>)` and the quoted text (up to 1500 characters, marked as data). Messages UVA sends on its own (task results, routine reports) are kept by Telegram message id in SQLite `sent_messages` (30 days) with what they are about, so replying "refaz isso" to a research result moves the focus to that research and `retry` works on the right one.
+
+**Forwards.** A forwarded message becomes `Forwarded from <name/channel>, <date>` in the context block, and its text is data, not an instruction from you. A forward with no words of your own lets the LLM decide what is useful (save it to the inbox, summarize it, add a task or a reminder) or ask.
+
+**Documents.** PDF (`pypdf`), DOCX (`python-docx`), `.txt`, `.md`, `.csv` and `.json` up to `DOCUMENT_MAX_MB` (10). The file goes to `05-anexos/<date>_<name>` with a note next to it holding the extracted text (up to `DOCUMENT_MAX_CHARS`, 60 000), so the index and recall find it. The caption (or, without one, "summarize it") goes to the router with the first `DOCUMENT_CONTEXT_CHARS` (8000) characters; the `document_read(path, offset)` lookup reads the rest. Other types, empty files (e.g. a scanned PDF) and broken or password-protected files get a clear message.
 
 ## Images
 
