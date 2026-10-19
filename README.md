@@ -7,9 +7,9 @@ Full documentation: **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)**.
 ## What it does
 
 - **Understands free text.** Explicit commands run directly; anything else is matched against known commands by similarity, and only then sent to an LLM (Anthropic or any OpenAI-compatible provider) that can only trigger registered, validated actions.
-- **Remembers.** Short-term memory of the current conversation (Redis) and long-term memory about you (MongoDB), plus a recall step that searches everything before calling the LLM.
+- **Remembers.** Short-term memory of the current conversation (Redis), long-term facts about you (MongoDB), skills for how you want things done, and a permanent conversation log; a full-text index (SQLite FTS5) lets recall search all of it before calling the LLM, and a background review keeps what matters on its own.
 - **Keeps a second brain.** An Obsidian-compatible Markdown vault for notes, research results and images. Notes are never deleted.
-- **Works on its own.** Goals it pursues in the background, recurring routines, and proactive messages, all within daily budgets and quiet hours.
+- **Works on its own.** Goals it pursues in the background (with a judge that checks they are really done), recurring routines (silent when there is nothing to say, script-only or chained), and proactive messages, all within daily budgets and quiet hours.
 - **Extends itself.** `/feature` makes UVA write, test and merge a new command as a plugin; `/projeto` has Claude Code build a new, separate project in an isolated container.
 - **Has its own sandbox.** `/sh` and `/py` run in an isolated container with snapshots and undo.
 - **Handles more than text.** Voice messages are transcribed, images are understood, stickers can carry meanings and actions, and calibrated yes/no, choice and score answers come from OpenAI Decisions.
@@ -45,6 +45,8 @@ The dashboard is at http://localhost:8080 (local only).
 | `/gasto`, `/gastos` | `/expense`, `/expenses` | expense tracking |
 | `/feature`, `/projeto` | `/feature`, `/project` | self-coding and new projects |
 | `/sh`, `/py` | `/terminal`, `/python` | sandboxed shell and Python |
+| `/habilidades`, `/historico`, `/perfil` | `/skills`, `/history`, `/profile` | skills, past conversations, profile size |
+| `/parar`, `/refazer`, `/modo` | `/stop`, `/retry`, `/mode` | conversation controls |
 | `/log`, `/status`, `/llm` | `/log`, `/status`, `/model` | diagnostics and spending |
 
 See the [full command list](docs/DOCUMENTATION.md#commands).

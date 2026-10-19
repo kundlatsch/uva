@@ -16,11 +16,13 @@ This is the complete reference. For a quick overview, see the [README](../README
 - [Background tasks](#background-tasks)
 - [Second brain (Markdown notes)](#second-brain-markdown-notes)
 - [Short-term memory](#short-term-memory)
+- [Background review and journal digest](#background-review-and-journal-digest)
 - [Long-term memory](#long-term-memory)
 - [Goals and proactive mode](#goals-and-proactive-mode)
 - [Routines (recurring tasks)](#routines-recurring-tasks)
 - [SQLite (structured data)](#sqlite-structured-data)
 - [Personality (soul.md) and profile (profile.md)](#personality-soulmd-and-profile-profilemd)
+- [Skills (how you want things done)](#skills-how-you-want-things-done)
 - [Self-editing](#self-editing)
 - [Self-coding: UVA writes new commands](#self-coding-uva-writes-new-commands)
 - [New projects with Claude Code (/projeto)](#new-projects-with-claude-code-projeto)
@@ -29,6 +31,7 @@ This is the complete reference. For a quick overview, see the [README](../README
 - [Audio](#audio)
 - [Images](#images)
 - [Decisions (OpenAI Decisions)](#decisions-openai-decisions)
+- [Conversation controls](#conversation-controls)
 - [Ready-made phrases](#ready-made-phrases)
 - [Local dashboard](#local-dashboard)
 - [Instant feedback](#instant-feedback)
@@ -49,6 +52,16 @@ src/uva/
   router.py       # text -> reply: command, similarity or LLM
   matching.py     # fallback tier 2 (similarity with rapidfuzz), small talk
   recall.py       # searches every store before calling the LLM
+  index/          # full-text index (SQLite FTS5) and the conversation log
+  review.py       # background review into memory/skills/profile, nightly journal digest
+  skills.py       # skills: procedural memory in data/skills
+  profile.py      # size budget of profile.md/soul.md, /perfil consolidar
+  safety.py       # prompt-injection scanner for writes and outside content
+  incidents.py    # routine failure incidents (one alert per distinct error)
+  curator.py      # idle plugins and skills step out of /help and the prompt
+  modes.py        # /modo tone overlays
+  turns.py        # turns in progress, so /parar can stop one
+  tts.py          # optional voice replies
   commands/       # bot commands (/help is generated from the registry)
   actions/        # actions the LLM may request (registry + Pydantic validation)
   llm/            # providers (Anthropic, OpenAI-compatible), agent, prompts, budget, pricing
@@ -60,14 +73,14 @@ src/uva/
   initiatives.py  # messages UVA sends on its own
   routines.py     # recurring requests on a schedule
   tasks/          # Celery: app, tasks, queue, "busy" lock
-  storage/        # Mongo, SQLite (expenses, stickers)
+  storage/        # Mongo, SQLite (expenses, stickers, index, incidents, allowlist...)
   selfmod/        # self-editing, self-coding, plugin loading, git
   plugins/        # commands added as plugins (by hand or by self-coding)
   projects/       # /projeto: new projects built by Claude Code
   shell/          # /sh and /py client for the isolated shell container
   dashboard/      # local web dashboard (FastAPI)
   logging/        # JSON logs and events with trace_id
-data/             # soul.md, profile.md (gitignored), fallback_phrases.json (pt) and .en.json
+data/             # soul.md, profile.md (gitignored), skills/, modes.json (optional), fallback_phrases.json (pt) and .en.json
 tests/            # pytest (Telegram and LLM are faked)
 scripts/          # integration tests, latency and ask tools, Windows startup
 docs/             # this documentation, the original plan, short-term memory notes

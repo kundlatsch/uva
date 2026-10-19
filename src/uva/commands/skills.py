@@ -28,7 +28,8 @@ def register(registry: CommandRegistry) -> None:
         lines = [t("commands.skills.skills.header", count=len(found))]
         for skill in found:
             used = usage.get(skill.name)
-            last = format_local(used.last_used_at, tz, "%d/%m %H:%M") if used and used.last_used_at else "—"
+            # A skill never used has a clock-start date (curator), not a last use.
+            last = format_local(used.last_used_at, tz, "%d/%m %H:%M") if used and used.uses and used.last_used_at else "—"
             idle = t("commands.skills.skills.idle") if skill.name in library.idle else ""
             lines.append(t(
                 "commands.skills.skills.line", name=skill.name, description=skill.description,

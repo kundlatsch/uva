@@ -3,7 +3,7 @@
     docker compose exec bot python scripts/ask.py "me fala sobre o livro X"
 
 Prints the reply parts and what the LLM planned (from the events log). The
-exchange is NOT added to the short-term memory (so test questions don't pile
+exchange is NOT added to the short-term memory or the conversation log (so test questions don't pile
 up in the real conversation); pass --record to keep it.
 """
 
@@ -40,12 +40,15 @@ class Tap:
 async def main(text: str, record: bool) -> None:
     services = build_services(get_settings())
     await setup_storage(services)
-    if services.stm is not None and not record:
+    if not record:
 
         async def skip(*args, **kwargs) -> None:
             pass
 
-        services.stm.add_exchange = skip
+        if services.stm is not None:
+            services.stm.add_exchange = skip
+        if services.index is not None:  # nor in the conversation log (and so not in the review)
+            services.index.add_exchange = skip
     events.set_store(Tap(events._store))
     reply = await Router(services).handle_text(text)
     print("\n=== reply ===")
