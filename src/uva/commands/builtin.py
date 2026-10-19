@@ -38,6 +38,8 @@ def render_help(registry: CommandRegistry) -> str:
     """Help text generated from the registry, so new commands show up automatically."""
     lines = [t("commands.builtin.help.header")]
     for cmd in registry:
+        if cmd.name in registry.idle:
+            continue
         line = f"/{cmd.name}"
         if cmd.usage:
             line += f" {cmd.usage}"
@@ -45,4 +47,6 @@ def render_help(registry: CommandRegistry) -> str:
         if cmd.aliases:
             line += t("commands.builtin.help.aliases", aliases=", ".join(cmd.aliases))
         lines.append(line)
+    if registry.idle:
+        lines.append(t("commands.builtin.help.idle", count=len(registry.idle)))
     return "\n".join(lines)

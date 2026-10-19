@@ -63,6 +63,11 @@ def build_services(settings: Settings) -> Services:
     services.budget = Budget(usage, settings, services.tz, extras)
     services.decisions = build_decisions_client(settings, usage)
     services.transcriber = build_transcriber(settings, usage)
+    from uva.tts import build_speaker
+    from uva.turns import TurnTracker
+
+    services.speaker = build_speaker(settings, usage)
+    services.turns = TurnTracker()
 
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     task_store = mongo.MongoTaskStore(db, settings.tasks_ttl_days)
@@ -125,6 +130,7 @@ def build_services(settings: Settings) -> Services:
             lambda: _setup_vault(services.vault),
             lambda: _setup_sqlite(sqlite_db),
             lambda: setup_index(services),
+            lambda: _refresh_idle(services),
         ]
     )
     return services
@@ -197,6 +203,14 @@ async def setup_index(services: Services) -> None:
         result = await index.sync_notes()
         if result["indexed"] or result["removed"]:
             log.info("index_synced", **result)
+
+
+async def _refresh_idle(services: Services) -> None:
+    from uva.curator import refresh_idle
+
+    plugins, skills = await refresh_idle(services)
+    if plugins or skills:
+        log.info("idle", plugins=sorted(plugins), skills=sorted(skills))
 
 
 async def rebuild_index(services: Services) -> dict[str, int]:

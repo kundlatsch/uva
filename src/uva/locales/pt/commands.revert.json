@@ -7,6 +7,8 @@
     "done": "↩️ Revertido {sha}: {subject} (novo commit {new_sha}).",
     "brain_no_history": "O second brain não tem histórico (git) aqui.",
     "brain_nothing": "Não achei nenhuma mudança minha no second brain para desfazer.",
-    "brain_done": "↩️ Second brain: desfeito {sha} ({subject})."
+    "brain_done": "↩️ Second brain: desfeito {sha} ({subject}).",
+    "diff_header": "🔍 O {command} desfaria {sha} ({subject}):",
+    "diff_cut": "… (cortado)"
   }
 }

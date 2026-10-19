@@ -1,0 +1,5 @@
+{
+  "description": "Does your last message again (a new answer)",
+  "nothing": "There is no previous message to redo.",
+  "unavailable": "Can't redo from here."
+}

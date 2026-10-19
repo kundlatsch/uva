@@ -1,0 +1,9 @@
+{
+  "description": "Stops what I'm doing right now (asks which if several)",
+  "nothing": "Nothing running right now.",
+  "stopped": "⏹️ Stopped: {label}",
+  "stopped_turn": "⏹️ Stopped ({label}).",
+  "gone": "That had already finished.",
+  "which": "{count} things running. Which one do I stop?",
+  "all": "⏹ All"
+}

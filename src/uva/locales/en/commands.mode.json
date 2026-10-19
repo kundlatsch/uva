@@ -1,0 +1,9 @@
+{
+  "description": "A temporary tone for this conversation (serio, conciso, professor...); 'normal' clears it",
+  "usage_arg": "[name | normal]",
+  "unavailable": "Modes need the short-term memory (Redis).",
+  "status": "Mode now: {current}. Available: {modes}. /mode <name>, /mode normal clears.",
+  "cleared": "Back to normal.",
+  "unknown": "I don't know the mode '{name}'. Available: {modes}.",
+  "set": "🎭 Mode {name} on until the conversation ends (/mode normal clears)."
+}

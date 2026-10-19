@@ -55,8 +55,10 @@ def register(registry: CommandRegistry) -> None:
         if ctx.services.features is None:
             return t("commands.features.not_configured")
         records = await ctx.services.features.store.recent(RECENT)
+        idle = sorted(ctx.services.registry.idle)
+        idle_line = t("commands.features.features.idle", commands=", ".join(f"/{c}" for c in idle)) if idle else ""
         if not records:
-            return t("commands.features.features.none")
+            return "\n".join(x for x in (t("commands.features.features.none"), idle_line) if x)
         return t("commands.features.features.header") + "\n" + "\n".join(
             describe_feature(r) for r in records
-        )
+        ) + (f"\n\n{idle_line}" if idle_line else "")

@@ -1,0 +1,5 @@
+{
+  "description": "Forgets the last exchange (your message and my reply) in the conversation",
+  "nothing": "There is no exchange to forget.",
+  "done": "↩️ Forgot the last exchange (“{text}”)."
+}

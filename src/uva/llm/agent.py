@@ -77,7 +77,13 @@ class Agent:
                 return Reply(f"{services.say('sem_credito')}\n({status.reason})")
 
         actions = list(services.actions)
-        history, recent_context = await self._session_context()
+        history, recent_context, mode = await self._session_context()
+        if mode:
+            from uva import modes
+
+            found_mode = modes.find(mode, services.settings.repo_dir / "data" / "modes.json")
+            if found_mode is not None:
+                note = "\n".join(x for x in (modes.overlay(*found_mode), note) if x)
         found = await recall(services, text) if text else None
         if found:
             await emit(EventType.ROUTE, tier="recall", notes=found.notes, sections=len(found.sections))
@@ -112,8 +118,8 @@ class Agent:
                 )
             except LLMError as exc:
                 if is_quota_error(exc):
-                    return Reply(f"{services.say('sem_credito')}\n{t('llm.agent.quota')}")
-                return Reply(services.say("llm_erro"))
+                    return Reply(f"{services.say('sem_credito')}\n{t('llm.agent.quota')}", failed=True)
+                return Reply(services.say("llm_erro"), failed=True)
 
             try:
                 plan = parse_plan(response.text)
@@ -121,7 +127,7 @@ class Agent:
             except (PlanError, InvalidActionError) as exc:
                 # Nothing from a broken answer is executed.
                 await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
-                return Reply(services.say("llm_erro"))
+                return Reply(services.say("llm_erro"), failed=True)
 
             await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump(), image=image is not None, round=round_)
             lookups_only = bool(calls) and all(action.lookup for action, _ in calls)
@@ -160,18 +166,18 @@ class Agent:
         self._remember(text, reply.text)
         return reply
 
-    async def _session_context(self) -> tuple[list[LLMMessage], str]:
-        """Recent turns (as messages) and the "Recent context" block."""
+    async def _session_context(self) -> tuple[list[LLMMessage], str, str | None]:
+        """Recent turns (as messages), the "Recent context" block and the /modo in use."""
         stm = self.services.stm
         limit = self.services.settings.llm_history_messages
         if stm is None:
-            return list(self.history), ""
+            return list(self.history), "", None
         try:
             session = await stm.session()
         except Exception as exc:  # Redis down: fall back to the in-process history
             log.warning("stm_unavailable", error=str(exc))
-            return list(self.history), ""
-        return stm.history(session, limit), stm.context_block(session, self.services.tz)
+            return list(self.history), "", None
+        return stm.history(session, limit), stm.context_block(session, self.services.tz), session.mode
 
     async def _working_memory(self) -> str:
         if self.services.memory is None:

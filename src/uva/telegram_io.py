@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import io
 
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+import re
+
+from telegram import Bot, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 
@@ -15,6 +17,23 @@ from uva.tgformat import to_html, to_plain
 
 # Telegram's limit applies to the text after the HTML is parsed; the tags we add
 # are short, so a raw text within the limit is safe.
+
+
+# Telegram's limits for the command menu (setMyCommands).
+MAX_MENU_COMMANDS = 100
+_MENU_NAME = re.compile(r"^[a-z0-9_]{1,32}$")
+
+
+def bot_commands(registry) -> list[BotCommand]:
+    """The "/" menu: every command (idle plugins left out) with its description
+    in the bot language, up to Telegram's limit of 100."""
+    out = []
+    for command in registry:
+        if command.name in registry.idle or not _MENU_NAME.match(command.name):
+            continue
+        description = " ".join(command.description.split())[:256] or command.name
+        out.append(BotCommand(command.name, description))
+    return out[:MAX_MENU_COMMANDS]
 
 
 def keyboard(reply: Reply) -> InlineKeyboardMarkup | None:
@@ -32,7 +51,11 @@ async def send_reply(bot: Bot, chat_id: int, reply: Reply) -> None:
 
 async def _send_one(bot: Bot, chat_id: int, reply: Reply) -> None:
     markup = keyboard(reply)
-    if reply.document is not None:
+    if reply.image is not None and reply.document is None:
+        await bot.send_photo(
+            chat_id=chat_id, photo=io.BytesIO(reply.image), caption=reply.text[:1024] or None, reply_markup=markup
+        )
+    elif reply.document is not None:
         await bot.send_document(
             chat_id=chat_id,
             document=io.BytesIO(reply.document),
@@ -94,13 +117,32 @@ async def _keep_typing(bot: Bot, chat_id: int, stop: asyncio.Event) -> None:
             pass
 
 
-async def respond(bot: Bot, chat_id: int, say, work, *, activity: str = "pensando", now: str | None = None) -> None:
-    """Handle one incoming update with instant feedback.
+RECEIVED, DONE, FAILED = "👀", "👍", "👎"
+
+
+async def react(bot: Bot, chat_id: int, message_id: int | None, emoji: str | None) -> None:
+    """Set (or clear, with None) the bot's reaction on a message. Best effort."""
+    if message_id is None:
+        return
+    try:
+        await bot.set_message_reaction(chat_id=chat_id, message_id=message_id, reaction=emoji)
+    except Exception:
+        pass  # old clients, deleted messages...
+
+
+async def respond(
+    bot: Bot, chat_id: int, say, work, *, activity: str = "pensando", now: str | None = None,
+    react_to: int | None = None,
+) -> list[Reply]:
+    """Handle one incoming update with instant feedback; returns the replies sent.
 
     "digitando…" goes out at once; if the reply takes longer than a moment, a
     phrase for the activity shows up and is then edited into the reply.
     ``now`` shows that phrase immediately (e.g. before downloading an audio).
+    With ``react_to`` the incoming message gets 👀 at once and 👍 / 👎 at the
+    end, unless a placeholder was shown (then the reaction is cleared).
     """
+    await react(bot, chat_id, react_to, RECEIVED)
     stop = asyncio.Event()
     typing = asyncio.create_task(_keep_typing(bot, chat_id, stop))
     sink = TelegramSink(bot, chat_id, say, activity)
@@ -108,8 +150,16 @@ async def respond(bot: Bot, chat_id: int, say, work, *, activity: str = "pensand
         if now:
             await sink.send(now)
         result = await with_feedback(sink, work)
+    except Exception:
+        stop.set()
+        await react(bot, chat_id, react_to, FAILED)
+        raise
     finally:
         stop.set()
     replies = result if isinstance(result, list) else [result]
     await sink.deliver([m for r in replies for m in r.messages()])
     await typing
+    if react_to is not None:
+        failed = any(r.failed for r in replies)
+        await react(bot, chat_id, react_to, FAILED if failed else (None if sink.posted else DONE))
+    return replies

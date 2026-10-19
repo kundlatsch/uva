@@ -160,6 +160,17 @@ class Settings(BaseSettings):
     # Routines: the same failure alerts once, then reminds every N hours.
     routine_failure_remind_hours: float = 6
 
+    # Telegram: reactions on your message as feedback (👀 received, 👍 done, 👎 error).
+    telegram_reactions: bool = True
+    # Voice replies: off | voice_in (when you sent a voice note) | always.
+    voice_replies: Literal["off", "voice_in", "always"] = "off"
+    tts_model: str = "gpt-4o-mini-tts"
+    tts_voice: str = "alloy"
+    tts_api_key: SecretStr | None = None
+    tts_price_per_1k_chars: float = 0.015
+    # Plugins and skills unused for this many days leave /help and the prompt (still usable).
+    plugin_stale_days: int = 30
+
     # Long-term memory
     memory_working_size: int = 20  # items injected into the prompt
     memory_half_life_days: float = 30

@@ -9,7 +9,8 @@
   "help": {
     "description": "Lista os comandos disponíveis",
     "header": "Comandos disponíveis:",
-    "aliases": " (também: {aliases})"
+    "aliases": " (também: {aliases})",
+    "idle": "(+{count} plugin(s) parado(s), sem uso há um tempo: /features lista; continuam funcionando)"
   },
   "ping": {
     "description": "Verifica se o bot está vivo"

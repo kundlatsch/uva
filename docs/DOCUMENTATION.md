@@ -83,6 +83,10 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/help`, `/ajuda` | lists every command (generated automatically) |
 | `/comandos`, `/commands` | debug catalog: commands (core/plugin, aliases, examples) and LLM actions with their parameters |
 | `/ping` | health check, replies `pong` |
+| `/parar`, `/stop` | stops what is running now (the current answer, tasks started in the last 15 minutes); asks which when there are several |
+| `/refazer`, `/retry` | answers your last message again |
+| `/desfazer_turno`, `/undo_turn` | forgets the last exchange (your message and the reply) |
+| `/modo`, `/mode` `[name\|normal]` | a temporary tone for this conversation (`serio`, `conciso`, `professor`, or yours in `data/modes.json`) |
 | `/brain`, `/cerebro` `[folder \| note]` | inspects the second brain (also `/ver`, `/abrir`, `/view`, `/open`); `/brain renomear` (`rename`) |
 | `/nota`, `/note` `<text>` | saves a quick note to the inbox |
 | `/buscar`, `/search` `<term>` | searches the second brain (search index) |
@@ -111,7 +115,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/skill`, `/habilidade` `<name> [request]` | shows a skill, or does a request following it |
 | `/soul`, `/alma` | shows the personality (soul.md) |
 | `/perfil`, `/profile` `[consolidar\|consolidate]` | size of profile.md and soul.md against their limits; `consolidar` shrinks the profile (keeps a full copy) |
-| `/reverter`, `/undo` `[brain]` | reverts the bot's last change (also `/revert`, `/desfazer`) |
+| `/reverter`, `/undo` `[brain] [diff]` | reverts the bot's last change (also `/revert`, `/desfazer`); `diff` only shows what would be undone |
 | `/feature`, `/funcionalidade` `<description>` | asks UVA to code a new command |
 | `/features`, `/funcionalidades` | self-coding attempts |
 | `/projeto`, `/project` `<description>` | creates a new project with Claude Code |
@@ -487,6 +491,8 @@ Send audio (voice message, audio file or round video) and UVA transcribes it wit
 - Cost per audio minute counts toward the budget and shows in `/log 1d llm` (`kind=transcribe`); the transcript stays in short-term memory as `[voz] ...`.
 - The key is `TRANSCRIBE_API_KEY`, or `LLM_API_KEY` when the main provider is already OpenAI. `TRANSCRIBE_LANGUAGE` defaults to `pt`.
 
+**Voice replies** (optional, `VOICE_REPLIES`): `off` (default), `voice_in` (the answer to a voice message also comes as a voice note) or `always`. It uses OpenAI TTS (`TTS_MODEL`, default `gpt-4o-mini-tts`; `TTS_VOICE`, default `alloy`), reads up to ~1500 characters without Markdown or links, and the cost (`TTS_PRICE_PER_1K_CHARS`) counts toward the daily budget (it is skipped when the budget is spent). The key is `TTS_API_KEY`, else `TRANSCRIBE_API_KEY`, else `LLM_API_KEY` when the LLM is OpenAI itself.
+
 ## Images
 
 UVA sees images (photos and images sent as files) with the `LLM_MODEL_VISION` model (default: the router model). Works with OpenAI and Anthropic.
@@ -506,6 +512,14 @@ For questions with a numeric, calibrated answer, UVA uses OpenAI's Decisions API
 - A photo captioned `/decidir ...` evaluates the image. A photo without caption is kept for 30 min for questions like "tem gato nessa foto?".
 - In free text, the LLM uses the `decide` action (up to 8 questions) for "qual a chance de...", choosing among fixed options or scoring, instead of guessing.
 - Every call counts toward the budget and shows in `/log 1d llm` (`kind=decisions`).
+
+## Conversation controls
+
+- **`/modo <name>`** (`/mode`) sets a tone for the current conversation, on top of the personality: `serio` (no jokes or swearing), `conciso` (as short as possible), `professor` (explains step by step), or your own modes in `data/modes.json` (`{"pirata": "Fale como um pirata."}`). It lives in the short-term session (no file is edited, nothing is committed) and goes with each message, not in the system prompt. `/modo normal` clears it; `/modo` shows the current one and the list.
+- **`/refazer`** (`/retry`) sends your last message through again for a new answer.
+- **`/desfazer_turno`** (`/undo_turn`) removes the last exchange from the session and marks it as undone in the conversation log (it stays in SQLite but leaves every search, recall and review).
+- **`[[como_arquivo]]` / `[[as_document]]`** in a reply makes it go as a file: a picture goes uncompressed, a text goes as a `.md` attachment.
+- **Idle plugins and skills**: every command run is counted (SQLite `command_usage`). Plugins and skills unused for `PLUGIN_STALE_DAYS` (30) leave `/help`, the "/" menu, the command list in the prompt and the skill index, but keep working when called; `/features` lists the idle plugins. Nothing is deleted. A new plugin or skill starts its clock when it is first seen.
 
 ## Ready-made phrases
 
@@ -539,6 +553,10 @@ Every input gets something back in under 1 second (`uva/progress.py`):
 - when the LLM decides to run something slow (`/uva`, an unqueued search, `decide`...), its reply goes out first and the result comes after, in place of a "⚙️ Rodando…";
 - buttons answer right away with a short notice ("⚙️ Rodando…", "Ok");
 - the dashboard chat does the same, streaming: "typing…", then the phrases, then the answer.
+
+- **Reactions** (`TELEGRAM_REACTIONS=true`): your message gets 👀 when it arrives and 👍 when the answer is out, or 👎 when something went wrong. When a placeholder message was shown, that message is the feedback and the reaction is removed.
+- **Command menu**: at startup the bot sets Telegram's "/" menu from the registry (`setMyCommands`), with the descriptions in the bot language, up to Telegram's limit of 100. Idle plugins are left out.
+- **Stopping**: messages are handled one at a time, in order, but `/parar` (`/stop`) is handled at once, even while another answer is still being worked on; the stopped answer becomes "⏹️ Parei".
 
 To measure the time to first response on each path: `docker compose exec bot python /repo/scripts/latency.py`.
 

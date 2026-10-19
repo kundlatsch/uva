@@ -1,0 +1,9 @@
+{
+  "description": "Um tom temporário para esta conversa (serio, conciso, professor...); 'normal' tira",
+  "usage_arg": "[nome | normal]",
+  "unavailable": "Modos precisam da memória de curto prazo (Redis).",
+  "status": "Modo agora: {current}. Disponíveis: {modes}. /modo <nome>, /modo normal tira.",
+  "cleared": "De volta ao normal.",
+  "unknown": "Não conheço o modo '{name}'. Disponíveis: {modes}.",
+  "set": "🎭 Modo {name} ligado até a conversa acabar (/modo normal tira)."
+}

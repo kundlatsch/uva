@@ -33,6 +33,8 @@ if TYPE_CHECKING:
     from uva.shell.service import ShellService
     from uva.skills import SkillLibrary
     from uva.storage.sqlite import Database
+    from uva.tts import Speaker
+    from uva.turns import TurnTracker
     from uva.routines import RoutineStore
     from uva.storage.stickers import StickerRepository
     from uva.selfmod.features import FeatureService
@@ -67,6 +69,10 @@ class Services:
     skills: SkillLibrary | None = None
     # The SQLite database (expenses, stickers, index, incidents...).
     sqlite: Database | None = None
+    # Turns being handled now, so /parar can stop one (bot process).
+    turns: TurnTracker | None = None
+    # Voice replies (VOICE_REPLIES), None when off.
+    speaker: Speaker | None = None
     goals: GoalStore | None = None
     initiatives: InitiativeStore | None = None
     expenses: ExpenseRepository | None = None

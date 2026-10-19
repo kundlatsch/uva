@@ -9,7 +9,8 @@
   "help": {
     "description": "Lists the available commands",
     "header": "Available commands:",
-    "aliases": " (also: {aliases})"
+    "aliases": " (also: {aliases})",
+    "idle": "(+{count} idle plugin(s), unused for a while: /features lists them; they still work)"
   },
   "ping": {
     "description": "Checks whether the bot is alive"

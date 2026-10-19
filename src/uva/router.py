@@ -33,6 +33,7 @@ from uva.llm.budget import Scope
 from uva.stm.status import refresh, status_reply
 
 CONFIRM_TTL = timedelta(minutes=10)
+UNDO_TURN = ("/desfazer_turno", "/undo_turn")
 PAGES_TTL = timedelta(hours=1)
 PAGES_KEPT = 20
 HEARD_CHARS = 800
@@ -68,6 +69,7 @@ class Router:
         self.agent = Agent(services, run_command=self._run_command_for_llm)
         # The last sticker sent (waiting for its meaning, or target of "toda vez que...").
         self._sticker: StickerFocus | None = None
+        self._curated_at: datetime | None = None
 
     @property
     def registry(self) -> CommandRegistry:
@@ -250,6 +252,8 @@ class Router:
     async def _remember(self, text: str, reply: Reply) -> None:
         """Keep the exchange in the short-term memory and in the conversation
         log (best effort)."""
+        if text.strip().lower().split(" ", 1)[0] in UNDO_TURN:
+            return  # undoing the last exchange must not leave a new one behind
         said = reply.summary or reply.text
         if self.services.index is not None:
             try:
@@ -297,6 +301,10 @@ class Router:
         if verb == "pg":
             token, _, index = token.partition(":")
             return self._page(token, int(index) if index.isdigit() else 0)
+        if verb == "stop":
+            from uva.commands.session import stop_callback
+
+            return await self._safely(stop_callback(self.services, data))
         if verb in ("wrok", "wrno"):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             reply = await self._safely(self._resolve_write(verb, token))
@@ -328,6 +336,22 @@ class Router:
         result = await execute_action(action, params, ctx)
         return Reply(result.text or self.services.say("confirmacao"), buttons=result.buttons)
 
+    async def _count(self, name: str) -> None:
+        """Command usage for the curator; idle plugins are recomputed hourly."""
+        services = self.services
+        if services.sqlite is None:
+            return
+        from uva.curator import REFRESH_EVERY, record_command, refresh_idle
+
+        await record_command(services.sqlite, name)
+        now = utcnow()
+        if self._curated_at is None or now - self._curated_at >= REFRESH_EVERY:
+            self._curated_at = now
+            try:
+                await refresh_idle(services, now)
+            except Exception as exc:
+                await emit(EventType.ERROR, where="curator", error=repr(exc))
+
     async def _mark_busy(self) -> None:
         """Tell the goal loop the user is around (it waits until we're idle)."""
         if self.services.busy is None:
@@ -342,7 +366,7 @@ class Router:
             reply = await coro
         except Exception as exc:
             await emit(EventType.ERROR, where="router", error=repr(exc))
-            reply = Reply(t("router.error_logged", phrase=self.services.say("erro_generico")))
+            reply = Reply(t("router.error_logged", phrase=self.services.say("erro_generico")), failed=True)
         await emit(EventType.REPLY, length=len(reply.text), file=reply.document is not None)
         return reply
 
@@ -484,8 +508,10 @@ class Router:
         await emit(EventType.COMMAND, name=command.name, args=args)
         raw = " ".join(args) if raw_args is None else raw_args
         ctx = CommandContext(
-            args=args, services=self.services, user_id=user_id, raw_args=raw, ask=self.agent.handle
+            args=args, services=self.services, user_id=user_id, raw_args=raw, ask=self.agent.handle,
+            reroute=lambda text: self._route(text, user_id),
         )
+        await self._count(command.name)
         reply = Reply.coerce(await command.handler(ctx))
         if reply.summary is None:
             first_line = reply.text.strip().splitlines()[0] if reply.text.strip() else ""

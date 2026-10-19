@@ -23,6 +23,8 @@ class CommandContext:
     raw_args: str = ""
     # Sends a request to the LLM agent: ask(text, skill=...) (set by the router).
     ask: Callable[..., Awaitable[Reply]] | None = None
+    # Routes a text as if the user had typed it again (set by the router; /refazer).
+    reroute: Callable[[str], Awaitable[Reply]] | None = None
 
     @property
     def registry(self) -> CommandRegistry:
@@ -59,6 +61,9 @@ class CommandRegistry:
     def __init__(self) -> None:
         self._commands: dict[str, Command] = {}
         self._lookup: dict[str, Command] = {}
+        # Plugins unused for PLUGIN_STALE_DAYS (uva/curator.py): out of /help and
+        # the prompt, still callable.
+        self.idle: set[str] = set()
 
     def register(self, command: Command) -> Command:
         keys = [_normalize(n) for n in command.all_names]

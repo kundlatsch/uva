@@ -110,6 +110,15 @@ MIGRATIONS: list[str] = [
         UNIQUE (kind, code)
     );
     """,
+    # 8: command usage (plugin curator) and undone turns (/desfazer_turno)
+    """
+    CREATE TABLE command_usage (
+        name TEXT PRIMARY KEY,
+        uses INTEGER NOT NULL DEFAULT 0,
+        last_used_at TEXT
+    );
+    ALTER TABLE conversation_turns ADD COLUMN undone INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 

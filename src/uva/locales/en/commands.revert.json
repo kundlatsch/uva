@@ -7,6 +7,8 @@
     "done": "↩️ Reverted {sha}: {subject} (new commit {new_sha}).",
     "brain_no_history": "The second brain has no history (git) here.",
     "brain_nothing": "I couldn't find any change of mine in the second brain to undo.",
-    "brain_done": "↩️ Second brain: undid {sha} ({subject})."
+    "brain_done": "↩️ Second brain: undid {sha} ({subject}).",
+    "diff_header": "🔍 {command} would undo {sha} ({subject}):",
+    "diff_cut": "… (cut)"
   }
 }

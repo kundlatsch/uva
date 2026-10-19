@@ -78,6 +78,27 @@ class ShortTermMemory:
 
         await self._update(change, user_id)
 
+    async def drop_last_exchange(self, user_id: int | None = None) -> int:
+        """Remove the last user turn and the bot turns after it; returns how many."""
+        dropped: list[int] = []
+
+        def change(session: Session) -> None:
+            index = next((i for i in range(len(session.turns) - 1, -1, -1) if session.turns[i].role == "user"), None)
+            if index is None:
+                return
+            kept = [t for t in session.turns[index:] if t.role == "notice"]
+            dropped.append(len(session.turns) - index - len(kept))
+            session.turns = session.turns[:index] + kept
+
+        await self._update(change, user_id)
+        return dropped[0] if dropped else 0
+
+    async def set_mode(self, mode: str | None, user_id: int | None = None) -> None:
+        def change(session: Session) -> None:
+            session.mode = mode
+
+        await self._update(change, user_id)
+
     # --- references --------------------------------------------------------------------
 
     async def add_ref(

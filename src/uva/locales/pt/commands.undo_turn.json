@@ -1,0 +1,5 @@
+{
+  "description": "Esquece a última troca (sua mensagem e minha resposta) da conversa",
+  "nothing": "Não há troca para esquecer.",
+  "done": "↩️ Esqueci a última troca (“{text}”)."
+}

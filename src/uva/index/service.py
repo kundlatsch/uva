@@ -250,6 +250,7 @@ class SearchIndex:
 
         def job(conn: sqlite3.Connection) -> list[TurnRecord]:
             where, args = _period(since, until)
+            where = (where + " AND" if where else "WHERE") + " undone = 0"
             rows = conn.execute(
                 f"SELECT * FROM conversation_turns {where} ORDER BY id DESC LIMIT ?", (*args, limit)
             ).fetchall()
@@ -262,9 +263,31 @@ class SearchIndex:
 
         def job(conn: sqlite3.Connection) -> list[TurnRecord]:
             rows = conn.execute(
-                "SELECT * FROM conversation_turns WHERE id > ? ORDER BY id LIMIT ?", (turn_id, limit)
+                "SELECT * FROM conversation_turns WHERE id > ? AND undone = 0 ORDER BY id LIMIT ?",
+                (turn_id, limit),
             ).fetchall()
             return [_turn(row) for row in rows]
+
+        return await self.db.run(job)
+
+    async def undo_last_exchange(self) -> list[TurnRecord]:
+        """Mark the last user message and the replies after it as undone (they
+        stay in the table, out of every search). Returns them."""
+
+        def job(conn: sqlite3.Connection) -> list[TurnRecord]:
+            row = conn.execute(
+                "SELECT id FROM conversation_turns WHERE role = 'user' AND undone = 0 ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            if row is None:
+                return []
+            rows = conn.execute(
+                "SELECT * FROM conversation_turns WHERE id >= ? AND role != 'notice' AND undone = 0 ORDER BY id",
+                (row["id"],),
+            ).fetchall()
+            for turn in rows:
+                conn.execute("UPDATE conversation_turns SET undone = 1 WHERE id = ?", (turn["id"],))
+                conn.execute("DELETE FROM search_index WHERE kind = 'turn' AND ref = ?", (str(turn["id"]),))
+            return [_turn(r) for r in rows]
 
         return await self.db.run(job)
 
@@ -361,7 +384,7 @@ class SearchIndex:
                     self._put(conn, "goal", goal.id, goal.title, f"{goal.description}\n{results}".strip(),
                               utcnow().isoformat())
                 turns = 0
-                for row in conn.execute("SELECT * FROM conversation_turns ORDER BY id").fetchall():
+                for row in conn.execute("SELECT * FROM conversation_turns WHERE undone = 0 ORDER BY id").fetchall():
                     self._put(conn, "turn", str(row["id"]), f"{row['role']} {row['source']}", row["text"], row["at"])
                     turns += 1
             notes = self._sync_notes()["indexed"]

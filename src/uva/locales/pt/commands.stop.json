@@ -1,0 +1,9 @@
+{
+  "description": "Para o que estou fazendo agora (pergunta qual, se houver mais de uma coisa)",
+  "nothing": "Nada rodando agora.",
+  "stopped": "⏹️ Parei: {label}",
+  "stopped_turn": "⏹️ Parei ({label}).",
+  "gone": "Isso já tinha terminado.",
+  "which": "{count} coisas rodando. Qual eu paro?",
+  "all": "⏹ Todas"
+}

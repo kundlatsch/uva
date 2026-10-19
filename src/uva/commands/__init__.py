@@ -20,6 +20,7 @@ from uva.commands import (
     projects,
     revert,
     routines,
+    session,
     shell,
     skills,
     soul,
@@ -33,6 +34,7 @@ from uva.commands.registry import Command, CommandContext, CommandRegistry
 # Order here is the order shown in /help.
 _MODULES = (
     builtin,
+    session,
     brain,
     memory,
     stickers,

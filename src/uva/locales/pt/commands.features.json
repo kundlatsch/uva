@@ -11,6 +11,7 @@
   "features": {
     "description": "Funcionalidades que eu programei (ou tentei)",
     "none": "Ainda não programei nada. Peça com /feature <descrição>.",
-    "header": "Funcionalidades:"
+    "header": "Funcionalidades:",
+    "idle": "💤 Parados (sem uso há um tempo, fora do /help, ainda funcionam): {commands}"
   }
 }

@@ -11,6 +11,7 @@
   "features": {
     "description": "Features I've coded (or tried to)",
     "none": "I haven't coded anything yet. Ask with /feature <description>.",
-    "header": "Features:"
+    "header": "Features:",
+    "idle": "💤 Idle (unused for a while, hidden from /help, still work): {commands}"
   }
 }

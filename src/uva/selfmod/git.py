@@ -125,6 +125,11 @@ class GitRepo:
                 raise
             return (await asyncio.to_thread(self.run, "rev-parse", "HEAD")).strip()
 
+    async def diff(self, commit: Commit) -> str:
+        """The change ``commit`` made (what reverting it would undo)."""
+        mainline = ["-m", "--first-parent"] if commit.parents > 1 else []
+        return await self.arun("show", "--format=", "--stat", "--patch", *mainline, commit.sha)
+
     async def changed_files(self, sha: str) -> list[str]:
         out = await self.arun("show", "--name-only", "--format=", "-m", "--first-parent", sha)
         return [line for line in out.splitlines() if line.strip()]

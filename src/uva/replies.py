@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 
 from uva.i18n import t
 
+# Directives in a reply's text: send it as a file (pictures uncompressed).
+AS_FILE = ("[[como_arquivo]]", "[[as_document]]")
 # Telegram rejects messages longer than this.
 TELEGRAM_TEXT_LIMIT = 4096
 # One page of a paginated reply (room left for the "página X/Y" footer).
@@ -35,6 +37,11 @@ class Reply:
     pages: list[str] = field(default_factory=list)
     # Replace the message the button was pressed on instead of sending a new one.
     edit: bool = False
+    # Something went wrong (shown as a 👎 reaction).
+    failed: bool = False
+    # A picture to send (Telegram compresses it, unless the reply asks for a file).
+    image: bytes | None = None
+    image_name: str = "imagem.jpg"
 
     @classmethod
     def paginated(cls, text: str, header: str = "") -> Reply:
@@ -48,11 +55,27 @@ class Reply:
 
     def messages(self) -> list[Reply]:
         """The Telegram messages to send, in order (buttons go on the last one)."""
+        if any(d in self.text for d in AS_FILE):
+            return [self.as_file()]
         if len(self.parts) <= 1:
             return [self.fit_for_telegram()]
         out = [Reply(text=part, filename=self.filename).fit_for_telegram() for part in self.parts]
         out[-1].buttons = self.buttons
         return out
+
+    def as_file(self) -> Reply:
+        """[[como_arquivo]] / [[as_document]]: the picture (or else the text) as a
+        file, without Telegram's compression."""
+        text = self.text
+        for directive in AS_FILE:
+            text = text.replace(directive, "")
+        text = text.strip()
+        if self.image is not None:
+            return Reply(text=text[:1024], buttons=self.buttons, document=self.image, filename=self.image_name)
+        if self.document is not None:
+            return Reply(text=text[:1024], buttons=self.buttons, document=self.document, filename=self.filename)
+        return Reply(text=t("replies.as_file"), buttons=self.buttons, document=text.encode("utf-8"),
+                     filename=self.filename, summary=self.summary)
 
     @classmethod
     def coerce(cls, value: str | Reply) -> Reply:

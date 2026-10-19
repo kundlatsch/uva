@@ -96,6 +96,8 @@ def describe_commands(registry: CommandRegistry) -> str:
     Accented spellings of an alias already shown are skipped."""
     lines = []
     for c in registry:
+        if c.name in registry.idle:
+            continue
         shown: list[str] = []
         for alias in c.aliases:
             if len(shown) < MAX_ALIASES and normalize(alias) not in {normalize(a) for a in [c.name, *shown]}:
