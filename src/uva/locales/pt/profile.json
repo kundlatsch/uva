@@ -7,8 +7,9 @@
     "no_llm": "Consolidar precisa do LLM, que não está configurado.",
     "no_budget": "Sem orçamento de LLM para isso agora ({reason}).",
     "failed": "Não consegui consolidar o perfil: {error}",
-    "too_long": "O perfil reescrito ainda ficou com {chars} caracteres (limite {limit}); deixei como estava. Tenta de novo.",
+    "too_long": "Não consegui uma reescrita do perfil (limite {limit} caracteres, {rounds} tentativas, a mais curta com {chars}), então deixei como estava. Dá para rodar de novo.",
     "pointer": "Perfil completo: [[perfil_detalhado|Perfil detalhado]] ({note}).",
-    "done": "✅ Perfil consolidado: {before} → {after} caracteres (limite {limit}).\nTexto anterior completo: {backup} e a nota do brain {note} (eu acho ela quando importa)."
+    "done": "✅ Perfil consolidado: {before} → {after} caracteres (limite {limit}).\nTexto anterior completo: {backup} e a nota do brain {note} (eu acho ela quando importa).",
+    "trimmed": "(a reescrita ainda passou um pouco, então tirei as últimas {lines} linha(s), as menos importantes; elas estão no texto completo)"
   }
 }

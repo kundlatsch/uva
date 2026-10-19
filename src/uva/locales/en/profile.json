@@ -7,8 +7,9 @@
     "no_llm": "Consolidating needs the LLM, which is not configured.",
     "no_budget": "No LLM budget for that now ({reason}).",
     "failed": "I couldn't consolidate the profile: {error}",
-    "too_long": "The rewritten profile still had {chars} characters (limit {limit}); I left it as it was. Try again.",
+    "too_long": "I couldn't get a rewrite of the profile (limit {limit} characters, {rounds} attempts, shortest {chars}), so I left it as it was. You can run it again.",
     "pointer": "Full profile: [[perfil_detalhado|Perfil detalhado]] ({note}).",
-    "done": "✅ Profile consolidated: {before} → {after} characters (limit {limit}).\nFull previous text: {backup} and the brain note {note} (I find it when it matters)."
+    "done": "✅ Profile consolidated: {before} → {after} characters (limit {limit}).\nFull previous text: {backup} and the brain note {note} (I find it when it matters).",
+    "trimmed": "(the rewrite was still a bit long, so I dropped its last {lines} line(s), the least important; they are in the full text)"
   }
 }

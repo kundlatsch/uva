@@ -62,15 +62,55 @@ def usage(services: Services) -> list[Usage]:
     ]
 
 
-def consolidate_prompt(limit: int) -> str:
+# Shrink rounds after the first rewrite, when it is still over the limit.
+SHRINK_ROUNDS = 3
+# Aim this much under the limit: models overshoot character counts.
+AIM = 0.9
+
+
+LINE_CHARS = 75  # a dense bullet fact, for the line budget given to the model
+
+
+def consolidate_prompt(aim: int, limit: int) -> str:
+    lines = max(5, aim // LINE_CHARS)
     return (
         "You rewrite a personal profile that goes into every prompt of a personal assistant. "
-        f"Write the CORE of it in at most {limit} characters: who the user is, family and close "
-        "people, work, where he lives, lasting preferences and how he wants to be treated. Merge "
-        "repetitions, drop what is outdated, trivial or one-off (old dates, past plans, amounts). "
-        "Keep the profile's language (Portuguese) and Markdown headings/bullets. Do not invent "
-        "anything. Answer with only the new profile text."
+        f"Write the CORE of it in about {aim} characters, and never more than {limit} characters "
+        f"(count them: characters, not words): at most {lines} lines of at most 80 characters "
+        "each. Keep only lasting facts: who the user is, family and close people, work, where he "
+        "lives, lasting preferences and how he wants to be treated. Write dense bullet facts, one "
+        "short line each, under a few one-word headings; no prose, no examples, no repetition. Put "
+        "the most important facts first: the last lines may be cut. Drop what is outdated, trivial "
+        "or one-off (old dates, past plans, amounts). Keep the profile's language (Portuguese). Do "
+        "not invent anything. Answer with only the new profile text."
     )
+
+
+def shrink_request(text: str, aim: int, limit: int) -> str:
+    chars, lines = len(text), max(1, len(text.splitlines()))
+    wanted = max(5, int(lines * aim / max(chars, 1)))
+    return (
+        f"That has {chars} characters in {lines} lines; the limit is {limit}. Cut at least "
+        f"{chars - aim} characters (aim for about {aim}): rewrite it with at most {wanted} lines, "
+        "merging bullets and dropping the least important facts and any wording that is not a "
+        "fact. Answer with only the shorter profile."
+    )
+
+
+def fit_lines(text: str, limit: int) -> tuple[str, int]:
+    """Keep whole lines from the top (the most important first) within ``limit``
+    characters; returns (text, lines dropped). A heading left without lines goes too."""
+    kept: list[str] = []
+    size = 0
+    lines = text.splitlines()
+    for line in lines:
+        if size + len(line) + 1 > limit:
+            break
+        kept.append(line)
+        size += len(line) + 1
+    while kept and (not kept[-1].strip() or kept[-1].lstrip().startswith("#")):
+        kept.pop()
+    return "\n".join(kept).strip(), len(lines) - len(kept)
 
 
 async def consolidate(services: Services) -> str:
@@ -92,29 +132,41 @@ async def consolidate(services: Services) -> str:
             return t("profile.consolidate.no_budget", reason=status.reason)
 
     target = max(500, limit - POINTER_ROOM)
+    aim = int(target * AIM)
     messages = [LLMMessage("user", original)]
-    core = ""
-    for _ in range(2):
+    best = ""  # the shortest non-empty rewrite so far
+    rounds = 0
+    for rounds in range(1, SHRINK_ROUNDS + 2):
         try:
             response = await services.llm.complete(
                 messages,
                 purpose="profile_consolidate",
                 scope=Scope.INTERACTIVE,
                 model=services.llm.heavy_model,
-                system=consolidate_prompt(target),
+                system=consolidate_prompt(aim, target),
                 use_soul=False,
             )
         except LLMError as exc:
+            if best and len(best) <= target:
+                break
             return t("profile.consolidate.failed", error=exc)
         core = response.text.strip()
-        if 0 < len(core) <= target:
+        if core and (not best or len(core) < len(best)):
+            best = core
+        if best and len(best) <= target:
             break
         messages += [
             LLMMessage("assistant", response.text),
-            LLMMessage("user", f"That has {len(core)} characters. Shorten it to under {target}."),
+            LLMMessage("user", shrink_request(core, aim, target)),
         ]
-    if not core or len(core) > target:
-        return t("profile.consolidate.too_long", chars=len(core), limit=target)
+    dropped = 0
+    if best and len(best) > target:
+        # Still too long after every round: drop the last (least important) lines.
+        # Nothing is lost: the full text goes to data/.versions/ and the brain note.
+        best, dropped = fit_lines(best, target)
+    if not best:
+        return t("profile.consolidate.too_long", chars=0, limit=target, rounds=rounds)
+    core = best
 
     # The full text first, so nothing is lost even if the rest fails.
     backup = _backup(path, original)
@@ -123,9 +175,11 @@ async def consolidate(services: Services) -> str:
     new_text = core + (f"\n\n{pointer}" if pointer else "") + "\n"
     path.write_text(new_text, encoding="utf-8")
     await emit(EventType.SELF_EDIT, op="profile_consolidate", path="data/profile.md", ok=True,
-               before=len(original), after=len(new_text), backup=backup, note=detailed)
-    return t("profile.consolidate.done", before=len(original), after=len(new_text), limit=limit,
+               before=len(original), after=len(new_text), backup=backup, note=detailed,
+               rounds=rounds, dropped_lines=dropped)
+    done = t("profile.consolidate.done", before=len(original), after=len(new_text), limit=limit,
              backup=backup, note=detailed or "—")
+    return done + ("\n" + t("profile.consolidate.trimmed", lines=dropped) if dropped else "")
 
 
 def _backup(path: Path, text: str) -> str:
