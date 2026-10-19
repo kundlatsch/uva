@@ -6,5 +6,11 @@
   "empty": "(resultado vazio)",
   "tool_error": "⚠️ A ferramenta {tool} informou um erro:",
   "result": "🔌 {tool}:",
-  "no_server": "Não há servidor MCP chamado {server}. Servidores: {servers}"
+  "no_server": "Não há servidor MCP chamado {server}. Servidores: {servers}",
+  "write_refused": "Não executei {tool}: escritas MCP precisam da sua confirmação, então nunca rodam sozinhas (metas, iniciativas).",
+  "confirm": "🔌 Executo isto no servidor MCP {server}?\nFerramenta: {tool}\nArgumentos:\n{arguments}",
+  "confirm_destructive": "⚠️ Ação DESTRUTIVA no servidor MCP {server}. Executo?\nFerramenta: {tool}\nArgumentos:\n{arguments}",
+  "yes": "Sim, executar",
+  "denied": "Ok, não executei.",
+  "changed_notice": "⚠️ A definição da(s) ferramenta(s) {tools} do servidor MCP {server} mudou, então desliguei. Confira e use /mcp aprovar {server} para aceitar a mudança."
 }

@@ -74,6 +74,36 @@ class FakeGateway:
         self.toggled.append((name, enabled))
 
 
+class InMemoryMcpStore:
+    def __init__(self) -> None:
+        self.hashes: dict[str, str] = {}
+        self.notified: dict[str, str] = {}
+        self.servers: dict[str, bool] = {}
+
+    async def setup(self) -> None:
+        pass
+
+    async def approved(self) -> dict[str, str]:
+        return dict(self.hashes)
+
+    async def approve(self, hashes: dict[str, str]) -> None:
+        self.hashes.update(hashes)
+        for key in hashes:
+            self.notified.pop(key, None)
+
+    async def mark_notified(self, key: str, value: str) -> bool:
+        if self.notified.get(key) == value:
+            return False
+        self.notified[key] = value
+        return True
+
+    async def overrides(self) -> dict[str, bool]:
+        return dict(self.servers)
+
+    async def set_override(self, name: str, enabled: bool) -> None:
+        self.servers[name] = enabled
+
+
 class FakeRedis:
     def __init__(self) -> None:
         self.data: dict[str, Any] = {}
@@ -97,10 +127,10 @@ def write_mcp_json(repo: Path, servers: dict) -> None:
     (repo / "data" / "mcp.json").write_text(json.dumps({"mcpServers": servers}), encoding="utf-8")
 
 
-def mcp_services(tmp_path: Path, servers: dict, tools: list[dict], *, redis=None, **settings):
+def mcp_services(tmp_path: Path, servers: dict, tools: list[dict], *, redis=None, store=None, **settings):
     """Services with an McpService over a FakeGateway (repo = tmp_path)."""
     write_mcp_json(tmp_path, servers)
     services = make_services(settings=make_settings(repo_path=str(tmp_path), **settings))
     gateway = FakeGateway(tools)
-    services.mcp = McpService(services.settings, gateway, redis)
+    services.mcp = McpService(services.settings, gateway, redis, store=store)
     return services, gateway

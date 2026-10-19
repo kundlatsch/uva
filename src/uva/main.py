@@ -52,6 +52,9 @@ def build_application(settings: Settings, services: Services) -> Application:
     token = settings.telegram_bot_token.get_secret_value()
 
     async def post_init(app: Application) -> None:
+        if services.mcp is not None:  # e.g. "a tool's definition changed"
+            owner = settings.allowed_telegram_user_id
+            services.mcp.notifier = lambda text: send_reply(app.bot, owner, Reply(text))
         await setup_storage(services)
         try:
             await app.bot.set_my_commands(bot_commands(services.registry))

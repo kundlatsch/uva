@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Awaitable, Callable
 import re
 import time
 from dataclasses import dataclass
@@ -26,7 +27,8 @@ from uva.logging import get_logger
 from uva.logging.events import EventType, emit
 from uva.mcp.client import McpCallError, McpGateway, McpUnavailable
 from uva.mcp.config import McpConfigError, Policy, ServerSpec, load_config, matches
-from uva.safety import as_data, sanitize_untrusted
+from uva.llm.budget import Scope
+from uva.safety import as_data, describe, sanitize_untrusted, scan_untrusted
 
 if TYPE_CHECKING:
     from uva.services import Services
@@ -56,7 +58,7 @@ class ToolInfo:
     confirm: bool
     destructive: bool
     hash: str
-    status: str = "ok"  # ok | bad_schema | flagged | changed
+    status: str = "ok"  # ok | bad_schema | flagged | changed | server_off
     reason: str = ""
 
 
@@ -131,9 +133,19 @@ def classify(tool: dict[str, Any], policy: Policy) -> dict[str, bool]:
 
 
 def build_actions(
-    tools: list[dict[str, Any]], specs: dict[str, ServerSpec], *, prompt_limit: int
+    tools: list[dict[str, Any]],
+    specs: dict[str, ServerSpec],
+    *,
+    prompt_limit: int,
+    approved: dict[str, str] | None = None,
+    disabled: frozenset[str] | set[str] = frozenset(),
 ) -> tuple[list[Action], list[ToolInfo]]:
-    """Actions for every usable tool, and what UVA thinks of each tool."""
+    """Actions for every usable tool, and what UVA thinks of each tool.
+
+    Not registered: tools whose description/schema looks like instructions to
+    the assistant (tool poisoning), tools whose definition changed since it was
+    approved (``approved``: "server/tool" -> hash; unseen tools are new, not
+    changed) and tools of servers turned off with /mcp desligar."""
     actions: list[Action] = []
     infos: list[ToolInfo] = []
     taken: set[str] = {"mcp_tools"}
@@ -147,14 +159,28 @@ def build_actions(
         info = ToolInfo(spec.name, tool["name"], name, description, hash=tool.get("hash", ""), **flags)
         infos.append(info)
         problem = check_schema(tool.get("input_schema"))
-        if problem:
+        definition = f"{tool['name']}\n{tool.get('description') or ''}\n{json.dumps(tool.get('input_schema'))}"
+        findings = scan_untrusted(definition)
+        known = (approved or {}).get(tool_key(spec.name, tool["name"]))
+        if spec.name in disabled:
+            info.status = "server_off"
+        elif problem:
             info.status, info.reason = "bad_schema", problem
+        elif findings:
+            info.status, info.reason = "flagged", describe(findings)[:200]
+        elif known is not None and known != info.hash:
+            info.status = "changed"
+        if info.status != "ok":
             continue
         taken.add(name)
         actions.append(_tool_action(info, spec, tool["input_schema"]))
     if len(actions) > prompt_limit:
         actions.append(_list_action(infos))
     return actions, infos
+
+
+def tool_key(server: str, tool: str) -> str:
+    return f"{server}/{tool}"
 
 
 def _tool_action(info: ToolInfo, spec: ServerSpec, schema: dict[str, Any]) -> Action:
@@ -197,6 +223,12 @@ async def call_tool(info: ToolInfo, policy: Policy, arguments: dict[str, Any], c
     logged = {"server": info.server, "tool": info.tool, "arguments": mask(arguments), "scope": ctx.scope.value}
     if mcp is None:
         return ActionResult(text=t("mcp.disabled"), data={"ok": False, "error": "mcp disabled"})
+    if not info.read and ctx.scope is not Scope.INTERACTIVE:
+        # Goals, initiatives, the review: writes are refused, never queued for a "yes".
+        await emit(EventType.MCP_CALL, **logged, ok=False, refused=True)
+        return ActionResult(text=t("mcp.write_refused", tool=tool_key(info.server, info.tool)), data={"ok": False})
+    if info.confirm and not ctx.confirmed:
+        return await _hold(info, arguments, ctx, logged)
     try:
         result = await mcp.gateway.call(info.server, info.tool, arguments, policy.timeout_s)
     except (McpUnavailable, McpCallError) as exc:
@@ -231,6 +263,26 @@ async def call_tool(info: ToolInfo, policy: Policy, arguments: dict[str, Any], c
     if failed:
         data["error"] = text[:300]
     return ActionResult(text=out, data=data)
+
+
+CONFIRM_ARGS_CHARS = 1200
+
+
+async def _hold(info: ToolInfo, arguments: dict[str, Any], ctx: ActionContext, logged: dict) -> ActionResult:
+    """A write: show the exact call and ask (Sim/Nao) before anything runs."""
+    from uva.replies import Button
+
+    shown = json.dumps(mask(arguments), ensure_ascii=False, indent=2)
+    if len(shown) > CONFIRM_ARGS_CHARS:
+        shown = shown[:CONFIRM_ARGS_CHARS] + "\n..."
+    token = ctx.services.held_writes.add(info.action, arguments, kind="mcp")
+    await emit(EventType.MCP_CALL, **logged, ok=False, held=token)
+    key = "mcp.confirm_destructive" if info.destructive else "mcp.confirm"
+    return ActionResult(
+        text=t(key, server=info.server, tool=info.tool, arguments=shown),
+        data={"ok": False, "held": token},
+        buttons=[Button(t("mcp.yes"), f"wrok:{token}"), Button(t("router.write.no"), f"wrno:{token}")],
+    )
 
 
 class McpToolsParams(BaseModel):
@@ -274,10 +326,14 @@ def _list_action(infos: list[ToolInfo]) -> Action:
 class McpService:
     """Keeps a process's ``mcp`` action group in sync with the gateway."""
 
-    def __init__(self, settings: Settings, gateway: McpGateway, redis: Any = None) -> None:
+    def __init__(self, settings: Settings, gateway: McpGateway, redis: Any = None, *, store: Any = None) -> None:
         self.settings = settings
         self.gateway = gateway
         self.redis = redis
+        # Approved definitions and /mcp ligar|desligar (Mongo); None = no checks (tests).
+        self.store = store
+        # Sends a notice to the owner (bot: Telegram; worker: runtime.notify).
+        self.notifier: Callable[[str], Awaitable[None]] | None = None
         self.specs: dict[str, ServerSpec] = {}
         self.tools: list[ToolInfo] = []
         self.config_error: str | None = None
@@ -348,11 +404,89 @@ class McpService:
         except (McpUnavailable, McpCallError) as exc:
             log.warning("mcp_catalog_unavailable", error=str(exc))
             return False  # keep what we had: calls answer "gateway down" on their own
-        actions, infos = build_actions(tools, self.specs, prompt_limit=self.settings.mcp_prompt_tool_limit)
+        approved, overrides = await self._state()
+        disabled = {name for name, enabled in overrides.items() if not enabled}
+        actions, infos = build_actions(
+            tools, self.specs, prompt_limit=self.settings.mcp_prompt_tool_limit,
+            approved=approved, disabled=disabled,
+        )
         registry.replace_group(GROUP, actions)
         self.tools = infos
+        await self._after_build(infos, approved, overrides)
         log.info("mcp_catalog_synced", tools=len(actions), blocked=sum(i.status != "ok" for i in infos))
         return True
+
+
+    async def _state(self) -> tuple[dict[str, str] | None, dict[str, bool]]:
+        if self.store is None:
+            return None, {}
+        return await self.store.approved(), await self.store.overrides()
+
+    async def _after_build(
+        self, infos: list[ToolInfo], approved: dict[str, str] | None, overrides: dict[str, bool]
+    ) -> None:
+        if self.store is None or approved is None:
+            return
+        # First sight: a tool's definition is approved as it is now.
+        new = {
+            tool_key(i.server, i.tool): i.hash
+            for i in infos
+            if i.status == "ok" and tool_key(i.server, i.tool) not in approved
+        }
+        if new:
+            await self.store.approve(new)
+        changed: dict[str, list[str]] = {}
+        for info in infos:
+            key = tool_key(info.server, info.tool)
+            if info.status == "changed" and await self.store.mark_notified(key, info.hash):
+                changed.setdefault(info.server, []).append(info.tool)
+            elif info.status == "flagged" and await self.store.mark_notified(key, "flagged:" + info.hash):
+                await emit(EventType.ERROR, where="mcp_tool_flagged", server=info.server, tool=info.tool,
+                           findings=info.reason)
+        for server, names in changed.items():
+            await emit(EventType.ERROR, where="mcp_tool_changed", server=server, tools=names)
+            await self.notify(t("mcp.changed_notice", server=server, tools=", ".join(sorted(names))))
+        await self._push_overrides(overrides)
+
+    async def _push_overrides(self, overrides: dict[str, bool]) -> None:
+        """/mcp ligar|desligar live in Mongo: re-apply them after a gateway restart."""
+        if not overrides:
+            return
+        try:
+            states = {s["name"]: s["state"] for s in (await self.gateway.servers()).get("servers", [])}
+        except (McpUnavailable, McpCallError):
+            return
+        for name, enabled in overrides.items():
+            state = states.get(name)
+            if state is None:
+                continue
+            if (enabled and state == "disabled") or (not enabled and state not in ("disabled", "skipped", "stopped")):
+                try:
+                    await self.gateway.set_enabled(name, enabled)
+                except (McpUnavailable, McpCallError) as exc:
+                    log.warning("mcp_override_failed", server=name, error=str(exc))
+
+    async def notify(self, text: str) -> None:
+        if self.notifier is None:
+            log.info("mcp_notice", text=text)
+            return
+        try:
+            await self.notifier(text)
+        except Exception as exc:
+            log.warning("mcp_notice_failed", error=str(exc))
+
+    async def approve(self, server: str, registry: ActionRegistry | None) -> list[str]:
+        """/mcp aprovar: accept the current definitions of a server's tools."""
+        if registry is not None:
+            await self.sync(registry, force=True)
+        mine = [i for i in self.tools if i.server == server and i.status in ("ok", "changed")]
+        changed = sorted(i.tool for i in mine if i.status == "changed")
+        if self.store is not None and mine:
+            await self.store.approve({tool_key(i.server, i.tool): i.hash for i in mine})
+        await self.bump()
+        if registry is not None:
+            await self.sync(registry, force=True)
+        return changed
 
 
 async def sync_actions(services: Services, *, force: bool = False) -> bool:

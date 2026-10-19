@@ -394,3 +394,40 @@ class MongoRoutineStore:
 
         cursor = self.collection.find({"enabled": True, "next_run_at": {"$lte": now}}, {"_id": False})
         return [Routine.model_validate(d) async for d in cursor]
+
+
+class MongoMcpStore:
+    """Collections ``mcp_tools`` (approved MCP tool definitions, by hash) and
+    ``mcp_servers`` (/mcp ligar|desligar, runtime only: mcp.json is untouched)."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.tools = db["mcp_tools"]
+        self.servers = db["mcp_servers"]
+
+    async def setup(self) -> None:
+        pass  # keyed by _id ("server/tool", server name)
+
+    async def approved(self) -> dict[str, str]:
+        return {d["_id"]: d["approved_hash"] async for d in self.tools.find({}, {"approved_hash": True})}
+
+    async def approve(self, hashes: dict[str, str]) -> None:
+        now = utcnow()
+        for key, value in hashes.items():
+            await self.tools.update_one(
+                {"_id": key},
+                {"$set": {"approved_hash": value, "approved_at": now}, "$unset": {"notified_hash": ""}},
+                upsert=True,
+            )
+
+    async def mark_notified(self, key: str, value: str) -> bool:
+        """True only for the first process to report this changed definition."""
+        result = await self.tools.update_one(
+            {"_id": key, "notified_hash": {"$ne": value}}, {"$set": {"notified_hash": value}}
+        )
+        return result.modified_count > 0
+
+    async def overrides(self) -> dict[str, bool]:
+        return {d["_id"]: bool(d["enabled"]) async for d in self.servers.find({})}
+
+    async def set_override(self, name: str, enabled: bool) -> None:
+        await self.servers.update_one({"_id": name}, {"$set": {"enabled": enabled, "at": utcnow()}}, upsert=True)

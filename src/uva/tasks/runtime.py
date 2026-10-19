@@ -37,6 +37,8 @@ async def get_services() -> Services:
     global _services
     if _services is None:
         _services = build_services(get_settings())
+        if _services.mcp is not None:
+            _services.mcp.notifier = lambda text: notify(Reply(text))
         await setup_storage(_services)
     return _services
 

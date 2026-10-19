@@ -6,5 +6,11 @@
   "empty": "(empty result)",
   "tool_error": "⚠️ The tool {tool} reported an error:",
   "result": "🔌 {tool}:",
-  "no_server": "No MCP server named {server}. Servers: {servers}"
+  "no_server": "No MCP server named {server}. Servers: {servers}",
+  "write_refused": "I didn't run {tool}: MCP writes need your confirmation, so they never run on their own (goals, initiatives).",
+  "confirm": "🔌 Run this on the MCP server {server}?\nTool: {tool}\nArguments:\n{arguments}",
+  "confirm_destructive": "⚠️ DESTRUCTIVE action on the MCP server {server}. Run it?\nTool: {tool}\nArguments:\n{arguments}",
+  "yes": "Yes, run",
+  "denied": "Ok, I didn't run it.",
+  "changed_notice": "⚠️ The definition of tool(s) {tools} on the MCP server {server} changed, so I turned them off. Check it and use /mcp approve {server} to accept the change."
 }

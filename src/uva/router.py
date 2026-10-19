@@ -330,7 +330,7 @@ class Router:
             return Reply(t("router.write.expired"))
         if verb != "wrok":
             await emit(EventType.ACTION, name=held.action, held=True, ok=False, denied=True)
-            return Reply(t("router.write.denied"))
+            return Reply(t("mcp.denied") if held.kind == "mcp" else t("router.write.denied"))
         action, params = self.services.actions.validate(held.action, held.params)
         ctx = ActionContext(self.services, run_command=self._run_command_for_llm, confirmed=True)
         result = await execute_action(action, params, ctx)
