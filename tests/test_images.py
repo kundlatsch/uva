@@ -8,7 +8,7 @@ from test_stm import InMemorySessionBackend
 
 from uva.brain.vault import Vault
 from uva.llm.anthropic_provider import _content as anthropic_content
-from uva.llm.base import LLMMessage
+from uva.llm.base import LLMMessage, without_context
 from uva.llm.openai_provider import _content as openai_content
 from uva.media import data_url_bytes, parse_data_url, to_data_url
 from uva.router import Router
@@ -52,7 +52,7 @@ async def test_caption_goes_to_the_vision_model_with_the_image(img_services):
     reply = await Router(services).handle_photo(PNG, "o que é isso?")
     assert reply.text == "É um gato."
     last = provider.calls[0]["messages"][-1]
-    assert last.images == (PNG,) and last.content == "o que é isso?"
+    assert last.images == (PNG,) and without_context(last.content) == "o que é isso?"
     assert provider.calls[0]["model"] == "router-model"  # vision falls back to the router model
 
 

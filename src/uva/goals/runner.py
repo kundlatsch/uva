@@ -24,7 +24,7 @@ from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.client import metered
 from uva.llm.plan import GOAL_PLAN_SCHEMA, GoalPlan, PlanError, parse_plan
-from uva.llm.prompts import goal_system_prompt
+from uva.llm.prompts import goal_brief, goal_system_prompt
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit, trace
 from uva.memory.service import render_memory
@@ -183,16 +183,18 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
     safe_actions = services.actions.subset(proactive_only=True)
     allowed = {a.name for a in safe_actions}
     system = goal_system_prompt(
-        goal_title=goal.title,
-        goal_description=goal.description,
-        previous=_previous_results(goal, services),
         actions=safe_actions,
-        tz=services.tz,
         max_steps=settings.proactive_max_steps,
         working_memory=await _working_memory(services),
     )
+    brief = goal_brief(
+        goal_title=goal.title,
+        goal_description=goal.description,
+        previous=_previous_results(goal, services),
+        tz=services.tz,
+    )
     ctx = ActionContext(services, Scope.PROACTIVE)  # no run_command, no retries
-    messages = [LLMMessage("user", "Run the first round.")]
+    messages = [LLMMessage("user", brief)]
     run = GoalRun(goal)
 
     with metered() as meter:

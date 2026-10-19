@@ -150,8 +150,8 @@ async def test_context_block_goes_into_the_prompt(services, stm):
     await stm.add_turn("notice", "🎯 Objetivo X rodou")
     provider, _ = with_llm(services, json.dumps({"actions": [], "reply": "ok"}))
     await Router(services).handle_text("me lembra o que você fez hoje")
-    system = provider.calls[0]["system"]
-    assert "Recent context" in system
+    system = provider.calls[0]["messages"][-1].content
+    assert "Recent context" in system and "Recent context" not in provider.calls[0]["system"]
     # The block is for the LLM: English even with BOT_LANGUAGE=pt.
     assert "t1 [research] search: Fórmula 1 (id abc123" in system and "🔄 running ← in focus" in system
     assert "Things you did/started in this session" in system

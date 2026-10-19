@@ -205,7 +205,7 @@ def test_claude_runs_with_a_closed_permission_list(services):
 ])
 async def test_third_party_repos_are_refused(services, proj, text):
     reply = (await Router(services).handle_text(f"/projeto {text}")).text
-    assert reply.startswith("🚫 Isso é rodar código de terceiros") and "/rodar" in reply and proj == []
+    assert reply.startswith("🚫 Isso é rodar código de terceiros") and "não é suportado" in reply and proj == []
 
 
 def test_git_cannot_fetch_code():

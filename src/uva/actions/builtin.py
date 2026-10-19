@@ -1,4 +1,4 @@
-"""Initial actions: reply, run_command and search."""
+"""Initial actions: reply, run_command, search and action_help."""
 
 from __future__ import annotations
 
@@ -40,6 +40,10 @@ class SearchParams(BaseModel):
     source: Literal["web", "wikipedia"] = Field(
         default="web", description="'wikipedia' when the user asks for Wikipedia"
     )
+
+
+class ActionHelpParams(BaseModel):
+    names: list[str] = Field(description="Action names, e.g. ['decide']")
 
 
 def register(registry: ActionRegistry) -> None:
@@ -91,3 +95,21 @@ def register(registry: ActionRegistry) -> None:
                 "sources": [{"title": s.title, "url": s.url} for s in found.sources],
             },
         )
+
+    @registry.action(
+        "action_help",
+        "Shows the full params of actions listed in one line",
+        ActionHelpParams,
+        proactive_safe=True,
+        lookup=True,
+    )
+    async def action_help(params: ActionHelpParams, ctx: ActionContext) -> ActionResult:
+        # For the LLM only (a lookup): English, like every prompt.
+        from uva.llm.prompts import describe_action
+
+        actions = ctx.services.actions
+        lines = []
+        for name in params.names:
+            action = actions.get(name) if actions is not None else None
+            lines.append(describe_action(action) if action else f"- {name}: no such action")
+        return ActionResult(text="\n".join(lines), data={"names": params.names})

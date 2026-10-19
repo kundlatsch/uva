@@ -17,7 +17,7 @@ from uva.i18n import t
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
-from uva.llm.prompts import assistant_system_prompt
+from uva.llm.prompts import assistant_system_prompt, message_context
 from uva.memory.service import render_memory
 from uva.progress import activity, placeholder
 from uva.recall import recall
@@ -78,13 +78,16 @@ class Agent:
         system = assistant_system_prompt(
             actions=actions,
             registry=services.registry,
-            tz=services.tz,
             working_memory=await self._working_memory(),
+        )
+        context = message_context(
+            tz=services.tz,
             recent_context=recent_context,
             recalled=found.render() if found else "",
         )
         images = (image,) if image else ()
-        messages = [*history, LLMMessage("user", text or "(image without caption)", images=images)]
+        content = context + (text or "(image without caption)")
+        messages = [*history, LLMMessage("user", content, images=images)]
         ctx = ActionContext(services, INTERACTIVE, self.run_command)
         for round_ in range(MAX_LOOKUP_ROUNDS + 1):
             try:

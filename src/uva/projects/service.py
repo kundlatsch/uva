@@ -35,7 +35,7 @@ class ProjectError(Exception):
 
 
 # Someone else's code: /projeto builds NEW projects only. Running third-party
-# repositories needs a runner without the Claude Code credential (/rodar).
+# repositories is not supported (it would run next to the Claude Code credential).
 THIRD_PARTY = re.compile(
     r"https?://(?:www\.)?(?:github\.com|gitlab\.com|bitbucket\.org|codeberg\.org|sr\.ht)/"
     r"|\bgit\s+clone\b|\bclon(?:ar|e|a|ando)\b|\b(?:baixar|baixa|rodar|executar)\s+(?:o\s+|esse\s+|este\s+)?(?:repo|repositorio|repositório)\b",

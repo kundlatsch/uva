@@ -10,6 +10,7 @@ from fakes import InMemoryUsageStore, make_settings, with_llm
 from pydantic import SecretStr
 
 from uva.audio import Transcriber, build_transcriber, to_mp3
+from uva.llm.base import without_context
 from uva.llm.budget import Budget, Scope, UsageRecord
 from uva.logging.events import EventType
 from uva.router import Router
@@ -81,7 +82,7 @@ async def test_transcript_goes_through_the_llm_and_memory(audio_services):
     services.stm = ShortTermMemory(InMemorySessionBackend(), services.settings)
     heard, reply = await Router(services).handle_audio(b"x", seconds=3)
     assert reply.text == "Paris, ué."
-    assert provider.calls[0]["messages"][-1].content == "qual a capital da França?"
+    assert without_context(provider.calls[0]["messages"][-1].content) == "qual a capital da França?"
     turns = (await services.stm.session()).turns
     assert turns[-2].text == "[voice] qual a capital da França?"
 

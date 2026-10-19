@@ -70,8 +70,10 @@ async def test_question_is_answered_with_recalled_material_in_one_call(mem_servi
     reply = await Router(mem_services).handle_text("me fala sobre o livro Marmitas frias e requentadas que eu li")
     assert reply.text == "Você largou na metade; achou repetitivo, nota 2/5."
     assert len(provider.calls) == 1
-    system = provider.calls[0]["system"]
-    assert "Found in your systems" in system and "crônicas repetitivas" in system
+    # Recall goes into the last user message, not the (cached) system prompt.
+    last = provider.calls[0]["messages"][-1].content
+    assert "Found in your systems" in last and "crônicas repetitivas" in last
+    assert "crônicas repetitivas" not in provider.calls[0]["system"]
 
 
 async def test_lookup_action_is_read_and_answered_in_the_same_turn(mem_services):

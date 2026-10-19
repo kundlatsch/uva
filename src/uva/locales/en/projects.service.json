@@ -2,7 +2,7 @@
   "disabled": "Projects are off (PROJECTS_ENABLED=false).",
   "no_queue": "The task queue is not configured.",
   "no_credential": "The Claude Code credential is missing from .env: CLAUDE_CODE_OAUTH_TOKEN (generate it with `claude setup-token`) or PROJECTS_ANTHROPIC_API_KEY.",
-  "third_party": "🚫 That's running someone else's code, and /project doesn't do that: it runs Claude Code with your token, and a stranger's repository would run right next to it. Cloning and running repositories will be /rodar's job, in an isolated container with no token (still waiting for your ok). /project is for new projects written from scratch.",
+  "third_party": "🚫 That's running someone else's code, and /project doesn't do that: it runs Claude Code with your token, and a stranger's repository would run right next to it. Running third-party repositories is not supported. /project is for new projects written from scratch.",
   "describe": "Describe the project, e.g.: /project a static recipe site with search",
   "already_running": "There's already a project being built ({id}); see /projects.",
   "budget": "Daily project budget used up (US$ {spent} of {limit}, PROJECT_DAILY_BUDGET_USD).",

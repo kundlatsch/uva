@@ -11,7 +11,7 @@ from typing import Any
 from uva.config import LLMProvider as ProviderName
 from uva.config import Settings
 from uva.i18n import t
-from uva.llm.base import LLMError, LLMMessage, LLMProvider, LLMResponse
+from uva.llm.base import LLMError, LLMMessage, LLMProvider, LLMResponse, without_context
 from uva.llm.budget import Scope, UsageRecord, UsageStore
 from uva.llm.pricing import WEB_SEARCH_COST_USD, PriceTable
 from uva.logging import get_logger
@@ -120,7 +120,7 @@ class LLMClient:
         except LLMError as exc:
             await emit(EventType.ERROR, where="llm", purpose=purpose, model=model, error=str(exc))
             raise
-        await self._account(response, purpose, scope, started, request=messages[-1].content)
+        await self._account(response, purpose, scope, started, request=without_context(messages[-1].content))
         if (calls := _debug.get()) is not None:
             calls.append({
                 "purpose": purpose,

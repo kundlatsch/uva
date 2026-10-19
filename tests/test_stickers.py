@@ -4,6 +4,7 @@ import pytest
 from fakes import with_llm
 
 from uva import i18n
+from uva.llm.base import without_context
 from uva.router import Router
 from uva.stickers import action_request
 from uva.storage.sqlite import Database
@@ -46,7 +47,7 @@ async def test_new_sticker_asks_and_learns_the_meaning(router, services):
     reply = await router.handle_sticker("u1", **LAUGH)
     assert reply.text == "kkkkk também achei"
     sent = provider.calls[0]["messages"][-1]
-    assert sent.content == "[sticker 😂: rindo muito de algo absurdo]" and not sent.images
+    assert without_context(sent.content) == "[sticker 😂: rindo muito de algo absurdo]" and not sent.images
     assert (await services.stickers.get("u1")).uses == 2
 
 
@@ -69,7 +70,7 @@ async def test_action_tied_to_a_sticker_runs_through_the_router(router, services
 
     reply = await router.handle_sticker("u2", file_id="f2", emoji="🌧️")
     assert reply.text == "Hoje: chuva à tarde."
-    asked = provider.calls[-1]["messages"][-1].content
+    asked = without_context(provider.calls[-1]["messages"][-1].content)
     assert asked.startswith("me diz a previsão do tempo de hoje") and "vai chover" in asked
 
 
