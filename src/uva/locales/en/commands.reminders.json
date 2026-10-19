@@ -1,0 +1,9 @@
+{
+  "lembrete": {
+    "description": "One-shot reminder (in 20 min, tomorrow 9am, friday 2pm ...)",
+    "usage_arg": "<when> <text> | <id> cancel|snooze <when>"
+  },
+  "lembretes": {
+    "description": "Pending and recent reminders"
+  }
+}

@@ -34,6 +34,7 @@ class Every(StrEnum):
     DAY = "day"  # every day at `at`
     WEEKDAYS = "weekdays"  # on `weekdays` at `at`
     HOURS = "hours"  # every `hours` hours
+    ONCE = "once"  # a reminder: once, at `once_at` (see uva/reminders.py)
 
 
 WEEKDAY_NAMES = ("segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo")
@@ -62,6 +63,14 @@ class Routine(BaseModel):
     last_status: str = ""  # ok | silent | failed
     # The last run failed because the LLM was unreachable: retried every LLM_RETRY_MINUTES.
     waiting_llm: bool = False
+    # Every.ONCE: when it runs (UTC); disabled after it ran, deleted a week later.
+    once_at: datetime | None = None
+    # A plain reminder: this text is sent as is, with no LLM (``request`` is then the same text).
+    reminder: str = ""
+
+    @property
+    def is_reminder(self) -> bool:
+        return self.every is Every.ONCE
 
 
 class RoutineStore(Protocol):
@@ -85,6 +94,8 @@ def _at(value: str) -> time:
 
 def next_run(routine: Routine, after: datetime, tz: tzinfo) -> datetime:
     """The first slot strictly after ``after`` (UTC in, UTC out)."""
+    if routine.every is Every.ONCE:
+        return routine.once_at or after
     if routine.every is Every.HOURS:
         step = timedelta(hours=max(routine.hours, 0.25))
         if routine.last_run_at is None:
@@ -106,7 +117,12 @@ def next_run(routine: Routine, after: datetime, tz: tzinfo) -> datetime:
     raise ValueError(t("routines.errors.no_days"))
 
 
-def describe_schedule(routine: Routine) -> str:
+def describe_schedule(routine: Routine, tz: tzinfo | None = None) -> str:
+    if routine.every is Every.ONCE:
+        from uva.clock import get_tz
+
+        when = format_local(routine.once_at or routine.next_run_at, tz or get_tz("UTC"), "%d/%m %H:%M")
+        return t("routines.schedule.once", when=when)
     if routine.every is Every.DAY:
         return t("routines.schedule.day", at=routine.at)
     if routine.every is Every.WEEKDAYS:
@@ -118,7 +134,7 @@ def describe_schedule(routine: Routine) -> str:
 
 def describe(routine: Routine, tz: tzinfo) -> str:
     state = "" if routine.enabled else t("routines.paused")
-    lines = [f"{routine.id} · {describe_schedule(routine)}{state}", f"   {routine.request[:150]}"]
+    lines = [f"{routine.id} · {describe_schedule(routine, tz)}{state}", f"   {routine.request[:150]}"]
     if routine.skill:
         lines.append("   " + t("routines.skill_line", skill=routine.skill))
     if routine.script:
@@ -352,7 +368,9 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
     for routine in await store.due(now):
         late = now - routine.next_run_at > timedelta(minutes=10)
         llm_down = False
-        if routine.script:
+        if routine.reminder:  # plain reminder: the text itself, no LLM
+            outcome = Outcome("ok", routine.reminder)
+        elif routine.script:
             outcome = await _run_script(services, routine)
         else:
             router = router or Router(services)
@@ -364,9 +382,11 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
                 outcome = Outcome("failed", t("routines.llm_down", error=outage.error[:200]))
         next_at = next_run(routine.model_copy(update={"last_run_at": now}), now, tz)
         if llm_down:  # try again soon instead of waiting for the next slot
-            next_at = min(next_at, now + timedelta(minutes=services.settings.llm_retry_minutes))
+            retry_at = now + timedelta(minutes=services.settings.llm_retry_minutes)
+            next_at = retry_at if routine.is_reminder else min(next_at, retry_at)
         await store.update(
             routine.id, last_run_at=now, next_run_at=next_at, runs=routine.runs + 1,
+            **({"enabled": False} if routine.is_reminder and not llm_down else {}),
             last_result=(outcome.text or outcome.status)[:500], last_status=outcome.status,
             waiting_llm=llm_down,
             **({"last_output": outcome.text[:OUTPUT_CHARS]} if outcome.status == "ok" else {}),
@@ -388,18 +408,30 @@ async def run_due(services, notify, now: datetime | None = None) -> list[str]:
                    alerted=alert and outcome.status != "silent", result=outcome.text[:500])
         if notify is None or outcome.status == "silent" or not alert:
             continue
-        head = t("routines.notice.head", id=routine.id, request=routine.request[:80])
+        buttons = []
+        if routine.reminder:
+            head = t("routines.notice.plain", text=routine.reminder)
+        elif routine.is_reminder:
+            head = t("routines.notice.reminder", request=routine.request[:80])
+        else:
+            head = t("routines.notice.head", id=routine.id, request=routine.request[:80])
+        if routine.is_reminder:
+            from uva.reminders import notice_buttons
+
+            buttons = notice_buttons(routine.id)
         if late:
             when = format_local(routine.next_run_at, tz, "%d/%m %H:%M")
             head += "\n" + t("routines.notice.late", when=when)
-        if outcome.status == "failed":
-            await notify(Reply(f"{head}\n{t('routines.notice.failed', error=outcome.text or '?')}"))
+        if routine.reminder:
+            await notify(Reply(head, buttons=buttons))
+        elif outcome.status == "failed":
+            await notify(Reply(f"{head}\n{t('routines.notice.failed', error=outcome.text or '?')}", buttons=buttons))
         elif outcome.reply is None:
-            await notify(Reply(f"{head}\n{outcome.text}"))
+            await notify(Reply(f"{head}\n{outcome.text}", buttons=buttons))
         else:
             reply = outcome.reply
             parts = [head, *(reply.parts or [reply.text])]
             out = Reply.from_parts(parts)
-            out.buttons = reply.buttons
+            out.buttons = [*reply.buttons, *buttons]
             await notify(out)
     return ran

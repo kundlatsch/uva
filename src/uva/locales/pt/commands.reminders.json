@@ -1,0 +1,9 @@
+{
+  "lembrete": {
+    "description": "Lembrete de uma vez (daqui 20 min, amanhã às 9, sexta 14h ...)",
+    "usage_arg": "<quando> <texto> | <id> cancelar|adiar <quando>"
+  },
+  "lembretes": {
+    "description": "Lembretes pendentes e recentes"
+  }
+}

@@ -104,7 +104,7 @@ def register(registry: CommandRegistry) -> None:
         store = ctx.services.routines
         if store is None:
             return t("commands.routines.not_configured")
-        items = await store.all()
+        items = [r for r in await store.all() if not r.is_reminder]  # /lembretes shows those
         if not items:
             return t("commands.routines.rotinas.none")
         body = "\n".join(describe(r, ctx.services.tz) for r in items)

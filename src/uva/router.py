@@ -305,6 +305,13 @@ class Router:
             from uva.commands.session import stop_callback
 
             return await self._safely(stop_callback(self.services, data))
+        if verb in ("rmdok", "rmd1h", "rmdtm"):  # under a reminder's notice
+            from uva.reminders import handle_button
+
+            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
+            reply = await self._safely(self._text_reply(handle_button(self.services, verb, token)))
+            await self._remember(f"[button] {verb}", reply)
+            return reply
         if verb in ("wrok", "wrno"):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             reply = await self._safely(self._resolve_write(verb, token))
@@ -319,6 +326,10 @@ class Router:
         with trace(pending.trace_id if pending else None):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             return await self._safely(self._resolve_confirmation(verb, pending, user_id))
+
+    @staticmethod
+    async def _text_reply(coro) -> Reply:
+        return Reply(await coro)
 
     async def _resolve_write(self, verb: str, token: str) -> Reply:
         """A write the injection scanner held back: run it now, or drop it."""

@@ -40,7 +40,7 @@ PLAN_FORMAT = '{"actions": [{"type": "<action name>", "params": {...}}], "reply"
 FULL_SCHEMA_ACTIONS = frozenset({
     "reply", "run_command", "search", "note_create", "note_append", "note_read",
     "note_search", "note_update", "recall", "memory_save", "memory_update",
-    "feature_request", "shell_run", "goal_create", "routine_create", "expense_add",
+    "feature_request", "shell_run", "goal_create", "routine_create", "reminder_create", "expense_add",
     "action_help", "skill_read",
 })
 
@@ -236,6 +236,9 @@ Rules:
   anterior aqui>".
 - Something to do on a schedule ("todo dia às 8...", "toda segunda...", "a cada 6 horas...")
   is a routine: use routine_create. A goal is for work toward an outcome, not a timetable.
+- A request to be reminded at a time, once ("me lembra amanhã às 9 de...", "daqui 20 min me
+  avisa...") is reminder_create; with "request" only when something must be done then. Never
+  promise a reminder without creating it.
 - Goals (goal_create): a task with an end ("cria um comando", "descobre X", "organiza Y") is
   kind "unico"; following something continuously is "recorrente", with a sensible interval
   (news: 6-12h; prices: 2-6h; a study topic: 24h). Every run sends a report.

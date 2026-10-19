@@ -11,7 +11,8 @@
   "schedule": {
     "day": "todo dia às {at}",
     "weekdays": "{days} às {at}",
-    "hours": "a cada {hours}h"
+    "hours": "a cada {hours}h",
+    "once": "uma vez, {when}"
   },
   "paused": " (pausada)",
   "never": "nunca",
@@ -20,7 +21,9 @@
   "notice": {
     "head": "⏰ Rotina {id}: {request}",
     "late": "(atrasada: era para {when}; o PC estava desligado)",
-    "failed": "❌ falhou: {error}"
+    "failed": "❌ falhou: {error}",
+    "plain": "⏰ {text}",
+    "reminder": "⏰ Lembrete: {request}"
   },
   "errors": {
     "no_days": "agenda sem dias",

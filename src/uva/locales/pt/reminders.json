@@ -1,0 +1,35 @@
+{
+  "usage": [
+    "Uso:",
+    "/lembrete <quando> <texto> (daqui 20 min, amanhã às 9, sexta 14h, dia 25 às 10h, 25/12 08:00)",
+    "/lembretes — pendentes e recentes",
+    "/lembrete <id> cancelar · /lembrete <id> adiar <quando> (30 min, 2h, amanhã 9h)"
+  ],
+  "created": "⏰ Lembrete {id} para {when}: “{text}”",
+  "created_request": "⏰ Lembrete {id} para {when}: nessa hora eu faço “{text}”.",
+  "past": "Esse horário ({when}) já passou.",
+  "bad_when": "Não entendi o horário: {error}.",
+  "not_found": "Não achei o lembrete {id} (/lembretes).",
+  "snoozed": "⏰ Lembrete {id} adiado para {when}: “{text}”",
+  "cancelled": "🗑️ Lembrete {id} cancelado: “{text}”",
+  "done": "✅ Feito: “{text}”",
+  "when": {
+    "today": "hoje {time}",
+    "tomorrow": "amanhã {time}"
+  },
+  "errors": {
+    "bad_date": "data inválida"
+  },
+  "button": {
+    "done": "✅ Feito",
+    "hour": "⏰ +1h",
+    "tomorrow": "⏰ amanhã"
+  },
+  "list": {
+    "header": "⏰ Lembretes ({count} pendentes)",
+    "none": "Nenhum lembrete. Crie com /lembrete amanhã às 9 <texto>.",
+    "no_pending": "(nenhum pendente)",
+    "recent": "Últimos 7 dias:",
+    "request": "(roda o pedido)"
+  }
+}

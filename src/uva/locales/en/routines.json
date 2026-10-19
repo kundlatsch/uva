@@ -11,7 +11,8 @@
   "schedule": {
     "day": "every day at {at}",
     "weekdays": "{days} at {at}",
-    "hours": "every {hours}h"
+    "hours": "every {hours}h",
+    "once": "once, {when}"
   },
   "paused": " (paused)",
   "never": "never",
@@ -20,7 +21,9 @@
   "notice": {
     "head": "⏰ Routine {id}: {request}",
     "late": "(late: it was due at {when}; the PC was off)",
-    "failed": "❌ failed: {error}"
+    "failed": "❌ failed: {error}",
+    "plain": "⏰ {text}",
+    "reminder": "⏰ Reminder: {request}"
   },
   "errors": {
     "no_days": "schedule without days",

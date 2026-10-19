@@ -75,6 +75,9 @@ def memory_maintenance() -> dict:
         with trace():
             result = await services.memory.maintenance()  # type: ignore[union-attr]
             await emit(EventType.MEMORY, op="maintenance", **result)
+            from uva.reminders import purge
+
+            result["reminders_purged"] = await purge(services.routines)
         return result
 
     try:

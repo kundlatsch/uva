@@ -1,0 +1,35 @@
+{
+  "usage": [
+    "Usage:",
+    "/reminder <when> <text> (in 20 min, tomorrow 9am, friday 2pm, on the 25th at 10, 25/12 08:00)",
+    "/reminders — pending and recent ones",
+    "/reminder <id> cancel · /reminder <id> snooze <when> (30 min, 2h, tomorrow 9am)"
+  ],
+  "created": "⏰ Reminder {id} for {when}: “{text}”",
+  "created_request": "⏰ Reminder {id} for {when}: I'll do “{text}” then.",
+  "past": "That time ({when}) has already passed.",
+  "bad_when": "I didn't get the time: {error}.",
+  "not_found": "I couldn't find reminder {id} (/reminders).",
+  "snoozed": "⏰ Reminder {id} moved to {when}: “{text}”",
+  "cancelled": "🗑️ Reminder {id} cancelled: “{text}”",
+  "done": "✅ Done: “{text}”",
+  "when": {
+    "today": "today {time}",
+    "tomorrow": "tomorrow {time}"
+  },
+  "errors": {
+    "bad_date": "invalid date"
+  },
+  "button": {
+    "done": "✅ Done",
+    "hour": "⏰ +1h",
+    "tomorrow": "⏰ tomorrow"
+  },
+  "list": {
+    "header": "⏰ Reminders ({count} pending)",
+    "none": "No reminders. Create one with /reminder tomorrow 9am <text>.",
+    "no_pending": "(none pending)",
+    "recent": "Last 7 days:",
+    "request": "(runs the request)"
+  }
+}

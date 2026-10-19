@@ -20,6 +20,7 @@ This is the complete reference. For a quick overview, see the [README](../README
 - [Long-term memory](#long-term-memory)
 - [Goals and proactive mode](#goals-and-proactive-mode)
 - [Routines (recurring tasks)](#routines-recurring-tasks)
+- [Reminders (one-shot)](#reminders-one-shot)
 - [SQLite (structured data)](#sqlite-structured-data)
 - [Personality (soul.md) and profile (profile.md)](#personality-soulmd-and-profile-profilemd)
 - [Skills (how you want things done)](#skills-how-you-want-things-done)
@@ -73,6 +74,7 @@ src/uva/
   goals/          # goals and the proactive loop
   initiatives.py  # messages UVA sends on its own
   routines.py     # recurring requests on a schedule
+  reminders.py    # one-shot reminders: the time parser (pt/en), snooze, cleanup
   tasks/          # Celery: app, tasks, queue, "busy" lock
   storage/        # Mongo, SQLite (expenses, stickers, index, incidents, allowlist...)
   selfmod/        # self-editing, self-coding, plugin loading, git
@@ -116,6 +118,8 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/proativo`, `/proactive` `[on\|off\|agora\|now]` | proactive mode status and controls |
 | `/rotina`, `/routine` `<when> <request>` | creates a recurring task (`<when> script <file>` runs a script in `/uva`; `... depois-de <id>` chains routines); `/rotina <id> pausar\|retomar\|remover\|agora` (or `pause\|resume\|delete\|now`); `/rotina <id> habilidade <name>\|nenhuma` (`skill`); `/rotina <id> incidentes` (`incidents`) |
 | `/rotinas`, `/routines` | lists routines |
+| `/lembrete`, `/reminder` `<when> <text>` | one-shot reminder (`daqui 20 min`, `amanhã às 9`, `sexta 14h`, `dia 25 às 10h`, `25/12 08:00`, `in 2 hours`, `tomorrow 9am`); `/lembrete <id> cancelar\|adiar <when>` (`cancel\|snooze`) |
+| `/lembretes`, `/reminders` | pending reminders and the ones of the last 7 days |
 | `/gasto`, `/expense` `<amount> <category> [description]` | records an expense |
 | `/gastos`, `/expenses` `[hoje\|semana\|mes\|ano\|tudo]` | expenses by category (also `today\|week\|month\|year\|all`) |
 | `/decidir`, `/decide` `...` | probability, choice or score (OpenAI Decisions) |
@@ -379,6 +383,16 @@ Requests that run by themselves on a schedule, through the normal router (same b
 **Chained routines.** `/rotina todo dia 09:00 resume o relatório depois-de r1a2` (`after`, or `routine_create` with `context_from`) gives this routine the last output of routine `r1a2` as context (marked as data). Each routine keeps its last output.
 
 **Skills.** `/rotina <id> habilidade <name>` makes a routine follow a skill on every run (`nenhuma` removes it).
+
+## Reminders (one-shot)
+
+A reminder is a routine that runs once (`every: once`, `once_at` in UTC, in the same Mongo `routines` collection, so the beat tick, late delivery and failure handling are the same). `/rotinas` leaves them out; `/lembretes` (`/reminders`) lists the pending ones and those of the last 7 days.
+
+- `/lembrete daqui 20 min tirar o bolo` · `/lembrete amanhã às 9 ligar pro dentista` · `/lembrete sexta 14h reunião` · `/lembrete dia 25 às 10h aluguel` · `/lembrete 25/12 08:00 ...`; in English `/reminder in 20 minutes ...`, `tomorrow 9am`, `friday 2pm`, `on the 25th at 10`. The time can also come at the end (`/lembrete ligar pro dentista amanhã às 9h`). Both languages work whatever `BOT_LANGUAGE` is (`uva/reminders.py`).
+- A weekday or a day of the month that already passed means the next one (Tuesday 13:00 → "terça 10h" is next Tuesday; "dia 10" on the 13th is next month's 10th; "dia 31" skips months without it); a date without a time is 09:00; a time that already passed today ("às 11h" at noon) is tomorrow. An explicit time in the past is refused.
+- **Plain reminders** send their text with a ⏰ prefix and **no LLM**. In a conversation the LLM uses `reminder_create(when, text, request?)`: with `request` ("amanhã às 8 vê a previsão") the request runs through the router at that time, like a routine.
+- The notice has buttons ✅ Feito, ⏰ +1h and ⏰ amanhã (tomorrow at the same time). `/lembrete <id> adiar 30 min` (`snooze`, also `2h`, `amanhã 9h`) and `/lembrete <id> cancelar` (`cancel`).
+- A reminder whose time passed while the PC was off runs once when it is back, marked late. After it runs it is disabled; the daily maintenance (`memory_maintenance`, at `MEMORY_MAINTENANCE_HOUR`) deletes reminders that ran more than 7 days ago.
 
 ## SQLite (structured data)
 

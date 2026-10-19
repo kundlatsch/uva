@@ -7,7 +7,10 @@
     "shal": "✅ Permitido",
     "wrok": "💾 Salvando…",
     "wrno": "Ok",
-    "stop": "⏹️ Parando…"
+    "stop": "⏹️ Parando…",
+    "rmdok": "✅ Feito",
+    "rmd1h": "⏰ Daqui 1h",
+    "rmdtm": "⏰ Amanhã"
   },
   "file_too_big": "{phrase}\n(o arquivo passa de 20 MB, o limite do Telegram para bots)",
   "audio_too_big": "{phrase}\n(o áudio passa de 20 MB, o limite do Telegram para bots)"
