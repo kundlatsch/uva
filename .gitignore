@@ -45,4 +45,6 @@ node_modules/
 
 # Personal profile (always loaded into prompts) and its versions: never published
 /data/profile.md
+# Skills (procedural memory) are personal too; changes are versioned in data/.versions/.
+/data/skills/
 /data/.versions/

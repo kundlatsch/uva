@@ -9,6 +9,11 @@
     "brain_nothing": "I couldn't find any change of mine in the second brain to undo.",
     "brain_done": "↩️ Second brain: undid {sha} ({subject}).",
     "diff_header": "🔍 {command} would undo {sha} ({subject}):",
-    "diff_cut": "… (cut)"
+    "diff_cut": "… (cut)",
+    "file_restored": "↩️ {path} is back to how it was before the change of {when} (the change is kept in data/.versions/).",
+    "file_removed": "↩️ Removed {path}, created at {when}.",
+    "file_failed": "I couldn't undo the change to {path}: {error}",
+    "diff_file_header": "🔍 /undo would bring {path} back to before {when}:",
+    "no_changes": "(no difference)"
   }
 }

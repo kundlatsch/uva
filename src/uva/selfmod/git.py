@@ -31,6 +31,7 @@ class Commit:
     subject: str
     body: str
     parents: int
+    timestamp: int = 0  # commit time, seconds since the epoch
 
     def trailer(self, key: str) -> str | None:
         for line in self.body.splitlines():
@@ -93,14 +94,16 @@ class GitRepo:
             return (await asyncio.to_thread(self.run, "rev-parse", "HEAD")).strip()
 
     async def history(self, limit: int = 200) -> list[Commit]:
-        out = await self.arun("log", f"-n{limit}", f"--format=%H{_FIELD}%P{_FIELD}%s{_FIELD}%B{_RECORD}")
+        out = await self.arun(
+            "log", f"-n{limit}", f"--format=%H{_FIELD}%P{_FIELD}%ct{_FIELD}%s{_FIELD}%B{_RECORD}"
+        )
         commits = []
         for record in out.split(_RECORD):
             record = record.strip("\n")
             if not record:
                 continue
-            sha, parents, subject, body = record.split(_FIELD, 3)
-            commits.append(Commit(sha, subject, body, len(parents.split())))
+            sha, parents, stamp, subject, body = record.split(_FIELD, 4)
+            commits.append(Commit(sha, subject, body, len(parents.split()), int(stamp or 0)))
         return commits
 
     async def last_bot_commit(self) -> Commit | None:

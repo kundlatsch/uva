@@ -1,7 +1,9 @@
-"""/reverter: undo the last commit the bot made to its own repository."""
+"""/reverter: undo the last change the bot made to its own files (a git commit, or a
+file kept out of git such as a skill or the profile, restored from data/.versions/)."""
 
 from __future__ import annotations
 
+from uva.clock import format_local
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.i18n import t
 from uva.logging import get_logger
@@ -28,9 +30,11 @@ def register(registry: CommandRegistry) -> None:
         if brain:
             return await _revert_brain(ctx.services)
         repo = ctx.services.repo
-        if repo is None:
+        version, commit = await _latest(ctx.services)
+        if version is not None:
+            return _undo_version(ctx.services, version)
+        if repo is None and commit is None:
             return t("commands.revert.reverter.no_repo")
-        commit = await repo.last_bot_commit()
         if commit is None:
             return t("commands.revert.reverter.nothing")
         try:
@@ -57,8 +61,43 @@ def register(registry: CommandRegistry) -> None:
 DIFF_CHARS = 12000
 
 
+async def _latest(services):
+    """(file version, bot commit): only one is set, the most recent of the two."""
+    files, repo = services.files, services.repo
+    version = files.last_version() if files is not None else None
+    commit = None
+    if repo is not None:
+        try:
+            commit = await repo.last_bot_commit()
+        except GitError:
+            commit = None
+    if version is not None and commit is not None:
+        if commit.timestamp > version.at.timestamp():
+            return None, commit
+        return version, None
+    return version, commit
+
+
+def _undo_version(services, version) -> str:
+    """Undo a change to a file kept out of git (a skill, the profile)."""
+    try:
+        services.files.undo_version(version)
+    except (OSError, ValueError) as exc:
+        return t("commands.revert.reverter.file_failed", path=version.path, error=exc)
+    when = format_local(version.at, services.tz, "%d/%m %H:%M")
+    key = "file_restored" if version.backup else "file_removed"
+    return t(f"commands.revert.reverter.{key}", path=version.path, when=when)
+
+
 async def _diff(services, brain: bool) -> Reply | str:
     """What /reverter would undo, without undoing it."""
+    if not brain:
+        version, _ = await _latest(services)
+        if version is not None:
+            diff = services.files.version_diff(version) or t("commands.revert.reverter.no_changes")
+            header = t("commands.revert.reverter.diff_file_header", path=version.path,
+                       when=format_local(version.at, services.tz, "%d/%m %H:%M"))
+            return Reply.paginated(diff.strip()[:DIFF_CHARS], header=header)
     repo = services.brain_repo if brain else services.repo
     if repo is None:
         return t("commands.revert.reverter.no_repo")

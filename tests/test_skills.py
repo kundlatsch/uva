@@ -12,7 +12,7 @@ from uva.llm.base import without_context
 from uva.router import Router
 from uva.routines import Every, Routine, run_due
 from uva.selfmod.files import FileAccess
-from uva.selfmod.git import SELF_EDIT, GitRepo
+from uva.selfmod.git import GitRepo
 from uva.skills import SkillError, SkillLibrary, parse
 from uva.soul import Soul
 from uva.storage.sqlite import Database
@@ -78,6 +78,7 @@ def test_parse_validates_the_skill():
         parse(skill_text().replace("## Procedure", "## Steps"), "weekly-plan")
 
 
+@pytest.mark.skipif(not REPO_SKILLS.is_dir(), reason="data/skills is local (kept out of git)")
 def test_seeded_skills_are_valid():
     library = SkillLibrary(REPO_SKILLS)
     names = {s.name for s in library.all()}
@@ -138,14 +139,16 @@ async def test_skill_command_shows_or_runs(sk_services):
     assert "não tenho" in (await router.handle_text("/skill nope")).text.lower()
 
 
-async def test_create_commits_with_the_self_edit_trailer(sk_services, repo):
+async def test_create_is_versioned_outside_git(sk_services, repo):
+    head = git(repo, "rev-parse", "HEAD")
     action = sk_services.actions.get("skill_create")
     params = action.params_model(name="grocery-list", description="Keeps the grocery list", body=BODY)
     result = await action.handler(params, ActionContext(sk_services))
-    assert result.data["ok"] and "grocery-list" in result.text
+    assert result.data["ok"] and "grocery-list" in result.text and result.data["commit"] is None
     assert sk_services.skills.get("grocery-list").description == "Keeps the grocery list"
-    message = git(repo, "log", "-1", "--format=%B")
-    assert "data/skills/grocery-list/SKILL.md" in message and f"{SELF_EDIT}: true" in message
+    assert git(repo, "rev-parse", "HEAD") == head  # skills are kept out of git
+    version = sk_services.files.last_version()
+    assert version.path == "data/skills/grocery-list/SKILL.md" and version.backup is None
     again = await action.handler(params, ActionContext(sk_services))
     assert not again.data["ok"]
     bad = action.params_model(name="x-y", description="d", body="no sections")
@@ -199,3 +202,43 @@ async def test_routine_with_a_skill(sk_services):
     assert "Skill to follow for this request: weekly-plan" in provider.calls[0]["messages"][-1].content
     reply = await Router(sk_services).handle_text("/rotina r1 habilidade nenhuma")
     assert "não segue mais" in reply.text and store.items["r1"].skill == ""
+
+
+async def test_reverter_undoes_skill_changes_from_data_versions(sk_services, repo):
+    ctx = ActionContext(sk_services)
+    read = sk_services.actions.get("skill_read")
+    await read.handler(read.params_model(name="weekly-plan"), ctx)
+    patch = sk_services.actions.get("skill_patch")
+    await patch.handler(patch.params_model(name="weekly-plan", old="1. List the days.", new="1. Monday first."), ctx)
+    assert "Monday first" in sk_services.skills.get("weekly-plan").body
+    versions = list((repo / "data" / ".versions").glob("skills__weekly-plan__SKILL-*.md"))
+    assert len(versions) == 1 and "1. List the days." in versions[0].read_text(encoding="utf-8")
+
+    router = Router(sk_services)
+    diff = (await router.handle_text("/reverter diff")).text
+    assert "-1. Monday first." in diff and "+1. List the days." in diff
+    reply = (await router.handle_text("/reverter")).text
+    assert "data/skills/weekly-plan/SKILL.md voltou" in reply
+    assert "1. List the days." in sk_services.skills.get("weekly-plan").body
+    # Nothing else to undo from data/.versions/, and the undo itself is not undoable.
+    assert sk_services.files.last_version() is None
+
+
+async def test_reverter_removes_a_skill_it_created(sk_services, repo):
+    action = sk_services.actions.get("skill_create")
+    await action.handler(action.params_model(name="new-one", description="New", body=BODY), ActionContext(sk_services))
+    reply = (await Router(sk_services).handle_text("/reverter")).text
+    assert "Apaguei data/skills/new-one/SKILL.md" in reply
+    assert not (repo / "data" / "skills" / "new-one").exists()
+
+
+async def test_reverter_picks_the_newest_of_commit_and_file_change(sk_services, repo):
+    action = sk_services.actions.get("skill_create")
+    await action.handler(action.params_model(name="older", description="Older", body=BODY), ActionContext(sk_services))
+    import time
+
+    time.sleep(1.1)  # commit times have one-second resolution
+    await sk_services.files.write("data/soul.md", "Sou gentil.", reason="teste")
+    reply = (await Router(sk_services).handle_text("/reverter")).text
+    assert reply.startswith("↩️ Revertido")  # the git commit is newer
+    assert (repo / "data" / "skills" / "older" / "SKILL.md").exists()

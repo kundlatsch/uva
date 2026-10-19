@@ -9,6 +9,11 @@
     "brain_nothing": "Não achei nenhuma mudança minha no second brain para desfazer.",
     "brain_done": "↩️ Second brain: desfeito {sha} ({subject}).",
     "diff_header": "🔍 O {command} desfaria {sha} ({subject}):",
-    "diff_cut": "… (cortado)"
+    "diff_cut": "… (cortado)",
+    "file_restored": "↩️ {path} voltou a como estava antes da mudança de {when} (a mudança fica guardada em data/.versions/).",
+    "file_removed": "↩️ Apaguei {path}, criado em {when}.",
+    "file_failed": "Não consegui desfazer a mudança em {path}: {error}",
+    "diff_file_header": "🔍 O /reverter voltaria {path} para antes de {when}:",
+    "no_changes": "(sem diferença)"
   }
 }

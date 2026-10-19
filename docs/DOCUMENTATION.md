@@ -2,7 +2,7 @@
 
 UVA is a personal AI assistant that talks to you on Telegram. It serves **a single user** (you) and runs in Docker on your own PC.
 
-This is the complete reference. For a quick overview, see the [README](../README.md). The original phase-by-phase plan (in Portuguese) is in [plano.md](plano.md). How the memory layers fit together is described in [MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md).
+This is the complete reference. For a quick overview, see the [README](../README.md). The original phase-by-phase plan (in Portuguese) is in [plano.md](plano.md).
 
 ## Contents
 
@@ -297,7 +297,7 @@ The brain is your content, so names stay in Portuguese even though everything in
 
 ## Short-term memory
 
-See [MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md) for the technical view of short-term memory, long-term memory, the background review and recall together.
+How the memory layers fit together: each kind of knowledge has one owner. Identity (`soul.md`, the capped `profile.md` and the skill index) is always in the prompt; facts about you live in Mongo memory (the top 20 in every prompt); procedures live in skills (`data/skills`, the body loaded on demand); your notes and UVA's deliverables live in the brain (never always-loaded, reached through the search index); episodes live in the conversation log (SQLite), with Redis keeping the live 12h window. The full-text index over all of them is derived and can be rebuilt (`/reindexar`). The background review moves knowledge up the layers (episodes → facts, skills, profile), and the nightly digest writes the day into the journal.
 
 UVA remembers what happened in the current conversation, including what **it** did: a Redis session (`stm:<your id>`), shared by bot and worker, with the last turns (summarized command outputs and messages it sent on its own), references to everything it started or created (searches, tasks, notes, goals, features, expenses) with the status kept up to date by the worker, and which of them is "in focus". Details (in Portuguese) in [memoria-curto-prazo.md](memoria-curto-prazo.md).
 
@@ -413,14 +413,13 @@ Skills are UVA's procedural memory: how you want a kind of task done (how to rec
   - `/skill <name> <request>` (`/habilidade`) does a request following that skill; `/skill <name>` shows it;
   - a routine or goal can name a skill (`routine_create` / `goal_create` with `skill`, or `/rotina <id> habilidade <name>`), followed on every run.
 - UVA writes them itself: when you correct how it did something or say how you want a kind of task done, it creates a skill (`skill_create`) or fixes the existing one in place (`skill_patch`, which needs a `skill_read` of the same skill first). The prompt asks for lessons, not logs: no one-off details, no failed attempts as advice, no "tool X is broken".
-- Every change is a commit with `UVA-Self-Edit`, so `/reverter` undoes it. Usage (uses, last use) is counted in SQLite (`skill_usage`); `/skills` (`/habilidades`) lists them.
-- Three skills come with the repository: `reading-notes`, `reflective-thoughts` and `research-summary`.
+- Skills are personal, so `data/skills/` is kept out of git (like `data/profile.md`): before each change the previous version is copied to `data/.versions/` and noted in `data/.versions/journal.jsonl`, and `/reverter` restores it (or removes a skill it created); `/reverter diff` shows what would change. `/reverter` undoes whichever is newest: a bot commit or one of these file changes. Usage (uses, last use) is counted in SQLite (`skill_usage`); `/skills` (`/habilidades`) lists them.
 
 ## Self-editing
 
 UVA can read and change some of its own files through the `file_read`, `file_write` and `file_append` actions, **only** in these paths:
 
-- `data/...` (e.g. `data/soul.md`): read, rewrite and append. Each change becomes a commit in the repository (author `GIT_AUTHOR_NAME`, trailer `UVA-Self-Edit: true`) containing only that file. `data/profile.md` is not in git, so instead of a commit the previous version is copied to `data/.versions/`.
+- `data/...` (e.g. `data/soul.md`): read, rewrite and append. Each change becomes a commit in the repository (author `GIT_AUTHOR_NAME`, trailer `UVA-Self-Edit: true`) containing only that file. `data/profile.md` and `data/skills/` are not in git, so instead of a commit the previous version is copied to `data/.versions/` (listed in `data/.versions/journal.jsonl`), and `/reverter` can put it back.
 - `brain/...` (second brain): read, create new notes and append; existing notes are never overwritten.
 
 Any other path (`src/`, `security.py`, `.env`, `docker-compose.yml`, hidden files, `..`) is refused.

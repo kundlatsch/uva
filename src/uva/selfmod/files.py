@@ -4,7 +4,10 @@ Allowed roots:
   * ``data/...``  -> <repo>/data (soul.md, fallback_phrases.json, prompts): read,
                      overwrite, append (.md/.txt); every change becomes a git
                      commit (UVA-Self-Edit). JSON files are validated before
-                     they are written and can't be appended to.
+                     they are written and can't be appended to. Files kept
+                     out of git (data/profile.md, data/skills/) get the
+                     previous version in data/.versions/ instead, listed in
+                     data/.versions/journal.jsonl so /reverter can restore it.
   * ``brain/...`` -> the second brain: read, create new notes, append;
                      existing notes are never overwritten (and not in git).
 Everything else (src/, security.py, .env, docker-compose.yml...) is refused.
@@ -12,8 +15,11 @@ Everything else (src/, security.py, .env, docker-compose.yml...) is refused.
 
 from __future__ import annotations
 
+import difflib
 import json
+import secrets
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 from uva.brain.vault import PlaceholderError, check_no_placeholders
@@ -25,8 +31,27 @@ from uva.selfmod.git import SELF_EDIT, GitRepo
 ALLOWED_SUFFIXES = {".md", ".txt"}
 DATA_ONLY_SUFFIXES = {".json"}
 MAX_BYTES = 50_000
-# Personal files kept out of git (see .gitignore): edits keep a copy in data/.versions/.
+# Files kept out of git (see .gitignore): edits keep a copy in data/.versions/.
 UNTRACKED = {"data/profile.md"}
+UNTRACKED_PREFIXES = ("data/skills/",)
+JOURNAL = "journal.jsonl"
+
+
+def is_untracked(repo_relative: str | None) -> bool:
+    return repo_relative is not None and (
+        repo_relative in UNTRACKED or repo_relative.startswith(UNTRACKED_PREFIXES)
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class FileVersion:
+    """One change to a file kept out of git (a line of the versions journal)."""
+
+    id: str
+    path: str  # "data/skills/x/SKILL.md"
+    backup: str | None  # file name in data/.versions/, None when the change created the file
+    at: datetime
+    reason: str = ""
 
 
 class FileAccessError(PermissionError):
@@ -106,7 +131,7 @@ class FileAccess:
         except PlaceholderError as exc:
             raise FileAccessError(str(exc)) from exc
         target.path.parent.mkdir(parents=True, exist_ok=True)
-        self._backup_untracked(target)
+        self._backup_untracked(target, reason)
         target.path.write_text(content, encoding="utf-8")
         return Change(target, await self._commit(target, "write", reason))
 
@@ -118,7 +143,7 @@ class FileAccess:
         _check_size(existing + content)
         self._check_cap(target, existing + content)
         target.path.parent.mkdir(parents=True, exist_ok=True)
-        self._backup_untracked(target)
+        self._backup_untracked(target, reason)
         with target.path.open("a", encoding="utf-8") as fh:
             fh.write(("\n" if existing and not existing.endswith("\n") else "") + content)
         return Change(target, await self._commit(target, "append", reason))
@@ -132,21 +157,94 @@ class FileAccess:
                 t("selfmod.files.over_cap", path=target.display, size=len(content), limit=limit)
             )
 
-    def _backup_untracked(self, target: Target) -> None:
-        """Files outside git (data/profile.md is gitignored): keep the old version."""
-        if target.repo_relative not in UNTRACKED or not target.path.exists():
-            return
-        from datetime import datetime
+    @property
+    def versions_dir(self) -> Path:
+        return self.roots["data"] / ".versions"
 
-        versions = target.path.parent / ".versions"
+    def _backup_untracked(self, target: Target, reason: str = "") -> None:
+        """Files outside git: keep the old version and note the change in the journal."""
+        if not is_untracked(target.repo_relative):
+            return
+        versions = self.versions_dir
         versions.mkdir(exist_ok=True)
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        (versions / f"{target.path.stem}-{stamp}{target.path.suffix}").write_text(
-            target.path.read_text(encoding="utf-8"), encoding="utf-8"
-        )
+        backup = None
+        if target.path.exists():
+            # data/profile.md -> profile-<stamp>.md; data/skills/x/SKILL.md -> skills__x__SKILL-<stamp>.md
+            flat = PurePosixPath(target.repo_relative.removeprefix("data/"))
+            stem = "__".join([*flat.parent.parts, flat.stem]) if flat.parent.parts else flat.stem
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            path = versions / f"{stem}-{stamp}{flat.suffix}"
+            counter = 2
+            while path.exists():
+                path = versions / f"{stem}-{stamp}-{counter}{flat.suffix}"
+                counter += 1
+            path.write_text(target.path.read_text(encoding="utf-8"), encoding="utf-8")
+            backup = path.name
+        entry = {"id": secrets.token_hex(3), "path": target.display, "backup": backup,
+                 "at": datetime.now(UTC).isoformat(), "reason": reason[:200]}
+        with (versions / JOURNAL).open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # --- undoing changes to files kept out of git (/reverter) ----------------------
+
+    def _journal(self) -> tuple[list[dict], set[str]]:
+        path = self.versions_dir / JOURNAL
+        if not path.exists():
+            return [], set()
+        entries, reverted = [], set()
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(line)
+            except ValueError:
+                continue
+            if "reverts" in item:
+                reverted.add(item["reverts"])
+            elif "id" in item:
+                entries.append(item)
+        return entries, reverted
+
+    def last_version(self) -> FileVersion | None:
+        """The most recent change to an untracked file that wasn't undone yet."""
+        entries, reverted = self._journal()
+        for item in reversed(entries):
+            if item["id"] not in reverted:
+                return FileVersion(item["id"], item["path"], item.get("backup"),
+                                   datetime.fromisoformat(item["at"]), item.get("reason", ""))
+        return None
+
+    def version_diff(self, version: FileVersion) -> str:
+        """What undoing ``version`` would change (unified diff, current -> previous)."""
+        target = self.resolve(version.path)
+        current = target.path.read_text(encoding="utf-8") if target.path.exists() else ""
+        previous = (self.versions_dir / version.backup).read_text(encoding="utf-8") if version.backup else ""
+        return "".join(difflib.unified_diff(
+            current.splitlines(keepends=True), previous.splitlines(keepends=True),
+            fromfile=f"{version.path} (now)", tofile=f"{version.path} (after undo)",
+        ))
+
+    def undo_version(self, version: FileVersion) -> None:
+        """Put the previous version back (or remove a file the change created)."""
+        target = self.resolve(version.path)
+        if version.backup:
+            content = (self.versions_dir / version.backup).read_text(encoding="utf-8")
+            self._backup_untracked(target, reason=f"undo {version.id}")
+            target.path.write_text(content, encoding="utf-8")
+            # The backup made just now is the undo itself, not a change to undo.
+            entries, _ = self._journal()
+            self._mark_reverted(entries[-1]["id"])
+        elif target.path.exists():
+            target.path.unlink()
+            parent = target.path.parent
+            if parent != self.roots["data"] and not any(parent.iterdir()):
+                parent.rmdir()
+        self._mark_reverted(version.id)
+
+    def _mark_reverted(self, entry_id: str) -> None:
+        with (self.versions_dir / JOURNAL).open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"reverts": entry_id, "at": datetime.now(UTC).isoformat()}) + "\n")
 
     async def _commit(self, target: Target, op: str, reason: str) -> str | None:
-        if target.repo_relative is None or self.git is None or target.repo_relative in UNTRACKED:
+        if target.repo_relative is None or self.git is None or is_untracked(target.repo_relative):
             return None
         return await self.git.commit_paths(
             [target.repo_relative],
