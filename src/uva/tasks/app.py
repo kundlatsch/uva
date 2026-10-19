@@ -41,6 +41,7 @@ app.conf.beat_schedule = {
 }
 # Routines: checked every minute; missed slots (PC off) run once when back.
 app.conf.beat_schedule["routines-tick"] = {"task": "uva.routines_tick", "schedule": crontab(minute="*")}
+app.conf.beat_schedule["index-sync"] = {"task": "uva.index_sync", "schedule": timedelta(minutes=10)}
 app.conf.beat_schedule["stm-promotion"] = {
     "task": "uva.stm_promotion",
     "schedule": timedelta(minutes=30),

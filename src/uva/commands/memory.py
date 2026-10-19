@@ -26,6 +26,7 @@ def register(registry: CommandRegistry) -> None:
             item = await service.get(" ".join(ctx.args))
             if item is None:
                 return t("commands.memory.memoria.unknown_key", key=" ".join(ctx.args))
+            await service.touch([item.key])  # reading it is a use
             return t(
                 "commands.memory.memoria.item",
                 key=item.key,

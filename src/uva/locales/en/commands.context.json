@@ -13,5 +13,13 @@
     "header": "Recent context ({turns} turns, {refs} references)",
     "refs": "\nReferences:",
     "turns": "\nLast turns:"
+  },
+  "historico": {
+    "description": "Searches every past conversation (the conversation log)",
+    "usage_arg": "<term>",
+    "usage": "Usage: /history <term>",
+    "unavailable": "The conversation log is unavailable (SQLite).",
+    "none": "Nothing in our conversations with '{term}'.",
+    "header": "🕰️ Conversations with '{term}' ({count}):"
   }
 }

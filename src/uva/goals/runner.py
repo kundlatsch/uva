@@ -380,6 +380,11 @@ async def _reschedule(services: Services, run: GoalRun, note: str | None, now: d
     elif _completes(run):
         fields["status"] = GoalStatus.CONCLUIDO
     await services.goals.update(goal.id, **fields)
+    if services.index is not None:
+        try:
+            await services.index.index_goal(goal.model_copy(update={"results": fields["results"]}))
+        except Exception as exc:  # derived data: /reindexar rebuilds it
+            log.warning("index_goal_failed", goal_id=goal.id, error=str(exc))
 
 
 def _previous_results(goal: Goal, services: Services) -> str:

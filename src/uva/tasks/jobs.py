@@ -12,6 +12,7 @@ from uva.actions.registry import RetryableActionError
 from uva import initiatives
 from uva.goals import runner as goals_runner
 from uva.i18n import t
+from uva.index.service import notice_source
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit, trace
 from uva.phrases import Phrases
@@ -86,6 +87,7 @@ def memory_maintenance() -> dict:
 @app.task(name="uva.proactive_tick")
 def proactive_tick() -> str:
     async def job() -> str:
+        notice_source.set("goal")
         notify = runtime.notify if settings.proactive_notify else None
         return await goals_runner.proactive_tick(await runtime.get_services(), notify=notify)
 
@@ -140,6 +142,7 @@ def routines_tick() -> list[str]:
     from uva.routines import run_due
 
     async def job() -> list[str]:
+        notice_source.set("routine")
         return await run_due(await runtime.get_services(), runtime.notify)
 
     try:
@@ -160,11 +163,25 @@ def stm_promotion() -> dict:
 @app.task(name="uva.initiative_tick")
 def initiative_tick() -> str:
     async def job() -> str:
+        notice_source.set("initiative")
         services = await runtime.get_services()
         status, message = await initiatives.initiative_tick(services)
         if message:
             await runtime.notify(Reply(message))
         return status
+
+    return runtime.run(job)
+
+
+@app.task(name="uva.index_sync")
+def index_sync() -> dict:
+    """Pick up notes edited outside UVA (Obsidian) and drop deleted ones."""
+
+    async def job() -> dict:
+        services = await runtime.get_services()
+        if services.index is None:
+            return {}
+        return await services.index.sync_notes()
 
     return runtime.run(job)
 

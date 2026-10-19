@@ -112,10 +112,28 @@ async def test_memory_store_roundtrip(db):
     assert await db["memory_archive"].count_documents({"key": "gato"}) == 1
 
     now = utcnow()
+    await store.touch(["cidade"], now)
+    touched = await store.get("cidade")
+    assert touched.use_count == 1 and abs((touched.last_used_at - now).total_seconds()) < 1
+
     await store.save_working_set(["cidade"], now)
     keys, computed_at = await store.load_working_set()
     assert keys == ["cidade"] and abs((computed_at - now).total_seconds()) < 1
     assert await store.delete("cidade") and not await store.delete("cidade")
+
+
+@pytest.mark.skipif(not REDIS_TEST_URL, reason="REDIS_TEST_URL not set")
+async def test_working_version_with_real_redis():
+    from redis.asyncio import Redis
+
+    from uva.memory.service import RedisWorkingVersion
+
+    redis = Redis.from_url(REDIS_TEST_URL, decode_responses=True)
+    await redis.flushdb()
+    version = RedisWorkingVersion(redis)
+    assert await version.get() == 0
+    assert await version.bump() == 1 and await version.get() == 1
+    await redis.aclose()
 
 
 async def test_goal_store_due_and_updates(db):

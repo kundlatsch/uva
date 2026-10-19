@@ -27,6 +27,7 @@ from uva.bootstrap import build_services, setup_storage
 from uva.clock import format_local, start_of_day, start_of_month, utcnow
 from uva.config import Settings, get_settings
 from uva.i18n import DEFAULT, catalog, get_language, t
+from uva.index.service import turn_source
 from uva.llm.client import debug_calls
 from uva.logging import events
 from uva.logging.events import Event, EventQuery, EventType
@@ -367,9 +368,12 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
             raise HTTPException(400, t("dashboard.app.empty_message"))
         router: Router = state["router"]
         user = settings.allowed_telegram_user_id
-        return await _stream(
-            lambda: router.handle_text(text, user_id=user), "executando" if text.startswith("/") else "pensando"
-        )
+
+        async def handle():
+            turn_source.set("dashboard")  # the conversation log tells the chats apart
+            return await router.handle_text(text, user_id=user)
+
+        return await _stream(handle, "executando" if text.startswith("/") else "pensando")
 
     @app.post("/api/callback")
     async def callback(body: CallbackIn) -> StreamingResponse:

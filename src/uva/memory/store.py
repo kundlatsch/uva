@@ -61,6 +61,10 @@ class MemoryStore(Protocol):
 
     async def all(self) -> list[MemoryItem]: ...
 
+    async def touch(self, keys: list[str], at: datetime) -> None:
+        """Mark items as used (last_used_at = at, use_count + 1)."""
+        ...
+
     async def archive(self, items: list[MemoryItem], reason: str) -> None:
         """Move items to the archive collection (removing them from memory)."""
         ...

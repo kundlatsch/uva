@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from uva.brain.vault import Vault
     from uva.commands.registry import CommandRegistry
     from uva.goals.store import GoalStore
+    from uva.index.service import SearchIndex
     from uva.initiatives import InitiativeStore
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
@@ -57,6 +58,8 @@ class Services:
     tasks: TaskQueue | None = None
     vault: Vault | None = None
     memory: MemoryService | None = None
+    # Full-text index over notes, memory, goals and the conversation log.
+    index: SearchIndex | None = None
     goals: GoalStore | None = None
     initiatives: InitiativeStore | None = None
     expenses: ExpenseRepository | None = None

@@ -6,8 +6,11 @@ from uva.clock import format_local
 from uva.commands.registry import CommandContext, CommandRegistry
 from uva.i18n import t
 from uva.stm.service import describe_ref
+from uva.text import normalize
 
 SHOWN_TURNS = 10
+HISTORY_LIMIT = 15
+HISTORY_CHARS = 200
 
 
 def register(registry: CommandRegistry) -> None:
@@ -41,4 +44,32 @@ def register(registry: CommandRegistry) -> None:
                 when = format_local(turn.at, tz, "%H:%M")
                 role = t(f"commands.context.role.{turn.role}")
                 lines.append(f"- {when} {role}: {turn.text[:120]}")
+        return "\n".join(lines)
+
+    @registry.command(
+        "historico",
+        t("commands.context.historico.description"),
+        aliases=("histórico", "history"),
+        usage=t("commands.context.historico.usage_arg"),
+        examples=("o que conversamos sobre", "procura nas conversas"),
+    )
+    async def history(ctx: CommandContext) -> str:
+        index = ctx.services.index
+        if index is None:
+            return t("commands.context.historico.unavailable")
+        term = " ".join(ctx.args).strip()
+        if not term:
+            return t("commands.context.historico.usage")
+        turns = await index.search_turns(normalize(term).split(), limit=HISTORY_LIMIT)
+        if not turns:
+            return t("commands.context.historico.none", term=term)
+        tz = ctx.services.tz
+        lines = [t("commands.context.historico.header", term=term, count=len(turns))]
+        for turn in sorted(turns, key=lambda turn: turn.id):
+            when = format_local(turn.at, tz, "%d/%m/%Y %H:%M")
+            role = t(f"commands.context.role.{turn.role}")
+            text = " ".join(turn.text.split())
+            if len(text) > HISTORY_CHARS:
+                text = text[: HISTORY_CHARS - 1] + "…"
+            lines.append(f"- {when} {role}: {text}")
         return "\n".join(lines)

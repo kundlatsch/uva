@@ -13,5 +13,13 @@
     "header": "Contexto recente ({turns} turnos, {refs} referências)",
     "refs": "\nReferências:",
     "turns": "\nÚltimos turnos:"
+  },
+  "historico": {
+    "description": "Procura em todas as conversas antigas (o registro de conversas)",
+    "usage_arg": "<termo>",
+    "usage": "Uso: /historico <termo>",
+    "unavailable": "O registro de conversas não está disponível (SQLite).",
+    "none": "Nada nas nossas conversas com '{term}'.",
+    "header": "🕰️ Conversas com '{term}' ({count}):"
   }
 }

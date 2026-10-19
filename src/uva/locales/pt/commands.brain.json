@@ -31,5 +31,10 @@
     "attachments": "{count} anexo(s):",
     "undo": "Desfaz com /reverter brain.",
     "commit_failed": "(não consegui commitar no git do brain: {error})"
+  },
+  "reindexar": {
+    "description": "Refaz o índice de busca (notas, memória, objetivos, conversas)",
+    "unavailable": "O índice de busca não está disponível (SQLite).",
+    "done": "🔎 Índice refeito: {notes} notas, {memory} memórias, {goals} objetivos, {turns} falas de conversa."
   }
 }

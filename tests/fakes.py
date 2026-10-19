@@ -198,6 +198,11 @@ class InMemoryMemoryStore:
     async def all(self) -> list[MemoryItem]:
         return list(self.items.values())
 
+    async def touch(self, keys: list[str], at: datetime) -> None:
+        for key in keys:
+            if (item := self.items.get(key)) is not None:
+                self.items[key] = item.model_copy(update={"last_used_at": at, "use_count": item.use_count + 1})
+
     async def archive(self, items: list[MemoryItem], reason: str) -> None:
         for item in items:
             self.archived.append((item, reason))

@@ -167,6 +167,11 @@ class MongoMemoryStore:
     async def all(self) -> list[MemoryItem]:
         return [MemoryItem.model_validate(d) async for d in self.collection.find({}, {"_id": False})]
 
+    async def touch(self, keys: list[str], at: datetime) -> None:
+        await self.collection.update_many(
+            {"key": {"$in": keys}}, {"$set": {"last_used_at": at}, "$inc": {"use_count": 1}}
+        )
+
     async def archive(self, items: list[MemoryItem], reason: str) -> None:
         now = utcnow()
         docs = [

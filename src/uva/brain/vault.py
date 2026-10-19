@@ -10,7 +10,7 @@ The vault only ever creates and appends: nothing is deleted or overwritten.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, tzinfo
 from pathlib import Path
@@ -105,6 +105,18 @@ class Vault:
     def __init__(self, root: Path, tz: tzinfo) -> None:
         self.root = root
         self.tz = tz
+        # Called with the relative path after a note is written / removed
+        # (the search index registers here; see uva/index).
+        self.on_change: list[Callable[[str], None]] = []
+        self.on_remove: list[Callable[[str], None]] = []
+
+    def _changed(self, path: str) -> None:
+        for hook in self.on_change:
+            hook(path)
+
+    def _removed(self, path: str) -> None:
+        for hook in self.on_remove:
+            hook(path)
 
     # --- structure -------------------------------------------------------
 
@@ -144,6 +156,7 @@ class Vault:
         created = self._timestamp(now)
         text = render_note(title, body, created=created, tags=list(tags), links=list(links))
         path.write_text(text, encoding="utf-8")
+        self._changed(self._relative(path))
         return Note(self._relative(path), title, body, created, list(tags))
 
     def folder_path(self, folder: str, subfolder: str = "") -> Path:
@@ -218,7 +231,11 @@ class Vault:
         new_tags = tags if tags is not None else list(meta.get("tags") or [])
         target.write_text(render_note(new_title, new_body, created=created, tags=new_tags, links=[]), encoding="utf-8")
         if target != path:
+            old = self._relative(path)
             path.unlink()  # the old content lives on in the backup copy
+            self._removed(old)
+        self._changed(self._relative(backup))
+        self._changed(self._relative(target))
         return self.read(self._relative(target)), self._relative(backup)
 
     def append(self, ref: str, text: str, now: datetime | None = None) -> Note:
@@ -227,6 +244,7 @@ class Vault:
         stamp = (now or utcnow()).astimezone(self.tz).strftime("%d/%m/%Y %H:%M")
         with path.open("a", encoding="utf-8") as fh:
             fh.write(f"\n\n### {stamp}\n\n{text.strip()}\n")
+        self._changed(self._relative(path))
         return self.read(self._relative(path))
 
     def append_daily(self, text: str, now: datetime | None = None) -> Note:
@@ -242,6 +260,7 @@ class Vault:
             path.write_text(header.rstrip() + "\n", encoding="utf-8")
         with path.open("a", encoding="utf-8") as fh:
             fh.write(f"\n- {local:%H:%M} {text.strip()}")
+        self._changed(self._relative(path))
         return self.read(self._relative(path))
 
     # --- reading ---------------------------------------------------------

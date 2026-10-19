@@ -31,5 +31,10 @@
     "attachments": "{count} attachment(s):",
     "undo": "Undo with /undo brain.",
     "commit_failed": "(I couldn't commit to the brain's git: {error})"
+  },
+  "reindexar": {
+    "description": "Rebuilds the search index (notes, memory, goals, conversations)",
+    "unavailable": "The search index is unavailable (SQLite).",
+    "done": "🔎 Index rebuilt: {notes} notes, {memory} memories, {goals} goals, {turns} conversation turns."
   }
 }

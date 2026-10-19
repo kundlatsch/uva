@@ -18,7 +18,8 @@ from uva.config import Settings
 from uva.llm.budget import Budget
 from uva.llm.client import build_llm_client
 from uva.llm.decisions import build_decisions_client
-from uva.memory.service import MemoryService
+from uva.index.service import SearchIndex
+from uva.memory.service import MemoryService, RedisWorkingVersion
 from uva.logging import events, get_logger
 from uva.search import build_search_backends
 from uva.services import Services
@@ -69,13 +70,18 @@ def build_services(settings: Settings) -> Services:
     services.stm = ShortTermMemory(RedisSessionBackend(redis), settings)
 
     services.vault = Vault(Path(settings.second_brain_path), services.tz)
+    sqlite_db = Database(Path(settings.sqlite_path))
+    services.index = SearchIndex(sqlite_db, services.vault)
+    services.vault.on_change.append(services.index.note_changed)
+    services.vault.on_remove.append(services.index.note_removed)
     memory_store = mongo.MongoMemoryStore(db)
-    services.memory = MemoryService(memory_store, settings)
+    services.memory = MemoryService(
+        memory_store, settings, version=RedisWorkingVersion(redis), index=services.index
+    )
     goal_store = mongo.MongoGoalStore(db)
     services.goals = goal_store
     initiative_store = mongo.MongoInitiativeStore(db)
     services.initiatives = initiative_store
-    sqlite_db = Database(Path(settings.sqlite_path))
     services.expenses = ExpenseRepository(sqlite_db)
     services.stickers = StickerRepository(sqlite_db)
 
@@ -110,6 +116,7 @@ def build_services(settings: Settings) -> Services:
             services.memory.recompute_working_set,
             lambda: _setup_vault(services.vault),
             lambda: _setup_sqlite(sqlite_db),
+            lambda: setup_index(services),
         ]
     )
     return services
@@ -167,6 +174,29 @@ async def _setup_sqlite(db: Database) -> None:
     applied = await asyncio.to_thread(db.migrate)
     if applied:
         log.info("sqlite_migrated", path=str(db.path), applied=applied)
+
+
+async def setup_index(services: Services) -> None:
+    """Build the search index the first time; afterwards only pick up notes
+    changed while the bot was off."""
+    index = services.index
+    if index is None:
+        return
+    if await index.count() == 0:
+        result = await rebuild_index(services)
+        log.info("index_built", **result)
+    else:
+        result = await index.sync_notes()
+        if result["indexed"] or result["removed"]:
+            log.info("index_synced", **result)
+
+
+async def rebuild_index(services: Services) -> dict[str, int]:
+    """Recreate the index from the vault, Mongo memory, goals and the conversation log."""
+    assert services.index is not None
+    memory = await services.memory.store.all() if services.memory is not None else []
+    goals = await services.goals.list() if services.goals is not None else []
+    return await services.index.rebuild(memory, goals)
 
 
 async def _redis_ping(redis: Redis) -> bool:

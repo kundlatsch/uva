@@ -11,20 +11,60 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Protocol
 
 from uva.clock import utcnow
 from uva.config import Settings
+from uva.logging import get_logger
 from uva.memory.store import MemoryCategory, MemoryItem, MemoryStore, normalize_key, score
 
+if TYPE_CHECKING:
+    from uva.index.service import SearchIndex
+
 WORKING_SET_MAX_AGE = timedelta(hours=24)
+VERSION_KEY = "memory:working_version"
+
+log = get_logger(__name__)
+
+
+class WorkingVersion(Protocol):
+    """A counter shared by every process (Redis): bumped when the working set
+    changes, so the bot drops its cached set after the worker saved a fact."""
+
+    async def get(self) -> int: ...
+
+    async def bump(self) -> int: ...
+
+
+class RedisWorkingVersion:
+    def __init__(self, redis, key: str = VERSION_KEY) -> None:
+        self.redis = redis
+        self.key = key
+
+    async def get(self) -> int:
+        return int(await self.redis.get(self.key) or 0)
+
+    async def bump(self) -> int:
+        return int(await self.redis.incr(self.key))
 
 
 class MemoryService:
-    def __init__(self, store: MemoryStore, settings: Settings) -> None:
+    def __init__(
+        self,
+        store: MemoryStore,
+        settings: Settings,
+        *,
+        version: WorkingVersion | None = None,
+        index: SearchIndex | None = None,
+    ) -> None:
         self.store = store
         self.settings = settings
-        self._cache: tuple[list[MemoryItem], datetime] | None = None
+        self.version = version
+        self.index = index
+        # (items, computed_at, version seen when they were loaded)
+        self._cache: tuple[list[MemoryItem], datetime, int | None] | None = None
 
     # --- changes -------------------------------------------------------------
 
@@ -54,6 +94,7 @@ class MemoryService:
             source=source,
         )
         await self.store.upsert(item)
+        await self._indexed(item)
         await self.recompute_working_set(now)
         return item
 
@@ -78,14 +119,37 @@ class MemoryService:
             changes["category"] = category
         item = item.model_copy(update=changes)
         await self.store.upsert(item)
+        await self._indexed(item)
         await self.recompute_working_set()
         return item
 
     async def forget(self, key: str) -> bool:
-        removed = await self.store.delete(normalize_key(key))
+        key = normalize_key(key)
+        removed = await self.store.delete(key)
         if removed:
+            if self.index is not None:
+                try:
+                    await self.index.remove_memory(key)
+                except Exception as exc:
+                    log.warning("index_memory_failed", key=key, error=str(exc))
             await self.recompute_working_set()
         return removed
+
+    async def touch(self, keys: Iterable[str], now: datetime | None = None) -> None:
+        """Count a use of items that were shown (recall) or read (/memoria),
+        in one write. The working set is not recomputed here (that keeps the
+        system prompt stable); the new scores apply on the next recompute."""
+        keys = sorted({normalize_key(k) for k in keys})
+        if keys:
+            await self.store.touch(keys, now or utcnow())
+
+    async def _indexed(self, item: MemoryItem) -> None:
+        if self.index is None:
+            return
+        try:
+            await self.index.index_memory(item)
+        except Exception as exc:  # the index is derived: /reindexar fixes it
+            log.warning("index_memory_failed", key=item.key, error=str(exc))
 
     async def get(self, key: str) -> MemoryItem | None:
         item = await self.store.get(normalize_key(key))
@@ -103,21 +167,42 @@ class MemoryService:
         now = now or utcnow()
         top = [item for item, _ in (await self.ranked(now))[: self.settings.memory_working_size]]
         await self.store.save_working_set([i.key for i in top], now)
-        self._cache = (top, now)
+        version = await self._bump_version()
+        self._cache = (top, now, version)
         return top
 
     async def working_memory(self, now: datetime | None = None) -> list[MemoryItem]:
-        """Current working set; recomputed if it is more than a day old."""
+        """Current working set; recomputed if it is more than a day old, and
+        reloaded when another process changed it (shared version counter)."""
         now = now or utcnow()
-        if self._cache and now - self._cache[1] < WORKING_SET_MAX_AGE:
+        version = await self._current_version()
+        if self._cache and now - self._cache[1] < WORKING_SET_MAX_AGE and self._cache[2] == version:
             return self._cache[0]
         stored = await self.store.load_working_set()
         if stored is None or now - stored[1] >= WORKING_SET_MAX_AGE:
             return await self.recompute_working_set(now)
         keys, computed_at = stored
         items = [i for k in keys if (i := await self.store.get(k)) and not i.is_expired(now)]
-        self._cache = (items, computed_at)
+        self._cache = (items, computed_at, version)
         return items
+
+    async def _current_version(self) -> int | None:
+        if self.version is None:
+            return None
+        try:
+            return await self.version.get()
+        except Exception as exc:  # Redis down: fall back to the 24h cache
+            log.warning("memory_version_unavailable", error=str(exc))
+            return self._cache[2] if self._cache else None
+
+    async def _bump_version(self) -> int | None:
+        if self.version is None:
+            return None
+        try:
+            return await self.version.bump()
+        except Exception as exc:
+            log.warning("memory_version_unavailable", error=str(exc))
+            return None
 
     # --- maintenance -------------------------------------------------------------
 

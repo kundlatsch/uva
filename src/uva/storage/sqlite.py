@@ -48,6 +48,29 @@ MIGRATIONS: list[str] = [
         updated_at TEXT NOT NULL
     );
     """,
+    # 3: conversation log (append-only) and the full-text index (derived, see uva/index)
+    """
+    CREATE TABLE conversation_turns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        at TEXT NOT NULL,            -- ISO 8601, UTC
+        role TEXT NOT NULL,          -- user | bot | notice
+        text TEXT NOT NULL,
+        trace_id TEXT,
+        source TEXT NOT NULL         -- telegram | dashboard | notice | routine | goal | initiative
+    );
+    CREATE INDEX idx_turns_at ON conversation_turns (at);
+    CREATE VIRTUAL TABLE search_index USING fts5(
+        kind UNINDEXED, ref UNINDEXED, title, body, updated_at UNINDEXED,
+        tokenize='unicode61 remove_diacritics 2'
+    );
+    CREATE TABLE index_state (
+        kind TEXT NOT NULL,
+        ref TEXT NOT NULL,
+        mtime REAL,
+        hash TEXT,
+        PRIMARY KEY (kind, ref)
+    );
+    """,
 ]
 
 

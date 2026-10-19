@@ -123,13 +123,48 @@ def register(registry: CommandRegistry) -> None:
         term = " ".join(ctx.args).strip()
         if not term:
             return t("commands.brain.buscar.usage")
-        hits = await asyncio.to_thread(vault.search, term, SEARCH_LIMIT)
+        hits = await search_notes(ctx.services, term)
         if not hits:
             no_results = t("commands.brain.buscar.no_results", term=term)
             return f"{ctx.services.say('sem_resultado', termo=term)}\n{no_results}"
         return t("commands.brain.buscar.results", term=term) + "\n" + "\n".join(
-            f"- {h.path}\n  {h.snippet}" for h in hits
+            f"- {path}\n  {snippet}" for path, snippet in hits
         )
+
+    @registry.command(
+        "reindexar",
+        t("commands.brain.reindexar.description"),
+        aliases=("reindex",),
+    )
+    async def reindex(ctx: CommandContext) -> str:
+        if ctx.services.index is None:
+            return t("commands.brain.reindexar.unavailable")
+        from uva.bootstrap import rebuild_index
+
+        result = await rebuild_index(ctx.services)
+        return t("commands.brain.reindexar.done", **result)
+
+
+async def search_notes(services, term: str) -> list[tuple[str, str]]:
+    """(path, snippet) of notes matching ``term``: every word must be in the
+    note (search index); the old linear scan when the index is empty."""
+    from uva.text import normalize
+
+    index = services.index
+    if index is not None and await index.count("note"):
+        words = normalize(term).split()
+        hits = await index.search(words, kinds=("note",), limit=SEARCH_LIMIT * 5)
+        wanted = [f" {w}" for w in words]
+        found = []
+        for hit in hits:
+            hay = f" {normalize(hit.title)} {normalize(hit.body)} "
+            if all(w in hay for w in wanted):
+                found.append((hit.ref, " ".join(hit.snippet.split())))
+            if len(found) >= SEARCH_LIMIT:
+                break
+        return found
+    hits = await asyncio.to_thread(services.vault.search, term, SEARCH_LIMIT)
+    return [(h.path, h.snippet) for h in hits]
 
 
 async def rename_brain(services) -> str:

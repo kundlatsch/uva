@@ -85,11 +85,13 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/ping` | health check, replies `pong` |
 | `/brain`, `/cerebro` `[folder \| note]` | inspects the second brain (also `/ver`, `/abrir`, `/view`, `/open`); `/brain renomear` (`rename`) |
 | `/nota`, `/note` `<text>` | saves a quick note to the inbox |
-| `/buscar`, `/search` `<term>` | searches the second brain |
+| `/buscar`, `/search` `<term>` | searches the second brain (search index) |
+| `/reindexar`, `/reindex` | rebuilds the search index (notes, memory, goals, conversations) |
 | `/memoria`, `/memory` `[key]` | shows long-term memory |
 | `/lembrar`, `/remember` `<key> <value>` | saves a memory |
 | `/esquecer`, `/forget` `<key>` | deletes a memory |
 | `/contexto`, `/context` `[limpar\|clear]` | short-term memory of the current conversation |
+| `/historico`, `/history` `<term>` | searches every past conversation (the conversation log) |
 | `/objetivos`, `/goals` | goals UVA works on by itself |
 | `/pausar`, `/pause` `<id>` · `/retomar`, `/resume` `<id>` · `/remover`, `/remove` `<id>` | manage a goal |
 | `/proativo`, `/proactive` `[on\|off\|agora\|now]` | proactive mode status and controls |
@@ -215,7 +217,7 @@ Names and aliases must be unique; the registry refuses duplicates. Simple comman
 3. **Similarity**: free text is normalized (lowercase, no accents or punctuation, no filler words such as "me mostra" or "por favor") and compared with each command's name, aliases and example phrases (rapidfuzz). A score ≥ `SIMILARITY_EXECUTE_THRESHOLD` (90) runs the command; ≥ `SIMILARITY_CONFIRM_THRESHOLD` (75) asks "Você quis dizer /x?" with Yes/No buttons; below that, it goes to the next tier. Simple arguments are extracted from the text: "log de erros das últimas 2 horas" becomes `/log 2h erros`.
 4. **LLM**: the text goes to the fast model (`LLM_MODEL_ROUTER`), which **always** answers with JSON `{"actions": [...], "reply": "..."}`. The possible actions live in a registry (`uva/actions`): Python functions with a name, a description and a Pydantic schema. The answer is validated; invalid JSON or an unknown action runs nothing (and goes to `/log erros`). The LLM never runs free code.
 
-**Before the LLM, UVA searches every store** (`uva/recall.py`, without spending on the LLM): the words of the message are looked up in the whole long-term memory (not only the working set), in the brain notes (title and content; the best 2 go with their text, versions in `04-arquivo` are left out), in goals and what they found, and, if the message is about money, in expenses. Matches go into the message's context block (see below), so "me fala sobre o livro X que eu li" is answered in one call, with your note and the research on the author. If it still needs to read something (`recall`, `note_search`, `note_read`), the result goes back to the LLM and the answer comes in the same message (up to 2 extra lookups), instead of "want me to open the note?".
+**Before the LLM, UVA searches every store** (`uva/recall.py`, without spending on the LLM): the words of the message are looked up in the search index (long-term memory beyond the working set, and brain notes by title and content; the best 2 notes go with their text, versions in `04-arquivo` are left out), in goals and what they found, and, if the message is about money, in expenses. When the message points to the past ("ontem", "semana passada", "mês passado", "last week", "o que eu te falei sobre..."), the conversation log is searched too, in that period. Matches go into the message's context block (see below), so "me fala sobre o livro X que eu li" is answered in one call, with your note and the research on the author. If it still needs to read something (`recall`, `note_search`, `note_read`), the result goes back to the LLM and the answer comes in the same message (up to 2 extra lookups), instead of "want me to open the note?".
 
 **Prompt layout (cache-friendly).** The system prompt holds only what rarely changes: profile, soul, rules, the action list, the command list and the working memory. What changes on every message (current time, the session's recent context, what recall found) goes in a `[Context for this message]` block at the start of the last user message. The system prompt is therefore byte-identical from one message to the next and the provider's prompt cache covers it. The most used actions are described with their full parameter schema; the rest get one line with their parameter names, and the LLM calls `action_help` (a lookup) to see a full schema before using one. Every action is still accepted. Commands are listed as name + up to two aliases (the usage is in `/help`). Goal runs work the same way: the goal, its previous results and the time go in the first user message.
 
@@ -224,7 +226,7 @@ Every decision is logged with its score, so the thresholds can be tuned by looki
 ## LLM, search and budget
 
 - **Providers**: `LLM_PROVIDER=anthropic` (default; models `claude-haiku-5-5` and `claude-opus-5-5` if not configured) or `openai_compatible` (OpenAI, Ollama, OpenRouter... with `LLM_BASE_URL`). `LLM_MODEL_ROUTER` is the fast model, `LLM_MODEL_HEAVY` the strong one (summaries, goals, self-coding), `LLM_MODEL_VISION` the one for images.
-- **Actions**: `reply`, `run_command` (runs a bot command), `search`, `recall`, notes (`note_create`, `note_append`, `note_update`, `note_search`, `note_read`, `folder_create`), memory (`memory_save`, `memory_update`, `memory_forget`), `goal_create`, `routine_create`, `expense_add`, files (`file_read`, `file_write`, `file_append`), `feature_request`, `project_create`, `shell_run`, `python_run`, `task_status`, `retry`, `cancel`, `decide`, `image_save` and `action_help` (full params of an action listed in one line). `/comandos` lists them with their parameters.
+- **Actions**: `reply`, `run_command` (runs a bot command), `search`, `recall`, notes (`note_create`, `note_append`, `note_update`, `note_search`, `note_read`, `folder_create`), memory (`memory_save`, `memory_update`, `memory_forget`), `goal_create`, `routine_create`, `expense_add`, files (`file_read`, `file_write`, `file_append`), `feature_request`, `project_create`, `shell_run`, `python_run`, `task_status`, `retry`, `cancel`, `decide`, `image_save`, `history_search` (the conversation log) and `action_help` (full params of an action listed in one line). `/comandos` lists them with their parameters.
 - **Search**: with Anthropic it uses Claude's own web search; with other providers it uses Wikipedia + DuckDuckGo (`SEARCH_BACKEND` changes this). "Pesquisa sobre X na Wikipédia" forces Wikipedia. The summary is written by the heavy model and includes the sources.
 - **Cost**: every call records model, tokens, estimated cost and duration (`/log 1d llm`). The price table knows the Anthropic models; for others, set `LLM_PRICES` (US$ per 1M tokens). Without a price, `LLM_DEFAULT_PRICE_*` is used (pessimistic). OpenAI cached prompt tokens are billed at 10% of the input price.
 - **Budget**: `LLM_DAILY_BUDGET_USD` (1) and `LLM_MONTHLY_BUDGET_USD` (20) for conversation, `PROACTIVE_DAILY_BUDGET_USD` (0.5) for proactive mode. When a limit is hit, the LLM tier turns off until the next day/month and the bot says so; commands keep working.
@@ -251,7 +253,8 @@ UVA keeps a note vault compatible with **Obsidian**, in the repository's `brain/
 ```
 
 - Notes have a YAML header (`title`, `created`, `tags`, `source: uva-bot`) and `[[...]]` links.
-- `/nota <text>` saves to the inbox; `/buscar <term>` searches titles and content (accent-insensitive).
+- `/nota <text>` saves to the inbox; `/buscar <term>` searches titles and content (accent-insensitive, every word must be in the note) through the search index.
+- **Search index.** Notes, memory items, goals and conversation turns are indexed in SQLite (FTS5, `search_index`, accents ignored, title weighs more than body). Every note UVA writes is indexed right away; notes you edit in Obsidian are picked up within 10 minutes (beat compares modification times) and deleted ones drop out. The index is derived: the files and Mongo stay the source of truth, and `/reindexar` rebuilds it from scratch. It is built automatically on the first start.
 - `/brain` shows the folder and note tree; `/brain <folder>` (e.g. `recursos` or `02-areas/Saúde`) lists a folder with size and date; `/brain <title or path>` shows the raw note, YAML header included. Long content is paginated with ◀ / ▶ buttons that change the page in the same message. Read only, `.md` only, and nothing hidden (`.obsidian`, `.trash`...).
 - Every search becomes a note in `03-recursos/` ("Pesquisa - ...") with its sources, and every created note is logged in the day's journal (`diario/`).
 - The LLM can also use the `note_create`, `note_append`, `note_update`, `note_search`, `note_read` and `folder_create` actions.
@@ -278,6 +281,7 @@ UVA remembers what happened in the current conversation, including what **it** d
 - "como tá aquela pesquisa?", "e a tarefa?", "deu certo?" are answered directly, without the LLM, with the real status of the reference in focus.
 - The LLM receives a "recent context" block and the `task_status`, `retry` and `cancel` actions (they accept the ref, e.g. `t3`, or "aquela").
 - `/contexto` shows the session; `/contexto limpar` (`clear`) wipes it.
+- **Conversation log.** Besides the 12h session, every turn (your message, the reply, and every notice UVA sends) is appended to SQLite (`conversation_turns`, never trimmed) with its source (`telegram`, `dashboard`, `notice`, `routine`, `goal`, `initiative`). `/historico <term>` searches it, the LLM has the `history_search` action (term and/or period), and recall uses it for questions about the past.
 - Lifetime `STM_TTL_HOURS` (12h), with at most `STM_MAX_TURNS` (30) turns and `STM_MAX_REFS` (15) references; what is still running does not expire. After `STM_PROMOTE_IDLE_HOURS` (3h) idle, the cheap model decides what is worth moving to long-term memory and the session is dropped.
 
 ## Long-term memory
@@ -285,7 +289,8 @@ UVA remembers what happened in the current conversation, including what **it** d
 UVA keeps what is worth remembering about you in Mongo's `memory` collection: key, value, category (`perfil`, `preferencia`, `fato`, `contexto`), relevance (0 to 1), creation and last-use dates, use count and optional expiry.
 
 - The LLM decides by itself when to save (`memory_save`, `memory_update`, `memory_forget`). Example: "meu gato se chama Mingau" becomes `nome_do_gato = Mingau`.
-- **Working memory**: each item has a score = relevance × recency × frequency. The best `MEMORY_WORKING_SIZE` (20) go into the prompt of every conversation. The list is recomputed at startup, once a day and whenever memory changes.
+- **Working memory**: each item has a score = relevance × recency × frequency. The best `MEMORY_WORKING_SIZE` (20) go into the prompt of every conversation. The list is recomputed at startup, once a day and whenever memory changes, in any process: a Redis counter (`memory:working_version`) tells the bot when the worker changed it.
+- **Use counts**: an item counts as used when it is saved or updated, when recall shows it for a message, and when you read it with `/memoria <key>`.
 - **Daily cleanup** (beat, `MEMORY_MAINTENANCE_HOUR`): expired items disappear (TTL index); low-scoring items unused for `MEMORY_ARCHIVE_AFTER_DAYS` (90) days move to `memory_archive`.
 - `/memoria` lists everything (★ = working memory), `/memoria <key>` shows one item, `/lembrar <key> <value>` saves, `/esquecer <key>` deletes.
 
@@ -328,7 +333,9 @@ Requests that run by themselves on a schedule, through the normal router (same b
 
 Data with a fixed shape lives in SQLite at `SQLITE_PATH` (volume `sqlite-data`), in WAL mode. Migrations are in `src/uva/storage/sqlite.py` (`MIGRATIONS` list; the applied number is in `PRAGMA user_version`). To change the schema, append a new migration at the end; never edit old ones.
 
-Included example: expenses.
+Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`).
+
+Example: expenses.
 
 - `/gasto 25,90 mercado pão e leite` records one (accepts `25`, `25,90`, `R$ 1.234,56`).
 - `/gastos mes` sums by category (also `hoje`, `semana`, `ano`, `tudo`, or `today`, `week`, `month`, `year`, `all`).

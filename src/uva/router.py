@@ -245,11 +245,18 @@ class Router:
             return [heard, reply]
 
     async def _remember(self, text: str, reply: Reply) -> None:
-        """Keep the exchange in the short-term memory (best effort)."""
+        """Keep the exchange in the short-term memory and in the conversation
+        log (best effort)."""
+        said = reply.summary or reply.text
+        if self.services.index is not None:
+            try:
+                await self.services.index.add_exchange(text, said, trace_id=current_trace_id())
+            except Exception as exc:
+                await emit(EventType.ERROR, where="conversation_log", error=repr(exc))
         if self.services.stm is None:
             return
         try:
-            await self.services.stm.add_exchange(text, reply.summary or reply.text)
+            await self.services.stm.add_exchange(text, said)
         except Exception as exc:
             await emit(EventType.ERROR, where="stm", error=repr(exc))
 
