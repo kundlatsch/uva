@@ -34,7 +34,15 @@ class FileAppendParams(BaseModel):
 
 class ProfilePatchParams(BaseModel):
     old: str = Field(default="", description="Exact text of data/profile.md to replace; empty = append")
-    new: str = Field(description="Replacement text (or the text to append), in Portuguese")
+    new: str = Field(default="", description="Replacement text (or the text to append), in Portuguese")
+    preference: str = Field(
+        default="",
+        description="A preference for the Preferences section instead: one directive in Portuguese "
+        "('Sempre ...', 'Nunca ...', 'Prefere ...')",
+    )
+    supersedes: str = Field(
+        default="", description="With preference: the current directive it replaces (its text or part of it)"
+    )
     reason: str = Field(default="", description="Why")
 
 
@@ -93,6 +101,16 @@ def register(registry: ActionRegistry) -> None:
             current = ""
         except FileAccessError as exc:
             return ActionResult(text=t("actions.files.read_failed", path=PROFILE, error=exc), data={"ok": False})
+        if params.preference.strip():
+            # Supersede in place: the old directive is marked, the new one goes right below.
+            from uva.clock import utcnow
+            from uva.preferences import supersede
+
+            today = utcnow().astimezone(ctx.services.tz).date()
+            content, _ = supersede(current, params.preference, params.supersedes, today)
+            return await _change(ctx, "write", PROFILE, content, params.reason or "profile_patch: preference")
+        if not params.new.strip():
+            return ActionResult(text=t("actions.files.patch_empty"), data={"ok": False})
         if params.old:
             count = current.count(params.old)
             if count != 1:

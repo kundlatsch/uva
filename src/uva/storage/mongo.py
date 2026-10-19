@@ -136,6 +136,24 @@ class MongoTaskStore:
         return [TaskRecord.model_validate(doc) async for doc in cursor]
 
 
+class MongoMemoryHistory:
+    """Collection ``memory_history``: a memory item's old value, kept before each
+    update, replace or forget."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self.collection = db["memory_history"]
+
+    async def setup(self) -> None:
+        await self.collection.create_index([("key", ASCENDING), ("superseded_at", ASCENDING)])
+
+    async def add(self, entry: dict) -> None:
+        await self.collection.insert_one(dict(entry))
+
+    async def for_key(self, key: str, limit: int = 20) -> list[dict]:
+        cursor = self.collection.find({"key": key}, {"_id": False}).sort("superseded_at", -1).limit(limit)
+        return [doc async for doc in cursor]
+
+
 class MongoMemoryStore:
     """Collections ``memory`` (TTL on expires_at), ``memory_archive`` and ``memory_meta``."""
 

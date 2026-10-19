@@ -85,8 +85,9 @@ def build_services(settings: Settings) -> Services:
     services.vault.on_change.append(services.index.note_changed)
     services.vault.on_remove.append(services.index.note_removed)
     memory_store = mongo.MongoMemoryStore(db)
+    memory_history = mongo.MongoMemoryHistory(db)
     services.memory = MemoryService(
-        memory_store, settings, version=RedisWorkingVersion(redis), index=services.index
+        memory_store, settings, version=RedisWorkingVersion(redis), index=services.index, history=memory_history
     )
     goal_store = mongo.MongoGoalStore(db)
     services.goals = goal_store
@@ -128,6 +129,7 @@ def build_services(settings: Settings) -> Services:
             usage.setup,
             task_store.setup,
             memory_store.setup,
+            memory_history.setup,
             goal_store.setup,
             initiative_store.setup,
             feature_store.setup,

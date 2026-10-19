@@ -10,6 +10,8 @@
     "too_long": "I couldn't get a rewrite of the profile (limit {limit} characters, {rounds} attempts, shortest {chars}), so I left it as it was. You can run it again.",
     "pointer": "Full profile: [[perfil_detalhado|Perfil detalhado]] ({note}).",
     "done": "✅ Profile consolidated: {before} → {after} characters (limit {limit}).\nFull previous text: {backup} and the brain note {note} (I find it when it matters).",
-    "trimmed": "(the rewrite was still a bit long, so I dropped its last {lines} line(s), the least important; they are in the full text)"
+    "trimmed": "(the rewrite was still a bit long, so I dropped its last {lines} line(s), the least important; they are in the full text)",
+    "pruned": "🧹 Removed {count} superseded preference(s) older than 60 days; profile.md now has {chars}/{limit} characters (old version: {backup}).",
+    "too_lossy": "I left the profile as it was: the rewrite would lose {percent}% of its preferences and facts (the limit is {limit}%, PROFILE_MAX_LOSS). Raise PROFILE_MAX_CHARS or trim it by hand."
   }
 }

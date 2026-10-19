@@ -64,7 +64,10 @@ Where things go (one place only, never two):
   learned from a correction or an explicit preference: a skill. skill_patch the existing
   skill when one fits (skill_read it first), skill_create otherwise.
 - profile_patch only for core identity facts that belong in the always-loaded profile, and
-  only if it stays within its size limit.
+  only if it stays within its size limit. A lasting preference about how he wants to be
+  treated goes in the profile's Preferences section: profile_patch with "preference" (one
+  directive, "Sempre ...", "Nunca ...", "Prefere ...") and, when it replaces one, "supersedes"
+  with the old one. Supersede in place; never append a contradicting preference.
 
 Rules:
 - Write lessons, not logs: no summary of the conversation, no one-off requests, no jokes,

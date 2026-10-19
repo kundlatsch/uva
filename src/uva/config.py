@@ -214,6 +214,9 @@ class Settings(BaseSettings):
     # over are refused; /perfil consolidar shrinks the profile to fit.
     profile_max_chars: int = 4000
     soul_max_chars: int = 3000
+    # /perfil consolidar refuses a rewrite that drops more than this share of the
+    # profile's active preferences and facts.
+    profile_max_loss: float = 0.3
     # Self-coding (/feature): plugins written, tested and merged by the bot.
     selfcode_daily_budget_usd: float = 2.0
     selfcode_max_attempts: int = 3

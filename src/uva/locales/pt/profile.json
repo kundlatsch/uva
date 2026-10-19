@@ -10,6 +10,8 @@
     "too_long": "Não consegui uma reescrita do perfil (limite {limit} caracteres, {rounds} tentativas, a mais curta com {chars}), então deixei como estava. Dá para rodar de novo.",
     "pointer": "Perfil completo: [[perfil_detalhado|Perfil detalhado]] ({note}).",
     "done": "✅ Perfil consolidado: {before} → {after} caracteres (limite {limit}).\nTexto anterior completo: {backup} e a nota do brain {note} (eu acho ela quando importa).",
-    "trimmed": "(a reescrita ainda passou um pouco, então tirei as últimas {lines} linha(s), as menos importantes; elas estão no texto completo)"
+    "trimmed": "(a reescrita ainda passou um pouco, então tirei as últimas {lines} linha(s), as menos importantes; elas estão no texto completo)",
+    "pruned": "🧹 Tirei {count} preferência(s) substituída(s) há mais de 60 dias; o profile.md agora tem {chars}/{limit} caracteres (versão anterior: {backup}).",
+    "too_lossy": "Deixei o perfil como estava: a reescrita perderia {percent}% das preferências e fatos (o limite é {limit}%, PROFILE_MAX_LOSS). Aumente o PROFILE_MAX_CHARS ou enxugue à mão."
   }
 }

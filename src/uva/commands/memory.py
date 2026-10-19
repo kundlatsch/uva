@@ -9,6 +9,30 @@ from uva.logging.events import EventType, current_trace_id, emit
 from uva.memory.store import MemoryCategory
 
 
+HISTORY_WORDS = ("historico", "histórico", "history")
+
+
+async def _history(ctx: CommandContext, key: str) -> str:
+    service = ctx.services.memory
+    item = await service.get(key)
+    old = await service.changes(key)
+    if item is None and not old:
+        return t("commands.memory.memoria.unknown_key", key=key)
+    tz = ctx.services.tz
+    lines = [t("commands.memory.memoria.history_header", key=item.key if item else key)]
+    if item is not None:
+        lines.append(t("commands.memory.memoria.history_now", value=item.value, category=item.category.value))
+    for entry in old:
+        reason = t(f"commands.memory.memoria.history_reason.{entry.get('reason', 'update')}")
+        lines.append(t(
+            "commands.memory.memoria.history_line", when=format_local(entry["superseded_at"], tz, "%d/%m/%Y %H:%M"),
+            value=entry.get("old_value", ""), reason=reason,
+        ))
+    if not old:
+        lines.append(t("commands.memory.memoria.history_none"))
+    return "\n".join(lines)
+
+
 def register(registry: CommandRegistry) -> None:
     @registry.command(
         "memoria",
@@ -22,6 +46,8 @@ def register(registry: CommandRegistry) -> None:
         if service is None:
             return t("commands.memory.not_configured")
         tz = ctx.services.tz
+        if len(ctx.args) >= 2 and ctx.args[-1].lower() in HISTORY_WORDS:
+            return await _history(ctx, " ".join(ctx.args[:-1]))
         if ctx.args:
             item = await service.get(" ".join(ctx.args))
             if item is None:

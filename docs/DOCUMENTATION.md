@@ -83,6 +83,7 @@ src/uva/
   journal.py      # inbound journal: turns cut short by a restart
   intents.py      # standing intents: triggers, matching, cooldown, expiry
   provenance.py   # where content came from (owner/agent/external/system), taint rules
+  preferences.py  # directive-style preferences in profile.md: supersede, prune, loss guard
   web/            # web_fetch: SSRF guard, page/PDF/JSON to text, link detection
   tasks/          # Celery: app, tasks, queue, "busy" lock
   storage/        # Mongo, SQLite (expenses, stickers, index, incidents, allowlist...)
@@ -117,7 +118,7 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/nota`, `/note` `<text>` | saves a quick note to the inbox |
 | `/buscar`, `/search` `<term>` | searches the second brain (search index) |
 | `/reindexar`, `/reindex` | rebuilds the search index (notes, memory, goals, conversations) |
-| `/memoria`, `/memory` `[key]` | shows long-term memory |
+| `/memoria`, `/memory` `[key] [historico\|history]` | shows long-term memory (and a key's earlier values) |
 | `/lembrar`, `/remember` `<key> <value>` | saves a memory |
 | `/esquecer`, `/forget` `<key>` | deletes a memory |
 | `/contexto`, `/context` `[limpar\|clear]` | short-term memory of the current conversation |
@@ -351,6 +352,7 @@ UVA keeps what is worth remembering about you in Mongo's `memory` collection: ke
 - **Use counts**: an item counts as used when it is saved or updated, when recall shows it for a message, and when you read it with `/memoria <key>`.
 - **Daily cleanup** (beat, `MEMORY_MAINTENANCE_HOUR`): expired items disappear (TTL index); low-scoring items unused for `MEMORY_ARCHIVE_AFTER_DAYS` (90) days move to `memory_archive`.
 - `/memoria` lists everything (★ = working memory), `/memoria <key>` shows one item, `/lembrar <key> <value>` saves, `/esquecer <key>` deletes.
+- **History**: before every update, replace or forget the old value goes to Mongo `memory_history` (key, old value and category, when, the trace, why). `/memoria <key> historico` (`history`) shows it; `/esquecer` leaves a history row too (it is recorded, not undone).
 
 ## Goals and proactive mode
 
@@ -443,6 +445,7 @@ UVA's personality lives in [data/soul.md](../data/soul.md): ironic, playful, a b
 - Both files go at the very start of the system prompt of every LLM call (conversation, search summaries, goals): profile first, then soul, then the rest of the system prompt. Nothing in the system prompt changes per message (the per-message context goes in the user message), so the provider's prompt cache covers all of it.
 - **Size budget.** Both files go into every call, so they have a cap: `PROFILE_MAX_CHARS` (4000) and `SOUL_MAX_CHARS` (3000). A self-edit (`file_write` / `file_append`) that would take either file over its cap is refused with the size and the limit, asking to rewrite it shorter instead of growing it. `/perfil` (`/profile`) shows both sizes against their limits (also in `/status` and on the dashboard).
 - **Consolidation.** `/perfil consolidar` (`/profile consolidate`) asks the heavy model to rewrite the profile into a core that fits the cap (who you are, people, work, lasting preferences; merging repetitions and dropping what is outdated). The full previous text is kept in `data/.versions/` and in the brain note `02-areas/Gustavo/perfil_detalhado.md`, which is indexed, so recall still finds the details when a message is about them; the new profile ends with a link to that note. The model is asked for dense bullet facts in about 90% of the limit; when the rewrite is still too long it gets the exact size and how many characters to cut, up to 3 more rounds, and the shortest rewrite that fits is used. The model puts the most important facts first, so if every round still overshoots, the last lines of the shortest rewrite are dropped to fit (the reply says how many; they are in the full text). Only if there is no rewrite at all does nothing change. It **never runs on its own**: you trigger it. Until then the current file is loaded as it is (up to 30000 characters).
+- **Preferences.** How you want to be treated lives in a `## Preferences` section of `profile.md`, one directive per line: `- Sempre responder em tópicos curtos <!-- observed: 2026-10-19 | status: active -->`. When a new preference replaces an old one (`profile_patch` with `preference` and `supersedes`, from a conversation or the background review), the old line is marked `superseded` and the new one goes right below it: a contradicting preference is never just appended. `/perfil consolidar` drops superseded lines older than 60 days (with no LLM call when that alone is enough), keeps the section as it is when it rewrites the rest, and refuses a rewrite that would lose more than `PROFILE_MAX_LOSS` (0.3) of the active preferences and facts, saying why (the full copy rule stays).
 - Cost of the profile (~19 KB, about 4.3k tokens), measured on the router model: about US$ 0.0045 more per message while the cache is warm (cached tokens are billed at 10%), and about US$ 0.027 more on the first message after the cache expires (a few idle minutes).
 - Edit them freely: they are re-read when they change, without restarting anything.
 - `/soul` (`/alma`) shows the current personality.

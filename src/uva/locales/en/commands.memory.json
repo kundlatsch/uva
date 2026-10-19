@@ -7,8 +7,17 @@
     "empty": "I haven't saved anything yet. Use /remember <key> <value>.",
     "header": "Memory: {count} items (★ = working memory)",
     "line": "{star} {key}: {value} [{category}, score {score:.2f}]",
-    "usage_arg": "[key]",
-    "external": " (from outside content)"
+    "usage_arg": "[key] [history]",
+    "external": " (from outside content)",
+    "history_header": "🕓 History of {key}:",
+    "history_now": "now: {value} [{category}]",
+    "history_line": "- until {when}: {value} ({reason})",
+    "history_none": "(no earlier values)",
+    "history_reason": {
+      "update": "updated",
+      "replace": "replaced",
+      "forget": "forgotten"
+    }
   },
   "lembrar": {
     "description": "Saves a memory",

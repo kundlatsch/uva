@@ -50,6 +50,14 @@ class RedisWorkingVersion:
         return int(await self.redis.incr(self.key))
 
 
+class MemoryHistory(Protocol):
+    """Old values, kept before every change (Mongo ``memory_history``)."""
+
+    async def add(self, entry: dict) -> None: ...
+
+    async def for_key(self, key: str, limit: int = 20) -> list[dict]: ...
+
+
 class MemoryService:
     def __init__(
         self,
@@ -58,11 +66,13 @@ class MemoryService:
         *,
         version: WorkingVersion | None = None,
         index: SearchIndex | None = None,
+        history: MemoryHistory | None = None,
     ) -> None:
         self.store = store
         self.settings = settings
         self.version = version
         self.index = index
+        self.history = history
         # (items, computed_at, version seen when they were loaded)
         self._cache: tuple[list[MemoryItem], datetime, int | None] | None = None
 
@@ -83,6 +93,8 @@ class MemoryService:
         now = utcnow()
         key = normalize_key(key)
         existing = await self.store.get(key)
+        if existing is not None and (existing.value != value.strip() or existing.category != category):
+            await self._superseded(existing, "replace")
         item = MemoryItem(
             key=key,
             value=value.strip(),
@@ -113,6 +125,8 @@ class MemoryService:
         item = await self.store.get(normalize_key(key))
         if item is None:
             return None
+        if (value is not None and value.strip() != item.value) or (category is not None and category != item.category):
+            await self._superseded(item, "update")
         changes: dict = {"last_used_at": utcnow(), "use_count": item.use_count + 1}
         if value is not None:
             changes["value"] = value.strip()
@@ -130,6 +144,8 @@ class MemoryService:
 
     async def forget(self, key: str) -> bool:
         key = normalize_key(key)
+        if (existing := await self.store.get(key)) is not None:
+            await self._superseded(existing, "forget")
         removed = await self.store.delete(key)
         if removed:
             if self.index is not None:
@@ -139,6 +155,27 @@ class MemoryService:
                     log.warning("index_memory_failed", key=key, error=str(exc))
             await self.recompute_working_set()
         return removed
+
+    async def _superseded(self, item: MemoryItem, reason: str) -> None:
+        """Keep the old value before it changes (best effort: history never blocks a write)."""
+        if self.history is None:
+            return
+        from uva.logging.events import current_trace_id
+
+        try:
+            await self.history.add({
+                "key": item.key, "old_value": item.value, "old_category": item.category.value,
+                "old_origin": item.origin, "superseded_at": utcnow(), "by_trace": current_trace_id(),
+                "reason": reason,
+            })
+        except Exception as exc:
+            log.warning("memory_history_failed", key=item.key, error=str(exc))
+
+    async def changes(self, key: str, limit: int = 20) -> list[dict]:
+        """Old values of ``key``, newest first."""
+        if self.history is None:
+            return []
+        return await self.history.for_key(normalize_key(key), limit)
 
     async def touch(self, keys: Iterable[str], now: datetime | None = None) -> None:
         """Count a use of items that were shown (recall) or read (/memoria),

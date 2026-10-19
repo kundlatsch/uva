@@ -19,6 +19,7 @@ from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.logging import get_logger
 from uva.logging.events import EventType, emit
+from uva import preferences
 from uva.services import Services
 
 log = get_logger(__name__)
@@ -82,7 +83,8 @@ def consolidate_prompt(aim: int, limit: int) -> str:
         "short line each, under a few one-word headings; no prose, no examples, no repetition. Put "
         "the most important facts first: the last lines may be cut. Drop what is outdated, trivial "
         "or one-off (old dates, past plans, amounts). Keep the profile's language (Portuguese). Do "
-        "not invent anything. Answer with only the new profile text."
+        "not invent anything. Two facts that contradict each other: keep the newer one, in place; "
+        "never keep both. Answer with only the new profile text."
     )
 
 
@@ -122,8 +124,18 @@ async def consolidate(services: Services) -> str:
     except OSError:
         return t("profile.consolidate.missing")
     limit = s.profile_max_chars
-    if len(original) <= limit:
-        return t("profile.consolidate.fits", chars=len(original), limit=limit)
+    from uva.clock import utcnow
+
+    today = utcnow().astimezone(services.tz).date()
+    cleaned, pruned = preferences.drop_superseded(original, today)
+    if len(cleaned) <= limit:
+        if not pruned:
+            return t("profile.consolidate.fits", chars=len(original), limit=limit)
+        backup = _backup(path, original)
+        path.write_text(cleaned, encoding="utf-8")
+        await emit(EventType.SELF_EDIT, op="profile_consolidate", path="data/profile.md", ok=True,
+                   before=len(original), after=len(cleaned), backup=backup, pruned=pruned)
+        return t("profile.consolidate.pruned", count=pruned, chars=len(cleaned), limit=limit, backup=backup)
     if services.llm is None:
         return t("profile.consolidate.no_llm")
     if services.budget is not None:
@@ -131,9 +143,12 @@ async def consolidate(services: Services) -> str:
         if not status.allowed:
             return t("profile.consolidate.no_budget", reason=status.reason)
 
-    target = max(500, limit - POINTER_ROOM)
+    # The Preferences section is kept as is (its lines carry their markers); the
+    # rest of the profile is rewritten around it.
+    rest, section = preferences.split_section(cleaned)
+    target = max(500, limit - POINTER_ROOM - (len(section) + 2 if section else 0))
     aim = int(target * AIM)
-    messages = [LLMMessage("user", original)]
+    messages = [LLMMessage("user", rest)]
     best = ""  # the shortest non-empty rewrite so far
     rounds = 0
     for rounds in range(1, SHRINK_ROUNDS + 2):
@@ -166,7 +181,12 @@ async def consolidate(services: Services) -> str:
         best, dropped = fit_lines(best, target)
     if not best:
         return t("profile.consolidate.too_long", chars=0, limit=target, rounds=rounds)
-    core = best
+    lost = preferences.loss(rest, best)
+    if lost > s.profile_max_loss:
+        await emit(EventType.SELF_EDIT, op="profile_consolidate", path="data/profile.md", ok=False,
+                   refused="loss", loss=round(lost, 2))
+        return t("profile.consolidate.too_lossy", percent=round(100 * lost), limit=round(100 * s.profile_max_loss))
+    core = best + (f"\n\n{section}" if section else "")
 
     # The full text first, so nothing is lost even if the rest fails.
     backup = _backup(path, original)

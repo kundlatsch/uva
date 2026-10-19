@@ -4,5 +4,6 @@
   "change_failed": "Não mexi em {path}: {error}",
   "commit": " (commit {commit}; /reverter desfaz)",
   "updated": "✏️ {path} atualizado{commit}.",
-  "patch_not_unique": "O texto a trocar aparece {count} vez(es) em {path}; precisa aparecer exatamente uma."
+  "patch_not_unique": "O texto a trocar aparece {count} vez(es) em {path}; precisa aparecer exatamente uma.",
+  "patch_empty": "Nada para mudar: mande o texto novo (new) ou uma preferência."
 }

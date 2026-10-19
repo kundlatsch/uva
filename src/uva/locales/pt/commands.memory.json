@@ -7,8 +7,17 @@
     "empty": "Ainda não guardei nada. Use /lembrar <chave> <valor>.",
     "header": "Memória: {count} itens (★ = memória de trabalho)",
     "line": "{star} {key}: {value} [{category}, nota {score:.2f}]",
-    "usage_arg": "[chave]",
-    "external": " (de conteúdo de fora)"
+    "usage_arg": "[chave] [historico]",
+    "external": " (de conteúdo de fora)",
+    "history_header": "🕓 Histórico de {key}:",
+    "history_now": "agora: {value} [{category}]",
+    "history_line": "- até {when}: {value} ({reason})",
+    "history_none": "(nenhum valor anterior)",
+    "history_reason": {
+      "update": "atualizado",
+      "replace": "substituído",
+      "forget": "esquecido"
+    }
   },
   "lembrar": {
     "description": "Guarda uma memória",

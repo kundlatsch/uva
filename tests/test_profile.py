@@ -86,14 +86,15 @@ async def test_consolidation_keeps_a_full_copy(prof_services):
 
 
 async def test_consolidation_that_never_fits_drops_the_last_lines(prof_services):
-    lines = "\n".join(f"- fato importante número {i}, com detalhes" for i in range(40))
+    # The rewrite keeps the facts but is still too long: the last lines are cut.
+    lines = "\n".join(f"- Fato {i}: gosta de jabuticaba, mora em Floripa e torce pro Avaí, nota {i}" for i in range(40))
     provider, _ = with_llm(prof_services, lines, lines, lines, lines)
     reply = await Router(prof_services).handle_text("/perfil consolidar")
     assert len(provider.calls) == 4  # the first rewrite and 3 shrink rounds
     assert "✅ Perfil consolidado" in reply.text and "tirei as últimas" in reply.text
     profile = prof_services.settings.profile_file.read_text(encoding="utf-8")
-    assert len(profile) <= 1000 and profile.startswith("- fato importante número 0")
-    assert "número 39" not in profile
+    assert len(profile) <= 1000 and profile.startswith("- Fato 0:")
+    assert "nota 39" not in profile
     assert "Fato 79" in prof_services.vault.read("02-areas/Gustavo/perfil_detalhado.md").body
 
 
