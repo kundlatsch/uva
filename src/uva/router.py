@@ -297,7 +297,12 @@ class Router:
         if verb == "pg":
             token, _, index = token.partition(":")
             return self._page(token, int(index) if index.isdigit() else 0)
-        if verb in ("shok", "shno") and self.services.shell is not None:
+        if verb in ("wrok", "wrno"):
+            await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
+            reply = await self._safely(self._resolve_write(verb, token))
+            await self._remember(f"[button] {verb}", reply)
+            return reply
+        if verb in ("shok", "shno", "shal") and self.services.shell is not None:
             await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             reply = await self._safely(self.services.shell.resolve(verb, token))
             await self._remember(f"[button] {verb}", reply)
@@ -306,6 +311,22 @@ class Router:
         with trace(pending.trace_id if pending else None):
             await emit(EventType.MESSAGE_RECEIVED, text=f"[button] {verb}", kind="callback")
             return await self._safely(self._resolve_confirmation(verb, pending, user_id))
+
+    async def _resolve_write(self, verb: str, token: str) -> Reply:
+        """A write the injection scanner held back: run it now, or drop it."""
+        from uva.llm.agent import execute_action
+        from uva.actions.registry import ActionContext
+
+        held = self.services.held_writes.pop(token)
+        if held is None:
+            return Reply(t("router.write.expired"))
+        if verb != "wrok":
+            await emit(EventType.ACTION, name=held.action, held=True, ok=False, denied=True)
+            return Reply(t("router.write.denied"))
+        action, params = self.services.actions.validate(held.action, held.params)
+        ctx = ActionContext(self.services, run_command=self._run_command_for_llm, confirmed=True)
+        result = await execute_action(action, params, ctx)
+        return Reply(result.text or self.services.say("confirmacao"), buttons=result.buttons)
 
     async def _mark_busy(self) -> None:
         """Tell the goal loop the user is around (it waits until we're idle)."""

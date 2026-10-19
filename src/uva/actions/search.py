@@ -10,6 +10,8 @@ from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.prompts import summary_system_prompt
 from uva.search import SearchError, SearchResult
+from uva.logging.events import EventType, emit
+from uva.safety import as_data, describe, sanitize_untrusted
 from uva.services import Services
 
 
@@ -64,7 +66,9 @@ async def research(services: Services, query: str, source: str, scope: Scope) ->
         raise ResearchError(t("actions.search.failed", error=exc), retryable=True) from exc
 
     if response.summary is not None:
-        summary = response.summary
+        summary, findings = sanitize_untrusted(response.summary)
+        if findings:
+            await emit(EventType.ERROR, where="search_injection", query=query, findings=describe(findings))
     elif not response.results:
         summary = services.say("sem_resultado", termo=query)
     else:
@@ -81,10 +85,14 @@ async def _summarize(
         # No LLM: fall back to the raw snippets.
         return "\n\n".join(f"{r.title}: {r.snippet[:400]}" for r in results)
 
-    material = "\n\n".join(
-        f"[{i}] {r.title} ({r.url})\n{r.snippet}" for i, r in enumerate(results, 1)
-    )
-    prompt = f"Question: {query}\n\nResults:\n{material}"
+    material, findings = [], []
+    for i, r in enumerate(results, 1):
+        snippet, found = sanitize_untrusted(r.snippet)
+        findings += found
+        material.append(f"[{i}] {r.title} ({r.url})\n{snippet}")
+    if findings:
+        await emit(EventType.ERROR, where="search_injection", query=query, findings=describe(findings))
+    prompt = f"Question: {query}\n\n" + as_data("search results", "\n\n".join(material))
     try:
         response = await llm.complete(
             [LLMMessage("user", prompt)],

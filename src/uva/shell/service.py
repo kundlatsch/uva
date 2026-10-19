@@ -14,7 +14,8 @@ from uva.i18n import t
 from uva.logging.events import EventType, emit
 from uva.progress import activity
 from uva.replies import Button, Reply
-from uva.shell.guard import python_risks, shell_risks
+from uva.safety import INVISIBLE
+from uva.shell.guard import exfiltration_risks, floor_violations, python_risks, shell_risks
 
 CONFIRM_TTL = timedelta(minutes=10)
 
@@ -32,10 +33,14 @@ class Pending:
 
 
 class ShellService:
-    def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None) -> None:
+    def __init__(
+        self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None, db=None
+    ) -> None:
         self.settings = settings
         self.transport = transport
         self.pending: dict[str, Pending] = {}
+        # SQLite (shell_allowlist): exact commands the user said to always allow.
+        self.db = db
 
     def _client(self) -> httpx.AsyncClient:
         timeout = self.settings.shell_timeout_seconds + 30
@@ -52,10 +57,20 @@ class ShellService:
             raise ShellUnavailable(data.get("error", f"HTTP {response.status_code}"))
         return data
 
+    def refusal(self, code: str) -> str | None:
+        """Why ``code`` is never run (even confirmed), or None."""
+        if INVISIBLE.search(code):
+            return t("shell.service.refused_invisible")
+        floor = floor_violations(code)
+        if floor:
+            return t("shell.service.refused_floor", what=", ".join(t(f"shell.guard.floor.{f}") for f in floor))
+        return None
+
     async def risks(self, kind: str, code: str) -> list[str]:
         if kind == "py":
-            return python_risks(code)
+            return python_risks(code) + exfiltration_risks(code)
         reasons, maybe = shell_risks(code)
+        reasons += exfiltration_risks(code)
         if maybe:
             existing = (await self._call("POST", "/exists", {"paths": maybe}))["exists"]
             reasons += [t("shell.service.overwrites", path=p) for p in existing]
@@ -68,6 +83,11 @@ class ShellService:
             return Reply(usage())
         if not self.settings.shell_enabled:
             return Reply(t("shell.service.disabled"))
+        if (why := self.refusal(code)) is not None:
+            await emit(EventType.SHELL, op="refused", kind=kind, code=code[:500], reason=why)
+            return Reply(why)
+        if await self.is_allowed(kind, code):
+            return await self.execute(kind, code, confirmed=["allowlist"])
         try:
             reasons = await self.risks(kind, code)
         except ShellUnavailable as exc:
@@ -90,6 +110,7 @@ class ShellService:
             ),
             buttons=[
                 Button(t("shell.service.yes"), f"shok:{token}"),
+                *([Button(t("shell.service.always"), f"shal:{token}")] if self.db is not None else []),
                 Button(t("shell.service.no"), f"shno:{token}"),
             ],
         )
@@ -98,10 +119,51 @@ class ShellService:
         pending = self.pending.pop(token, None)
         if pending is None or pending.expires_at < utcnow():
             return Reply(t("shell.service.expired"))
-        if verb != "shok":
+        if verb not in ("shok", "shal"):
             await emit(EventType.SHELL, op="denied", kind=pending.kind, code=pending.code[:500])
             return Reply(t("shell.service.denied"))
+        if (why := self.refusal(pending.code)) is not None:  # the floor holds even when confirmed
+            return Reply(why)
+        if verb == "shal":
+            await self.allow(pending.kind, pending.code)
         return await self.execute(pending.kind, pending.code, confirmed=pending.reasons)
+
+    # --- allowlist ("Sempre permitir": the exact command, nothing similar) -------------
+
+    async def is_allowed(self, kind: str, code: str) -> bool:
+        if self.db is None:
+            return False
+        try:
+            row = await self.db.run(lambda conn: conn.execute(
+                "SELECT 1 FROM shell_allowlist WHERE kind = ? AND code = ?", (kind, code)
+            ).fetchone())
+        except Exception:
+            return False
+        return row is not None
+
+    async def allow(self, kind: str, code: str) -> None:
+        await self.db.run(lambda conn: conn.execute(
+            "INSERT OR IGNORE INTO shell_allowlist (kind, code, created_at) VALUES (?, ?, ?)",
+            (kind, code, utcnow().isoformat()),
+        ))
+        await emit(EventType.SHELL, op="allowlisted", kind=kind, code=code[:500])
+
+    async def allowlist(self) -> list[tuple[int, str, str]]:
+        """(id, kind, code), oldest first."""
+        if self.db is None:
+            return []
+        rows = await self.db.run(lambda conn: conn.execute(
+            "SELECT id, kind, code FROM shell_allowlist ORDER BY id"
+        ).fetchall())
+        return [(r["id"], r["kind"], r["code"]) for r in rows]
+
+    async def disallow(self, entry_id: int) -> bool:
+        if self.db is None:
+            return False
+        count = await self.db.run(lambda conn: conn.execute(
+            "DELETE FROM shell_allowlist WHERE id = ?", (entry_id,)
+        ).rowcount)
+        return count > 0
 
     async def execute(self, kind: str, code: str, confirmed: list[str] | None = None) -> Reply:
         await activity("executando")

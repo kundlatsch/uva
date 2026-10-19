@@ -26,6 +26,7 @@ from uva.llm.client import metered
 from uva.llm.plan import GOAL_PLAN_SCHEMA, GoalPlan, PlanError, parse_plan
 from uva.llm.prompts import goal_brief, goal_system_prompt
 from uva.routines import classify
+from uva.safety import as_data
 from uva.skills import attach
 from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit, trace
@@ -260,7 +261,7 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
             )
             messages += [
                 LLMMessage("assistant", response.text),
-                LLMMessage("user", f"Action results:\n{feedback}\n\nRun the next round."),
+                LLMMessage("user", f"Action results:\n{as_data('action results', feedback)}\n\nRun the next round."),
             ]
         run.tokens = meter.total
     return run

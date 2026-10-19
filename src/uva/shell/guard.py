@@ -73,6 +73,30 @@ def shell_risks(command: str) -> tuple[list[str], list[str]]:
     return _unique(reasons), _unique(maybe)
 
 
+# Refused even with confirmation: there is no good reason to run these.
+FLOOR = (
+    (re.compile(r"\brm\s+(?:-{1,2}[\w-]+\s+)*-[a-zA-Z]*(?:r[a-zA-Z]*f|f[a-zA-Z]*r|R)[a-zA-Z]*\s+(?:-{1,2}[\w-]+\s+)*"
+                r"(?:/|/\*|~/?|\$HOME/?|\$\{HOME\}/?)(?=\s|$|;|&|\|)"), "rm_root"),
+    (re.compile(r"\brm\b[^\n;|&]*--no-preserve-root"), "rm_root"),
+    (re.compile(r":\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:"), "fork_bomb"),
+    (re.compile(r"\bmkfs(?:\.\w+)?\b"), "mkfs"),
+    (re.compile(r"\bdd\b[^\n;|&]*\bof=/dev/(?!null\b|zero\b|stdout\b|stderr\b)"), "dd_device"),
+)
+
+
+def floor_violations(code: str) -> list[str]:
+    """Labels (shell.guard.floor.*) of commands that are never run, whatever the answer."""
+    return _unique([label for pattern, label in FLOOR if pattern.search(code)])
+
+
+def exfiltration_risks(code: str) -> list[str]:
+    """curl/wget/nc sending secret-looking variables or credential files out."""
+    from uva.safety import scan_untrusted
+
+    found = [f.match for f in scan_untrusted(code) if f.kind == "exfiltration"]
+    return [t("shell.guard.exfiltration", what=found[0])] if found else []
+
+
 def python_risks(code: str) -> list[str]:
     return _unique([t(f"shell.guard.{label}") for pattern, label in PY_PATTERNS if pattern.search(code)])
 

@@ -13,10 +13,21 @@
   "undone": "Undone:",
   "no_history": "No commands yet.",
   "history": "Snapshots of /uva (newest first):",
-  "usage": "Usage:\n/sh <command> — runs a Linux command in /uva\n/py <code> — runs Python in /uva\n/sh undo — puts /uva back to before the last command\n/sh history — snapshots",
+  "usage": "Usage:\n/sh <command> — runs a Linux command in /uva\n/py <code> — runs Python in /uva\n/sh undo — puts /uva back to before the last command\n/sh history — snapshots\n/sh allowed — commands that run without asking (remove with /sh allowed remove <n>)",
   "no_output": "(no output)",
   "truncated": "… (output cut)",
   "timed_out": "⏱️ stopped after {seconds}s (SHELL_TIMEOUT_SECONDS)",
   "exit_code": "❌ exited with code {code}",
-  "changed_files": " · changed files (snapshot {snapshot}; /sh undo)"
+  "changed_files": " · changed files (snapshot {snapshot}; /sh undo)",
+  "always": "Always allow",
+  "refused_invisible": "🚫 Not run: the command has invisible or bidirectional Unicode characters (a classic way to hide what it really does). Type it again by hand.",
+  "refused_floor": "🚫 Not run, not even with confirmation: {what}.",
+  "allowlist": {
+    "empty": "No always-allowed commands. They appear here when you tap \"Always allow\".",
+    "header": "✅ Always-allowed commands (exact text):",
+    "line": "{id}. {prompt} {code}",
+    "hint": "/sh allowed remove <n> removes one.",
+    "removed": "Removed {id} from the allowed commands.",
+    "not_found": "There is no allowed command {id}."
+  }
 }

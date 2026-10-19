@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from collections import deque
 
@@ -25,6 +26,7 @@ from uva.logging import get_logger
 from uva.logging.events import EventType, current_trace_id, emit
 from uva.replies import Reply
 from uva.services import Services
+from uva.safety import as_data, describe, scan_untrusted
 from uva.skills import Skill, attach
 from uva.stm.refs import remember_ref, task_label
 
@@ -139,7 +141,7 @@ class Agent:
                 LLMMessage(
                     "user",
                     "Results of your lookups (the user has not seen them yet):\n"
-                    f"{found_text}\n\nNow answer his message using them.",
+                    f"{as_data('lookup results', found_text)}\n\nNow answer his message using them.",
                 ),
             ]
 
@@ -220,11 +222,31 @@ class Agent:
         self.history.append(LLMMessage("assistant", reply[:HISTORY_CHARS]))
 
 
+# Writes into what the LLM reads again later (memory, profile, skills, data/):
+# scanned for prompt injection before they happen.
+GUARDED_WRITES = frozenset({
+    "memory_save", "memory_update", "profile_patch", "file_write", "file_append",
+    "skill_create", "skill_patch", "skill_write_file",
+})
+
+
+def held_back(action: Action, params) -> list:
+    """Injection findings that stop this write until the user confirms ([] = go)."""
+    if action.name not in GUARDED_WRITES:
+        return []
+    data = params.model_dump()
+    if action.name.startswith("file_") and not str(data.get("path", "")).strip().startswith("data/"):
+        return []
+    return scan_untrusted(json.dumps(data, ensure_ascii=False))
+
+
 async def execute_action(action: Action, params, ctx: ActionContext) -> ActionResult:
     """Run one validated action, logging the outcome.
 
     Never raises, except RetryableActionError inside background tasks.
     """
+    if not ctx.confirmed and (findings := held_back(action, params)):
+        return await _hold(action, params, ctx, findings)
     started = time.perf_counter()
     try:
         result = await action.handler(params, ctx)
@@ -254,6 +276,23 @@ async def execute_action(action: Action, params, ctx: ActionContext) -> ActionRe
         result=result.data or result.text,
     )
     return result
+
+
+async def _hold(action: Action, params, ctx: ActionContext, findings) -> ActionResult:
+    """Ask the user before a suspicious write (in a conversation); refuse it elsewhere."""
+    from uva.replies import Button
+
+    shown = describe(findings)[:300]
+    await emit(EventType.ACTION, name=action.name, params=params.model_dump(), ok=False,
+               held=True, findings=shown, scope=ctx.scope.value)
+    if ctx.scope is not INTERACTIVE:
+        return ActionResult(text=t("router.write.refused", action=action.name, findings=shown), data={"ok": False})
+    token = ctx.services.held_writes.add(action.name, params.model_dump())
+    return ActionResult(
+        text=t("router.write.confirm", action=action.name, findings=shown),
+        data={"ok": False, "held": token},
+        buttons=[Button(t("router.write.yes"), f"wrok:{token}"), Button(t("router.write.no"), f"wrno:{token}")],
+    )
 
 
 def reply_parts(plan_reply: str, results: list[ActionResult]) -> list[str]:

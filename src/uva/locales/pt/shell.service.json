@@ -13,10 +13,21 @@
   "undone": "Desfeito:",
   "no_history": "Nenhum comando ainda.",
   "history": "Snapshots de /uva (o mais novo primeiro):",
-  "usage": "Uso:\n/sh <comando> — roda um comando Linux em /uva\n/py <código> — roda Python em /uva\n/sh desfazer — volta /uva para antes do último comando\n/sh historico — snapshots",
+  "usage": "Uso:\n/sh <comando> — roda um comando Linux em /uva\n/py <código> — roda Python em /uva\n/sh desfazer — volta /uva para antes do último comando\n/sh historico — snapshots\n/sh permitidos — comandos que rodam sem perguntar (tire com /sh permitidos remover <n>)",
   "no_output": "(sem saída)",
   "truncated": "… (saída cortada)",
   "timed_out": "⏱️ parado depois de {seconds}s (SHELL_TIMEOUT_SECONDS)",
   "exit_code": "❌ saiu com código {code}",
-  "changed_files": " · mudou arquivos (snapshot {snapshot}; /sh desfazer)"
+  "changed_files": " · mudou arquivos (snapshot {snapshot}; /sh desfazer)",
+  "always": "Sempre permitir",
+  "refused_invisible": "🚫 Não rodei: o comando tem caracteres Unicode invisíveis ou bidirecionais (um jeito clássico de esconder o que ele faz). Digite de novo à mão.",
+  "refused_floor": "🚫 Não rodo isso nem com confirmação: {what}.",
+  "allowlist": {
+    "empty": "Nenhum comando sempre permitido. Eles aparecem aqui quando você toca em \"Sempre permitir\".",
+    "header": "✅ Comandos sempre permitidos (texto exato):",
+    "line": "{id}. {prompt} {code}",
+    "hint": "/sh permitidos remover <n> tira um.",
+    "removed": "Tirei o {id} dos comandos permitidos.",
+    "not_found": "Não há comando permitido {id}."
+  }
 }

@@ -39,5 +39,13 @@
     "nothing_heard": "{phrase}\n(I couldn't hear anything in the audio)",
     "heard": "🎙️ heard: {text}",
     "kept_transcript": "(I kept the whole transcript; after /unlock just ask again)"
+  },
+  "write": {
+    "expired": "That request expired; ask again.",
+    "denied": "Ok, I didn't save it.",
+    "confirm": "⚠️ What I was about to save ({action}) looks like instructions to an assistant ({findings}). Save it anyway?",
+    "refused": "⚠️ I didn't save it ({action}): it looks like instructions to an assistant ({findings}).",
+    "yes": "Yes, save",
+    "no": "No"
   }
 }

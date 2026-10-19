@@ -100,6 +100,16 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX idx_incidents_routine ON routine_incidents (routine_id, state);
     """,
+    # 7: /sh and /py commands the user said to always allow (exact text)
+    """
+    CREATE TABLE shell_allowlist (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL,          -- sh | py
+        code TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (kind, code)
+    );
+    """,
 ]
 
 

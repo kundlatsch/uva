@@ -39,5 +39,13 @@
     "nothing_heard": "{phrase}\n(não consegui ouvir nada no áudio)",
     "heard": "🎙️ entendi: {text}",
     "kept_transcript": "(guardei a transcrição inteira; depois do /liberar é só pedir de novo)"
+  },
+  "write": {
+    "expired": "Esse pedido expirou; peça de novo.",
+    "denied": "Ok, não salvei.",
+    "confirm": "⚠️ O que eu ia salvar ({action}) parece instrução para um assistente ({findings}). Salvo mesmo assim?",
+    "refused": "⚠️ Não salvei ({action}): parece instrução para um assistente ({findings}).",
+    "yes": "Sim, salvar",
+    "no": "Não"
   }
 }

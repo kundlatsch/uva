@@ -8,5 +8,12 @@
   "moves": "move/copia (pode sobrescrever)",
   "opens_for_writing": "abre arquivo para escrita (sobrescreve)",
   "writes": "escreve arquivo (sobrescreve)",
-  "runs_commands": "roda comandos do sistema"
+  "runs_commands": "roda comandos do sistema",
+  "exfiltration": "pode mandar segredos para fora ({what})",
+  "floor": {
+    "rm_root": "rm -rf na raiz ou na pasta home",
+    "fork_bomb": "fork bomb",
+    "mkfs": "formata um sistema de arquivos (mkfs)",
+    "dd_device": "dd escrevendo num dispositivo"
+  }
 }

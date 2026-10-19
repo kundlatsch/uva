@@ -33,6 +33,8 @@ class ActionContext:
     # True inside a background task that still has retries left: transient
     # failures should raise RetryableActionError instead of giving up.
     allow_retry: bool = False
+    # The user confirmed this exact call (a write the injection scanner held back).
+    confirmed: bool = False
 
 
 @dataclass(slots=True)

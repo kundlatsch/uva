@@ -8,5 +8,12 @@
   "moves": "moves/copies (may overwrite)",
   "opens_for_writing": "opens a file for writing (overwrites)",
   "writes": "writes a file (overwrites)",
-  "runs_commands": "runs system commands"
+  "runs_commands": "runs system commands",
+  "exfiltration": "may send secrets out ({what})",
+  "floor": {
+    "rm_root": "rm -rf on / or the home folder",
+    "fork_bomb": "fork bomb",
+    "mkfs": "formats a filesystem (mkfs)",
+    "dd_device": "dd writing to a device"
+  }
 }

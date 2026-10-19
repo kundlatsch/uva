@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from uva.clock import get_tz, utcnow
 from uva.config import Settings
 from uva.media import LastPhoto
+from uva.safety import HeldWrites
 from uva.phrases import Phrases
 
 if TYPE_CHECKING:
@@ -83,6 +84,8 @@ class Services:
     transcriber: Transcriber | None = None
     # Most recent photo the user sent (bot process only).
     last_photo: LastPhoto = field(default_factory=LastPhoto)
+    # Writes held back by the injection scanner, waiting for a "yes" (bot process only).
+    held_writes: HeldWrites = field(default_factory=HeldWrites)
     # Called after code in the repo changed (e.g. a reverted plugin).
     on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
     # Ready-made phrases in the bot's voice; defaults to data/fallback_phrases.json.

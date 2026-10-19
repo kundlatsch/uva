@@ -102,7 +102,7 @@ def build_services(settings: Settings) -> Services:
     services.features = FeatureService(feature_store, _enqueue_selfcode)
     project_store = mongo.MongoProjectStore(db)
     services.projects = ProjectService(project_store, settings, _enqueue_project)
-    services.shell = ShellService(settings)
+    services.shell = ShellService(settings, db=sqlite_db)
     routine_store = mongo.MongoRoutineStore(db)
     services.routines = routine_store
 
