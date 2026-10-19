@@ -29,7 +29,8 @@
       "blocked": "is blocked ⛔"
     },
     "blocked": "Why: {reason}\nI paused it; /resume {id} when it can go on.",
-    "not_done": "Not done yet: {reason}"
+    "not_done": "Not done yet: {reason}",
+    "choose": "Pick an answer below and I'll go on:"
   },
   "feature": {
     "disabled": "self-coding for goals is off (PROACTIVE_ALLOW_SELFCODE)",

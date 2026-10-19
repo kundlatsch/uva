@@ -1,0 +1,8 @@
+{
+  "other": "✏️ something else",
+  "expired": "That question expired or was already answered.",
+  "type_it": "Ok, write your answer to: {question}",
+  "goal_resumed": "▶️ Got it (“{answer}”): back to the goal “{title}”, it runs again shortly.",
+  "no_storage": "Questions need SQLite, and it isn't available.",
+  "no_options": "A question needs 2 to 4 options."
+}

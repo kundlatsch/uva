@@ -62,6 +62,10 @@ class Goal(BaseModel):
     effective_interval_hours: float | None = None
     # The last run failed because the LLM was unreachable (retried every LLM_RETRY_MINUTES).
     waiting_llm: bool = False
+    # Blocked with a question (uva/questions.py): its id until answered; the answer
+    # ("question -> answer") goes into the next run, then is cleared.
+    question_id: int | None = None
+    answer: str = ""
 
     @property
     def interval_hours(self) -> float:

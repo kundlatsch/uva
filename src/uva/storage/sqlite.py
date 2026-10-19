@@ -183,6 +183,20 @@ MIGRATIONS: list[str] = [
     CREATE INDEX idx_reactions_at ON reactions (at);
     CREATE INDEX idx_reactions_ref ON reactions (kind, ref);
     """,
+    # 14: questions with answer buttons (uva/questions.py)
+    """
+    CREATE TABLE questions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT NOT NULL,
+        options_json TEXT NOT NULL,
+        context TEXT NOT NULL DEFAULT '',
+        goal_id TEXT NOT NULL DEFAULT '',  -- a blocked goal waiting for this answer
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        answered_at TEXT,
+        answer TEXT NOT NULL DEFAULT ''
+    );
+    """,
 ]
 
 

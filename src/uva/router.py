@@ -89,6 +89,8 @@ class Router:
         # The last sticker sent (waiting for its meaning, or target of "toda vez que...").
         self._sticker: StickerFocus | None = None
         self._curated_at: datetime | None = None
+        # A question he chose "something else" for: his next message is the answer.
+        self._awaiting: int | None = None
 
     @property
     def registry(self) -> CommandRegistry:
@@ -96,12 +98,15 @@ class Router:
 
     async def handle_text(
         self, text: str, user_id: int | None = None, photo: str | None = None, skill: str | None = None,
-        note: str = "", inbound: Composed | None = None, images: tuple[str, ...] = (),
+        note: str = "", inbound: Composed | None = None, images: tuple[str, ...] = (), llm_only: bool = False,
     ) -> Reply:
         """Route a message; ``photo`` is a data URL when it came with an image
         (``images``: the rest of an album); ``skill`` names a skill to follow and
         ``note`` is extra context for the LLM (both used by routines);
         ``inbound`` is a batch from Telegram (quoted reply, forwards)."""
+        if self._awaiting is not None and not text.strip().startswith("/") and photo is None:
+            if (answered := await self._typed_answer(text, user_id)) is not None:
+                return answered
         await self._mark_busy()
         if photo is not None:
             self.services.last_photo.set(photo)
@@ -116,6 +121,8 @@ class Router:
                 if inbound is not None and not text.strip() and inbound.context:
                     # Only forwards: the LLM decides what to do with them.
                     work = self.agent.handle(FORWARD_ONLY_REQUEST, image=photo, images=images, note=note)
+                elif llm_only:  # an answer to his question: no command or similarity tier
+                    work = self.agent.handle(text.strip(), image=photo, images=images, note=note)
                 else:
                     work = self._route(text.strip(), user_id, photo, skill, note, images)
                 with provenance.incoming("forward" if inbound is not None and inbound.external else ""):
@@ -128,6 +135,17 @@ class Router:
                 return self._first_page(reply)
         finally:
             current_photo.reset(token)
+
+    async def _typed_answer(self, text: str, user_id: int | None) -> Reply | None:
+        """The message after "something else": the answer to that question."""
+        from uva import questions
+
+        question_id, self._awaiting = self._awaiting, None
+        store = questions.store_for(self.services)
+        question = await store.get(question_id) if store is not None else None
+        if question is None or not question.open():
+            return None
+        return await self._answer(question, text.strip(), user_id)
 
     async def _focus_quoted(self, inbound: Composed) -> None:
         """A reply quoting one of UVA's notices: focus moves to what it was about."""
@@ -434,6 +452,8 @@ class Router:
             from uva.commands.session import stop_callback
 
             return await self._safely(stop_callback(self.services, data))
+        if verb == "ask":  # an answer button under a question (uva/questions.py)
+            return await self._answer_button(token, user_id)
         if verb in ("rcvok", "rcvno"):  # "I was shut down while answering ... Do it again?"
             return await self._recover(verb, token, user_id)
         if verb in ("rmdok", "rmd1h", "rmdtm"):  # under a reminder's notice
@@ -457,6 +477,42 @@ class Router:
         with trace(pending.trace_id if pending else None):
             await emit(EventType.MESSAGE_RECEIVED, text=label("button", verb=verb), kind="callback")
             return await self._safely(self._resolve_confirmation(verb, pending, user_id))
+
+    async def _answer_button(self, token: str, user_id: int | None) -> Reply:
+        from uva import questions
+
+        store = questions.store_for(self.services)
+        question_id, _, choice = token.partition(":")
+        question = await store.get(int(question_id)) if store is not None and question_id.isdigit() else None
+        if question is None or not question.open():
+            return Reply(t("ask.expired"))
+        if choice == questions.OTHER:
+            self._awaiting = question.id
+            return Reply(t("ask.type_it", question=question.question))
+        if not choice.isdigit() or int(choice) >= len(question.options):
+            return Reply(t("ask.expired"))
+        return await self._answer(question, question.options[int(choice)], user_id)
+
+    async def _answer(self, question, answer: str, user_id: int | None) -> Reply:
+        """His answer to a question: it resumes a goal, or goes to the LLM as his turn."""
+        from uva import questions
+
+        store = questions.store_for(self.services)
+        if store is None or not await store.answer(question.id, answer):
+            return Reply(t("ask.expired"))
+        await emit(EventType.ROUTE, tier="answer", question=question.id, goal=question.goal_id or None)
+        if question.goal_id and self.services.goals is not None:
+            from uva.goals.store import GoalStatus
+
+            goal = await self.services.goals.get(question.goal_id)
+            if goal is None:
+                return Reply(t("ask.expired"))
+            await self.services.goals.update(
+                goal.id, status=GoalStatus.ATIVO, next_run_at=utcnow(), question_id=None,
+                answer=f"{question.question} -> {answer}",
+            )
+            return Reply(t("ask.goal_resumed", title=goal.title, answer=answer))
+        return await self.handle_text(answer, user_id=user_id, note=question.context_line(), llm_only=True)
 
     async def _recover(self, verb: str, token: str, user_id: int | None) -> Reply:
         from uva.journal import TEXT_KINDS, journal_for

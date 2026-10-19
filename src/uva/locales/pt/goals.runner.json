@@ -29,7 +29,8 @@
       "blocked": "travou ⛔"
     },
     "blocked": "Motivo: {reason}\nPausei; /retomar {id} quando der para seguir.",
-    "not_done": "Ainda não terminou: {reason}"
+    "not_done": "Ainda não terminou: {reason}",
+    "choose": "Escolhe uma resposta aqui embaixo que eu sigo:"
   },
   "feature": {
     "disabled": "auto-código por objetivos está desligado (PROACTIVE_ALLOW_SELFCODE)",
