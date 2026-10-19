@@ -13,10 +13,11 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
     MessageHandler,
+    MessageReactionHandler,
     filters,
 )
 
-from uva import documents
+from uva import documents, feedback
 from uva.bootstrap import build_services, setup_storage
 from uva.inbound import Inbound, InboundBuffer, compose, forward_label, quoted
 from uva.journal import DONE, FAILED, PROCESSING, journal_for, recovery_question
@@ -357,6 +358,22 @@ def build_application(settings: Settings, services: Services) -> Application:
             activity="executando" if verb in ("shok", "shal", "confirm", "wrok", "rcvok") else "pensando",
         )
 
+    async def on_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """His emoji reactions on UVA's messages: feedback (uva/feedback.py)."""
+        reaction = update.message_reaction
+        if reaction is None:
+            return
+        old = {getattr(r, "emoji", None) for r in reaction.old_reaction or ()}
+        new = [r.emoji for r in reaction.new_reaction or () if getattr(r, "emoji", None) and r.emoji not in old]
+        if not new:
+            return
+        try:
+            kept = await feedback.record(services, reaction.message_id, new)
+        except Exception as exc:
+            log.warning("reaction_failed", error=str(exc))
+            return
+        log.info("reaction", message_id=reaction.message_id, emojis=new, kind=kept[0].kind if kept else "")
+
     # One text handler (commands included) keeps all routing logic in Router.
     private = filters.ChatType.PRIVATE
     application.add_handler(MessageHandler(filters.TEXT & private, on_text, block=False))
@@ -368,6 +385,7 @@ def build_application(settings: Settings, services: Services) -> Application:
     application.add_handler(MessageHandler(audio & private, on_audio, block=False))
     application.add_handler(MessageHandler(filters.Sticker.ALL & private, on_sticker, block=False))
     application.add_handler(CallbackQueryHandler(on_button, block=False))
+    application.add_handler(MessageReactionHandler(on_reaction, block=False))
     application.add_error_handler(_on_error)
     return application
 

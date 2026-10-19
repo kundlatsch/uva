@@ -88,18 +88,26 @@ class ReviewResult:
     ran: bool = False
     wrote: list[str] = field(default_factory=list)  # "memory:key", "skill:name", "profile"
     skipped: list[str] = field(default_factory=list)  # refused by the scanner or failed
+    # What each write was (for the journal's "O que eu aprendi hoje").
+    details: list[dict] = field(default_factory=list)
     reply: str = ""
     reason: str = ""
 
 
-def transcript(turns: list[TurnRecord], tz) -> str:
-    lines = []
+def transcript(turns: list[TurnRecord], tz, reactions=()) -> str:
+    """The turns (and his reactions, at their time) as lines for the LLM."""
+    entries = []
     for turn in turns:
         who = "User" if turn.role == "user" else "UVA"
         text = without_context(turn.text)  # what recall injected is never re-extracted
         text = text if len(text) <= TURN_CHARS else text[: TURN_CHARS - 1] + "…"
-        lines.append(f"[{format_local(turn.at, tz, '%d/%m %H:%M')}] {who}: {text}")
-    out = "\n".join(lines)
+        entries.append((turn.at, f"[{format_local(turn.at, tz, '%d/%m %H:%M')}] {who}: {text}"))
+    for reaction in reactions:
+        about = f"{reaction.kind} {reaction.ref}".strip() or "a message"
+        entries.append((reaction.at, f"[{format_local(reaction.at, tz, '%d/%m %H:%M')}] User reacted "
+                                     f"{reaction.emoji} to UVA's {about}"))
+    entries.sort(key=lambda e: e[0])
+    out = "\n".join(line for _, line in entries)
     return out if len(out) <= TRANSCRIPT_CHARS else "…" + out[-TRANSCRIPT_CHARS:]
 
 
@@ -129,7 +137,7 @@ async def review_tick(services: Services, notify: Notify | None, now: datetime |
         return result.reason or "skipped"
     await index.db.set_kv(STATE_KEY, str(turns[-1].id))
     if result.wrote and notify is not None and services.settings.review_notify != "off":
-        await notify(Reply(notice_text(result, services.settings.review_notify)))
+        await notify(Reply(notice_text(result, services.settings.review_notify), kind="review"))
     return f"reviewed:{len(result.wrote)}"
 
 
@@ -208,8 +216,22 @@ async def review(services: Services, turns: list[TurnRecord]) -> ReviewResult:
             result.skipped.append(label)
         else:
             result.wrote.append(label)
-    await emit(EventType.MEMORY, op="review", turns=len(turns), wrote=result.wrote, skipped=result.skipped)
+            result.details.append({"target": label, "what": _what(action.name, params)})
+    await emit(EventType.MEMORY, op="review", turns=len(turns), wrote=result.wrote, skipped=result.skipped,
+               details=result.details)
     return result
+
+
+def _what(name: str, params) -> str:
+    """One line on what a write changed (memory value, skill step, profile line)."""
+    data = params.model_dump()
+    if name.startswith("memory_"):
+        return str(data.get("value") or "")[:200]
+    if name == "skill_patch":
+        return str(data.get("new") or data.get("new_string") or "")[:200]
+    if name.startswith("skill_"):
+        return str(data.get("description") or data.get("path") or "")[:200]
+    return str(data.get("preference") or data.get("new") or "")[:200]
 
 
 def _target(name: str, params) -> str:
@@ -235,11 +257,54 @@ async def _brief(services: Services, turns: list[TurnRecord]) -> str:
         "Already in memory (working set):\n" + ("\n".join(f"- {k}" for k in keys) or "(nothing)")
         + "\n\n" + (skills or "No skills yet.")
         + f"\n\nAlways-loaded files: {sizes}."
-        + "\n\nNew conversation to review (oldest first):\n" + transcript(turns, services.tz)
+        + "\n\nNew conversation to review (oldest first):\n" + transcript(turns, services.tz, await _reactions(services, turns))
     )
 
 
+async def _reactions(services: Services, turns: list[TurnRecord]):
+    if not turns:
+        return []
+    from uva import feedback
+
+    try:
+        return await feedback.between(services.sqlite, turns[0].at, utcnow())
+    except Exception:
+        return []
+
+
 # --- journal digest --------------------------------------------------------------
+
+LEARNED_SECTION = "O que eu aprendi hoje"
+
+
+async def _learned(services: Services, since: datetime, until: datetime) -> str | None:
+    """The day's review writes (and what was held or skipped) in that day's journal
+    note, from the "memory op=review" events: nothing new is stored."""
+    if services.events is None or services.vault is None:
+        return None
+    from uva.logging.events import EventQuery
+
+    events = await services.events.find(EventQuery(since=since, until=until, types={EventType.MEMORY}))
+    lines = []
+    for event in events:
+        if event.data.get("op") != "review":
+            continue
+        trace_id = event.trace_id or "-"
+        what = {d.get("target"): d.get("what", "") for d in event.data.get("details") or []}
+        for target in event.data.get("wrote") or []:
+            lines.append(t("review.learned.wrote", lang="pt", target=_learned_label(target),
+                           what=what.get(target, "") or "—", trace=trace_id))
+        for target in event.data.get("skipped") or []:
+            lines.append(t("review.learned.skipped", lang="pt", target=_learned_label(target), trace=trace_id))
+    if not lines:
+        return None
+    note = services.vault.append_daily_section(since, LEARNED_SECTION, "\n".join(lines))
+    return note.path
+
+
+def _learned_label(target: str) -> str:
+    kind, _, name = target.partition(":")
+    return t(f"review.kind.{kind}", lang="pt", name=name)
 
 
 def digest_system_prompt() -> str:
@@ -265,6 +330,7 @@ async def journal_digest(services: Services, now: datetime | None = None) -> str
         return "done"
     turns = await index.turns(since, until, limit=400)
     if sum(1 for turn in turns if turn.role == "user") < 2:
+        await _learned(services, since, until)
         await index.db.set_kv(DIGEST_KEY, day)
         return "quiet"
     if services.budget is not None and not (await services.budget.check(Scope.PROACTIVE)).allowed:
@@ -285,6 +351,7 @@ async def journal_digest(services: Services, now: datetime | None = None) -> str
         await emit(EventType.ERROR, where="journal_digest_scan", findings=describe(findings))
         return "refused"
     note = vault.append_daily_section(since, DIGEST_SECTION, text)
+    await _learned(services, since, until)
     await index.db.set_kv(DIGEST_KEY, day)
     await emit(EventType.MEMORY, op="journal_digest", day=day, note=note.path, turns=len(turns))
     return f"written:{note.path}"

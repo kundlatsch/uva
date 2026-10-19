@@ -226,6 +226,13 @@ async def run_goal(services: Services, goal: Goal) -> GoalRun:
         tz=services.tz,
         skill=attach(skill) if skill is not None else "",
     )
+    from uva.feedback import disliked_since
+
+    try:
+        if await disliked_since(services.sqlite, "goal", goal.id, goal.last_run_at):
+            brief += "\nThe user reacted 👎 to the last report: it was not liked; do it differently."
+    except Exception:
+        pass
     ctx = ActionContext(services, Scope.PROACTIVE)  # no run_command, no retries
     messages = [LLMMessage("user", brief)]
     run = GoalRun(goal)

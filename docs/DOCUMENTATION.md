@@ -84,6 +84,7 @@ src/uva/
   intents.py      # standing intents: triggers, matching, cooldown, expiry
   provenance.py   # where content came from (owner/agent/external/system), taint rules
   preferences.py  # directive-style preferences in profile.md: supersede, prune, loss guard
+  feedback.py     # his reactions on UVA's messages: topic blocks, liked topics, "not liked"
   web/            # web_fetch: SSRF guard, page/PDF/JSON to text, link detection
   tasks/          # Celery: app, tasks, queue, "busy" lock
   storage/        # Mongo, SQLite (expenses, stickers, index, incidents, allowlist...)
@@ -341,6 +342,7 @@ UVA keeps what matters from the conversation on its own, in the background:
 - **What it may do** (nothing else): `memory_save` / `memory_update` / `memory_forget` for facts about you, `skill_create` / `skill_patch` / `skill_write_file` (and `skill_read`) for how you want a kind of task done, and `profile_patch` for core profile facts within `PROFILE_MAX_CHARS`. Each kind of knowledge goes to one place only; usually it keeps nothing.
 - **Safety**: every write is scanned for prompt injection first (see [Security](#security)); a hit is skipped and logged.
 - **Telling you**: when something was kept you get one line, e.g. "💾 anotei: memória time, habilidade match-recap". `REVIEW_NOTIFY=off` turns it off, `verbose` adds the reason. The writes are in `/log memoria` and `/log skills`.
+- **What it learned**: the same night, the day's note gets `## O que eu aprendi hoje`: each review write of the day (the memory key and its new value, the skill and the changed step, the profile line) with its trace id, and what was held or skipped. It is read from the `memory op=review` events; nothing new is stored.
 - **Journal digest**: every night (at `MEMORY_MAINTENANCE_HOUR`) the day's conversation is summarized, in Portuguese, into a "Resumo do dia" section of that day's journal note (`diario/AAAA-MM-DD.md`), so the episodes can be read in Obsidian too. Quiet days get none.
 
 ## Long-term memory
@@ -365,7 +367,7 @@ UVA keeps what is worth remembering about you in Mongo's `memory` collection: ke
 
 **Adaptive interval.** Each run of a recurring goal keeps a hash of its normalized result. After 3 runs with the same result the interval doubles (6h → 12h → 24h…, up to `GOAL_MAX_INTERVAL_HOURS`, 48); a different result resets it. `/objetivos` shows the stretched interval ("agora a cada 12h").
 
-Beat checks every `PROACTIVE_POLL_MINUTES` (5) and runs at most one goal every `PROACTIVE_INTERVAL_MINUTES` (15). Each run uses only safe actions (search, notes, memory), has a limit of rounds (`PROACTIVE_MAX_STEPS`) and tokens (`PROACTIVE_MAX_TOKENS_PER_RUN`), writes to a note titled "Objetivo - <title>" in `01-projetos/` and **sends a report** on Telegram (`PROACTIVE_NOTIFY=true`) unless the run ended in `[SILENT]` (nothing new). If a goal needs a new command, it asks self-coding for one (`PROACTIVE_ALLOW_SELFCODE`).
+Beat checks every `PROACTIVE_POLL_MINUTES` (5) and runs at most one goal every `PROACTIVE_INTERVAL_MINUTES` (15). Each run uses only safe actions (search, notes; never memory writes), has a limit of rounds (`PROACTIVE_MAX_STEPS`) and tokens (`PROACTIVE_MAX_TOKENS_PER_RUN`), writes to a note titled "Objetivo - <title>" in `01-projetos/` and **sends a report** on Telegram (`PROACTIVE_NOTIFY=true`) unless the run ended in `[SILENT]` (nothing new). If a goal needs a new command, it asks self-coding for one (`PROACTIVE_ALLOW_SELFCODE`).
 
 **Initiatives.** Besides goals, UVA shows up on its own. At most every `PROACTIVE_DECIDE_EVERY_MINUTES` (40), the cheap model looks at long-term memory, the recent conversation, the brain notes and the goals, and picks:
 
@@ -374,6 +376,13 @@ Beat checks every `PROACTIVE_POLL_MINUTES` (5) and runs at most one goal every `
 - `nothing`: when it is not worth interrupting. After `PROACTIVE_FORCE_AFTER_HOURS` (3h) without an initiative, "nothing" is no longer an option.
 
 Limits: at most `PROACTIVE_MAX_MESSAGES_PER_DAY` (8) per day, with `PROACTIVE_MIN_GAP_MINUTES` (60) between them; nothing during quiet hours (`PROACTIVE_QUIET_START_HOUR`–`PROACTIVE_QUIET_END_HOUR`, 23h–8h); nothing while you are chatting; everything within `PROACTIVE_DAILY_BUDGET_USD`.
+
+**Reactions as feedback.** React to UVA's own messages with an emoji and it learns from it, by rules (no LLM; SQLite `reactions`, mapped through `sent_messages`; `uva/feedback.py`):
+
+- 👎 on an initiative blocks its topic for `INITIATIVE_BLOCK_DAYS` (30): when the chooser picks it again it is refused and asked once more, and then nothing is sent. 👍 / ❤️ (also 🔥, 😍, 👏, 💯) mark topics you liked; the chooser's prompt lists both.
+- Initiatives also have a repeat check: a topic within rapidfuzz 85 of one sent in the last 14 days is refused the same way.
+- 👎 on a routine or goal report tells the next run "the last output was not liked; do it differently".
+- The background review sees your reactions next to the turns.
 
 - `/proativo` (`/proactive`): status (on?, messages today, quiet hours, next initiative, goals, last initiatives).
 - `/proativo on` / `/proativo off`: turns initiatives on/off (goals keep running).
@@ -428,7 +437,7 @@ A reminder is a routine that runs once (`every: once`, `once_at` in UTC, in the 
 
 Data with a fixed shape lives in SQLite at `SQLITE_PATH` (volume `sqlite-data`), in WAL mode. Migrations are in `src/uva/storage/sqlite.py` (`MIGRATIONS` list; the applied number is in `PRAGMA user_version`). To change the schema, append a new migration at the end; never edit old ones.
 
-Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`), routine failure incidents (`routine_incidents`), standing intents (`intents`, `intents_fts`), the inbound journal (`inbound`, 7 days) and the messages UVA sent on its own (`sent_messages`, by Telegram message id, kept 30 days).
+Tables: expenses, stickers, the conversation log (`conversation_turns`), the search index (`search_index`, FTS5) and its note state (`index_state`), skill usage (`skill_usage`), small state (`kv`), routine failure incidents (`routine_incidents`), standing intents (`intents`, `intents_fts`), the inbound journal (`inbound`, 7 days), reactions (`reactions`, 90 days) and the messages UVA sent on its own (`sent_messages`, by Telegram message id, kept 30 days).
 
 Example: expenses.
 

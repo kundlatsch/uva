@@ -169,6 +169,20 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX idx_inbound_state ON inbound (state);
     """,
+    # 13: the user's reactions on UVA's messages (uva/feedback.py); kind/ref come from sent_messages
+    """
+    CREATE TABLE reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INTEGER NOT NULL,
+        emoji TEXT NOT NULL,
+        at TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT '',
+        ref TEXT NOT NULL DEFAULT '',
+        topic TEXT NOT NULL DEFAULT ''   -- an initiative's normalized topic
+    );
+    CREATE INDEX idx_reactions_at ON reactions (at);
+    CREATE INDEX idx_reactions_ref ON reactions (kind, ref);
+    """,
 ]
 
 

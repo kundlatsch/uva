@@ -5,5 +5,9 @@
     "memory": "memory {name}",
     "skill": "skill {name}",
     "profile": "profile"
+  },
+  "learned": {
+    "wrote": "- {target}: {what} (trace {trace})",
+    "skipped": "- not kept: {target} (held or failed; trace {trace})"
   }
 }

@@ -128,6 +128,9 @@ def memory_maintenance() -> dict:
 
             if (journal := journal_for(services)) is not None:
                 result["inbound_purged"] = await journal.purge()
+            from uva import feedback
+
+            result["reactions_purged"] = await feedback.purge(services.sqlite)
         return result
 
     try:
@@ -221,7 +224,8 @@ def initiative_tick() -> str:
         services = await runtime.get_services()
         status, message = await initiatives.initiative_tick(services)
         if message:
-            await runtime.notify(Reply(message))
+            recent = await services.initiatives.recent(1) if services.initiatives is not None else []
+            await runtime.notify(Reply(message, kind="initiative", ref=recent[0].id if recent else ""))
         return status
 
     return runtime.run(job)

@@ -18,6 +18,9 @@ from datetime import datetime, timedelta
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field, ValidationError
+from rapidfuzz import fuzz
+
+from uva import feedback
 
 from uva.actions.search import ResearchError, research, save_research
 from uva.brain.naming import portuguese_title
@@ -157,6 +160,13 @@ async def initiative_tick(
         await _set_last_check(services.initiatives, now)
         try:
             decision = await _decide(services, now)
+            if refused := await refusal(services, decision, now):
+                # A topic he disliked, or one sent recently: ask once more, then give up.
+                await emit(EventType.INITIATIVE, status="refused", topic=decision.topic, reason=refused)
+                decision = await _decide(services, now, avoid=f"{topic_of(decision)} ({refused})")
+                if await refusal(services, decision, now):
+                    await emit(EventType.INITIATIVE, status="nothing", reason="refused twice")
+                    return "nothing", None
         except (LLMError, ValidationError, ValueError) as exc:
             await emit(EventType.ERROR, where="initiative", error=str(exc))
             return "error", None
@@ -198,9 +208,40 @@ async def initiative_tick(
         return "sent", text
 
 
-async def _decide(services: Services, now: datetime) -> Decision:
+REPEAT_DAYS = 14
+REPEAT_SCORE = 85
+
+
+def topic_of(decision) -> str:
+    return feedback.normalize_topic(decision.topic or decision.message[:80])
+
+
+async def refusal(services: Services, decision: Decision, now: datetime) -> str | None:
+    """Why this initiative is refused ("blocked", "repeat"), or None."""
+    if decision.kind == "nothing":
+        return None
+    topic = topic_of(decision)
+    if not topic:
+        return None
+    for blocked in await feedback.blocked_topics(services, now):
+        if fuzz.token_sort_ratio(topic, blocked) >= REPEAT_SCORE:
+            return "blocked"
+    if services.initiatives is not None:
+        cutoff = now - timedelta(days=REPEAT_DAYS)
+        for record in await services.initiatives.recent(50):
+            if record.at < cutoff:
+                break
+            old = feedback.normalize_topic(record.topic or record.message[:80])
+            if old and fuzz.token_sort_ratio(topic, old) >= REPEAT_SCORE:
+                return "repeat"
+    return None
+
+
+async def _decide(services: Services, now: datetime, avoid: str = "") -> Decision:
     assert services.llm is not None
     context = await _context(services, now)
+    if avoid:
+        context += f"\n\nNot this one (he disliked it, or you sent it recently): {avoid}. Pick another or \"nothing\"."
     response = await services.llm.complete(
         [LLMMessage("user", context)],
         purpose="initiative",
@@ -249,6 +290,14 @@ async def _context(services: Services, now: datetime) -> str:
             parts.append(f"Last initiative: {since}. Do NOT choose \"nothing\" now: pick research or message.")
         lines = [f"- {format_local(r.at, tz, '%d/%m %H:%M')} {r.kind}: {r.topic or r.message[:80]}" for r in recent]
         parts.append("Your recent initiatives (don't repeat them):\n" + ("\n".join(lines) or "(none)"))
+    try:
+        liked, blocked = await feedback.liked_topics(services, now), await feedback.blocked_topics(services, now)
+    except Exception:
+        liked, blocked = [], []
+    if liked:
+        parts.append("Topics he liked (reacted 👍/❤️): more like these:\n" + "\n".join(f"- {x}" for x in liked[:10]))
+    if blocked:
+        parts.append("Topics he disliked (👎): never these:\n" + "\n".join(f"- {x}" for x in blocked[:10]))
     return "\n\n".join(parts)
 
 
