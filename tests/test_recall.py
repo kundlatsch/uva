@@ -6,6 +6,7 @@ from fakes import InMemoryGoalStore, InMemoryMemoryStore, with_llm
 
 from uva.brain.vault import Vault
 from uva.goals.store import Goal, GoalResult, GoalStatus
+from uva.llm.agent import MAX_LOOKUP_ROUNDS
 from uva.memory import MemoryService
 from uva.recall import recall, terms
 from uva.router import Router
@@ -90,12 +91,24 @@ async def test_lookup_action_is_read_and_answered_in_the_same_turn(mem_services)
     assert "frango e batata doce" in fed_back and "the user has not seen them yet" in fed_back
 
 
+async def test_progress_reply_next_to_a_lookup_still_reads_first(mem_services):
+    await seed(mem_services)
+    provider, _ = with_llm(
+        mem_services,
+        plan("", ("reply", {"text": "Vou olhar."}), ("note_read", {"note": "Receita de marmita fit"})),
+        plan("Leva frango e batata doce."),
+    )
+    reply = await Router(mem_services).handle_text("qual era a minha receita de marmita fit?")
+    assert reply.text == "Leva frango e batata doce."
+    assert len(provider.calls) == 2
+
+
 async def test_lookup_rounds_are_capped(mem_services):
     await seed(mem_services)
     looping = plan("", ("recall", {"query": "marmita"}))
-    provider, _ = with_llm(mem_services, looping, looping, looping)
+    provider, _ = with_llm(mem_services, *[looping] * (MAX_LOOKUP_ROUNDS + 1))
     reply = await Router(mem_services).handle_text("procura marmita em tudo")
-    assert len(provider.calls) == 3  # 1 + MAX_LOOKUP_ROUNDS, then the last lookup is shown
+    assert len(provider.calls) == MAX_LOOKUP_ROUNDS + 1  # then the last lookup is shown
     assert "Receita de marmita fit" in reply.text
 
 

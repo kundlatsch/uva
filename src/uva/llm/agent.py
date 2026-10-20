@@ -19,7 +19,7 @@ from uva.i18n import t
 from uva.llm.base import LLMError, LLMMessage
 from uva.llm.budget import Scope
 from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
-from uva.llm.prompts import assistant_system_prompt, message_context
+from uva.llm.prompts import assistant_system_prompt, message_context, own_github_repo
 from uva.mcp.catalog import sync_actions
 from uva.memory.service import render_memory
 from uva.progress import activity, placeholder, slow as show_placeholder
@@ -44,7 +44,11 @@ SLOW_ACTIONS = {
     "search": "pesquisando", "image_save": "salvando", "note_update": "salvando",
 }
 # Extra LLM calls allowed per message to read what lookup actions found.
-MAX_LOOKUP_ROUNDS = 2
+MAX_LOOKUP_ROUNDS = 3
+# A rejected plan (bad JSON, unknown action, invalid params) is sent back with the
+# reason this many times per message before giving up.
+MAX_PLAN_REPAIRS = 1
+PLAN_REJECTED = "Your previous answer was rejected and nothing from it ran:"
 LOOKUP_CHARS = 8000
 
 log = get_logger(__name__)
@@ -119,6 +123,7 @@ class Agent:
             registry=services.registry,
             working_memory=await self._working_memory(),
             mcp_limit=services.settings.mcp_prompt_tool_limit,
+            own_repo=own_github_repo(services.settings.repo_dir),
         )
         if skill is not None and services.skills is not None:
             await services.skills.used(skill.name)
@@ -134,35 +139,50 @@ class Agent:
         images = (image, *images) if image else ()
         content = context + (text or "(image without caption)")
         messages = [*history, LLMMessage("user", content, images=images)]
+        repairs = MAX_PLAN_REPAIRS
         for round_ in range(MAX_LOOKUP_ROUNDS + 1):
-            try:
-                response = await services.llm.complete(
-                    messages,
-                    purpose=("plan_vision" if image else "plan") if round_ == 0 else "plan_lookup",
-                    scope=INTERACTIVE,
-                    model=services.llm.vision_model if image else None,
-                    system=system,
-                    json_schema=PLAN_SCHEMA,
-                )
-            except LLMError as exc:
-                if is_quota_error(exc):
-                    return Reply(f"{services.say('sem_credito')}\n{t('llm.agent.quota')}", failed=True)
-                return Reply(services.say("llm_erro"), failed=True)
+            while True:
+                try:
+                    response = await services.llm.complete(
+                        messages,
+                        purpose=("plan_vision" if image else "plan") if round_ == 0 else "plan_lookup",
+                        scope=INTERACTIVE,
+                        model=services.llm.vision_model if image else None,
+                        system=system,
+                        json_schema=PLAN_SCHEMA,
+                    )
+                except LLMError as exc:
+                    if is_quota_error(exc):
+                        return Reply(f"{services.say('sem_credito')}\n{t('llm.agent.quota')}", failed=True)
+                    return Reply(services.say("llm_erro"), failed=True)
 
-            try:
-                plan = parse_plan(response.text)
-                calls = [services.actions.validate(c.type, c.params, allowed=allowed) for c in plan.actions]
-            except (PlanError, InvalidActionError) as exc:
-                # Nothing from a broken answer is executed.
-                await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
-                return Reply(services.say("llm_erro"), failed=True)
+                try:
+                    plan = parse_plan(response.text)
+                    calls = [services.actions.validate(c.type, c.params, allowed=allowed) for c in plan.actions]
+                    break
+                except (PlanError, InvalidActionError) as exc:
+                    # Nothing from a broken answer is executed.
+                    await emit(EventType.ERROR, where="plan", error=str(exc), raw=response.text)
+                    if repairs <= 0:
+                        return Reply(services.say("llm_erro"), failed=True)
+                    # One more try with the reason (e.g. an MCP tool's enum it did not see).
+                    repairs -= 1
+                    messages = [
+                        *messages,
+                        LLMMessage("assistant", response.text),
+                        LLMMessage("user", f"{PLAN_REJECTED} {exc}\nAnswer again with a valid plan."),
+                    ]
 
             await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump(), image=image is not None, round=round_)
-            lookups_only = bool(calls) and all(action.lookup for action, _ in calls)
+            # A "reply" next to lookups is only a progress line ("vou olhar..."):
+            # still a lookup round, so the answer comes with what was found.
+            lookups = [action for action, _ in calls if action.name != "reply"]
+            lookups_only = bool(lookups) and all(action.lookup for action in lookups)
             if not lookups_only or round_ == MAX_LOOKUP_ROUNDS:
                 if services.steer is not None:
                     services.steer.take()  # closed: later messages get a turn of their own
                 break
+            calls = [(action, params) for action, params in calls if action.name != "reply"]
             # Only reading: hand what was found back to the LLM so it answers now,
             # instead of replying "want me to open the note?".
             await activity("procurando")

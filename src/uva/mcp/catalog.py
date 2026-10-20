@@ -285,6 +285,20 @@ async def _hold(info: ToolInfo, arguments: dict[str, Any], ctx: ActionContext, l
     )
 
 
+def param_names(schema: dict[str, Any]) -> str:
+    """"a, b?, state?=OPEN|CLOSED": ``?`` marks optional ones; enums show their values
+    (the LLM sees only this line, so it would guess "open" otherwise)."""
+    required = set(schema.get("required", []))
+    names = []
+    for name, prop in schema.get("properties", {}).items():
+        label = name if name in required else f"{name}?"
+        choices = prop.get("enum") if isinstance(prop, dict) else None
+        if isinstance(choices, list) and choices and len(choices) <= 8:
+            label += "=" + "|".join(str(c) for c in choices)
+        names.append(label)
+    return ", ".join(names)
+
+
 class McpToolsParams(BaseModel):
     server: str = Field(description="MCP server name")
 
@@ -303,10 +317,7 @@ def _list_action(infos: list[ToolInfo]) -> Action:
             action = actions.get(info.action) if actions is not None else None
             if action is None:
                 continue
-            schema = action_schema(action)
-            required = set(schema.get("required", []))
-            names = ", ".join(n if n in required else f"{n}?" for n in schema.get("properties", {}))
-            lines.append(f"- {action.name}({names}): {action.description}")
+            lines.append(f"- {action.name}({param_names(action_schema(action))}): {action.description}")
         if not lines:
             servers = sorted({i.server for i in usable})
             return ActionResult(text=t("mcp.no_server", server=params.server, servers=", ".join(servers)))

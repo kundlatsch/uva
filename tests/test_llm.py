@@ -72,7 +72,7 @@ async def test_wikipedia_search_returns_summary_with_sources(router, services, e
 
 
 async def test_invalid_json_executes_nothing(router, services, event_store):
-    with_llm(services, "isso não é json")
+    with_llm(services, "isso não é json", "nem isso")
     reply = await router.handle_text("faça algo")
     assert reply.text in services.phrases.categories["llm_erro"]
     assert event_store.of_type(EventType.ACTION) == []
@@ -81,21 +81,34 @@ async def test_invalid_json_executes_nothing(router, services, event_store):
 
 
 async def test_unknown_action_rejects_whole_plan(router, services, event_store):
-    with_llm(
-        services,
-        plan(
-            {"type": "reply", "params": {"text": "oi"}},
-            {"type": "rm_rf", "params": {"path": "/"}},
-        ),
+    bad = plan(
+        {"type": "reply", "params": {"text": "oi"}},
+        {"type": "rm_rf", "params": {"path": "/"}},
     )
+    with_llm(services, bad, bad)
     reply = await router.handle_text("apaga tudo")
     assert reply.text in services.phrases.categories["llm_erro"]
     assert event_store.of_type(EventType.ACTION) == []
 
 
 async def test_invalid_params_reject_plan(router, services, event_store):
-    with_llm(services, plan({"type": "search", "params": {"source": "wikipedia"}}))
+    bad = plan({"type": "search", "params": {"source": "wikipedia"}})
+    provider, _ = with_llm(services, bad, bad)
     assert (await router.handle_text("pesquisa")).text in services.phrases.categories["llm_erro"]
+    assert len(provider.calls) == 2  # one repair, then it gives up
+
+
+async def test_rejected_plan_is_sent_back_once(router, services, event_store):
+    provider, _ = with_llm(
+        services,
+        plan({"type": "rm_rf", "params": {"path": "/"}}),
+        plan({"type": "reply", "params": {"text": "oi de novo"}}),
+    )
+    reply = await router.handle_text("faça algo")
+    assert reply.text == "oi de novo"
+    fed_back = provider.calls[1]["messages"][-1].content
+    assert "rejected and nothing from it ran" in fed_back and "rm_rf" in fed_back
+    assert [e.data["name"] for e in event_store.of_type(EventType.ACTION)] == ["reply"]
 
 
 async def test_run_command_action(router, services):

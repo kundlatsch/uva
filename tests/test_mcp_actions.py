@@ -295,3 +295,13 @@ async def test_end_to_end_with_the_real_gateway(tmp_path, event_store):
         assert servers_seen["servers"][0]["state"] == "ready"
     finally:
         await gateway.close()
+
+
+def test_param_names_show_enums():
+    from uva.mcp.catalog import param_names
+
+    schema = {
+        "properties": {"owner": {"type": "string"}, "state": {"type": "string", "enum": ["OPEN", "CLOSED"]}},
+        "required": ["owner"],
+    }
+    assert param_names(schema) == "owner, state?=OPEN|CLOSED"

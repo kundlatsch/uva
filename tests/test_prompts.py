@@ -13,6 +13,7 @@ from uva.llm.prompts import (
     describe_action,
     describe_actions,
     describe_commands,
+    own_github_repo,
 )
 from uva.logging import get_logger
 from uva.memory import MemoryService
@@ -102,3 +103,26 @@ def test_commands_are_one_line_with_aliases(services):
 def test_no_stale_third_party_promise(services):
     prompt = assistant_system_prompt(actions=list(services.actions), registry=services.registry)
     assert "/rodar" not in prompt and "is not supported" in prompt
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("git@github.com:kundlatsch/uva.git", "kundlatsch/uva"),
+        ("https://github.com/kundlatsch/uva", "kundlatsch/uva"),
+        ("https://gitlab.com/kundlatsch/uva.git", ""),
+    ],
+)
+def test_own_github_repo(tmp_path, url, expected):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_text(
+        f'[core]\n\tbare = false\n[remote "origin"]\n\turl = {url}\n', encoding="utf-8"
+    )
+    assert own_github_repo(tmp_path) == expected
+    assert own_github_repo(tmp_path / "missing") == ""
+
+
+def test_own_repo_in_prompt(services):
+    prompt = assistant_system_prompt(actions=list(services.actions), registry=services.registry, own_repo="a/b")
+    assert "GitHub repository a/b" in prompt and "never to shell_run" in prompt
+    assert "GitHub repository" not in assistant_system_prompt(actions=list(services.actions), registry=services.registry)
