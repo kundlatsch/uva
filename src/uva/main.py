@@ -319,10 +319,8 @@ def build_application(settings: Settings, services: Services) -> Application:
             data = bytes(await file.download_as_bytearray())
             return await router.handle_audio(data, seconds=media.duration, user_id=user_id)
 
-        # Download + transcription take a few seconds: say we're on it right away.
-        now = services.say("transcrevendo") if services.transcriber is not None else None
-        await turn(context.bot, message.chat_id, work(), label("audio_turn"), activity="pensando", now=now,
-                   voice_in=True, kind="voice", message_id=message.message_id)
+        await turn(context.bot, message.chat_id, work(), label("audio_turn"), activity="transcrevendo",
+                   voice_in=True, kind="voice", message_id=message.message_id, react_to=reaction_target(message))
 
     async def on_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message

@@ -64,17 +64,17 @@ class FakeBot:
         self.edited.append(text)
 
 
-async def test_reactions_received_then_done():
+async def test_reaction_received_then_removed():
     bot = FakeBot()
 
     async def work():
         return Reply("pong")
 
     await respond(bot, 1, lambda c, **k: c, work(), react_to=10)
-    assert bot.reactions == ["👀", "👍"] and bot.sent == ["pong"]
+    assert bot.reactions == ["👀", None] and bot.sent == ["pong"]
 
 
-async def test_reaction_on_failure_and_cleared_after_placeholder(monkeypatch):
+async def test_reaction_on_failure_and_slow_work_posts_no_placeholder():
     bot = FakeBot()
 
     async def failed():
@@ -83,7 +83,6 @@ async def test_reaction_on_failure_and_cleared_after_placeholder(monkeypatch):
     await respond(bot, 1, lambda c, **k: c, failed(), react_to=10)
     assert bot.reactions[-1] == "👎"
 
-    monkeypatch.setattr(progress, "PLACEHOLDER_AFTER", 0.0)
     bot = FakeBot()
 
     async def slow():
@@ -91,7 +90,8 @@ async def test_reaction_on_failure_and_cleared_after_placeholder(monkeypatch):
         return Reply("pronto")
 
     await respond(bot, 1, lambda c, **k: c, slow(), react_to=10)
-    assert bot.reactions == ["👀", None]  # the placeholder was the feedback
+    assert bot.reactions == ["👀", None]  # the reaction is the only feedback
+    assert bot.sent == ["pronto"] and bot.edited == []
 
 
 async def test_no_reactions_without_a_target():

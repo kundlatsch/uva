@@ -87,6 +87,9 @@ class Action:
     group: str | None = None
     # Free-form details for the group's own code (MCP: server, tool, flags).
     meta: Mapping[str, Any] | None = field(default=None, compare=False)
+    # Known to take long when run in the conversation: a phrase category shown as a
+    # placeholder message right away (see uva/progress.py). None: no placeholder.
+    placeholder: str | None = None
 
     def __post_init__(self) -> None:
         if self.progress_text is None:
@@ -122,6 +125,7 @@ class ActionRegistry:
         progress_text: str | None = None,
         progress_phrase: str | None = None,
         lookup: bool = False,
+        placeholder: str | None = None,
     ) -> Callable[[ActionHandler], ActionHandler]:
         def decorator(func: ActionHandler) -> ActionHandler:
             self.register(
@@ -135,6 +139,7 @@ class ActionRegistry:
                     progress_text,
                     progress_phrase,
                     lookup,
+                    placeholder=placeholder,
                 )
             )
             return func

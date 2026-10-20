@@ -177,6 +177,7 @@ class PluginCommand:
     aliases: tuple[str, ...] = ()
     usage: Description = ""
     examples: tuple[str, ...] = ()
+    placeholder: str | None = None
 
 
 def command(
@@ -186,11 +187,16 @@ def command(
     aliases: tuple[str, ...] = (),
     usage: Description = "",
     examples: tuple[str, ...] = (),
+    placeholder: str | None = None,
 ) -> Callable[[Handler], Handler]:
-    """Mark a function as a bot command."""
+    """Mark a function as a bot command.
+
+    ``placeholder``: for commands that take long, a ready-made phrase category
+    ("executando", "pesquisando"...) shown at once and replaced by the reply.
+    """
 
     def decorator(func: Handler) -> Handler:
-        setattr(func, MARKER, PluginCommand(name, description, func, aliases, usage, examples))
+        setattr(func, MARKER, PluginCommand(name, description, func, aliases, usage, examples, placeholder))
         return func
 
     return decorator

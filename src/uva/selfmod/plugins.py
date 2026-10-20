@@ -120,4 +120,5 @@ def _to_command(pc: PluginCommand) -> Command:
         usage=resolve_description(pc.usage, i18n.get_language()),
         examples=tuple(pc.examples),
         source="plugin",
+        placeholder=pc.placeholder,
     )

@@ -718,15 +718,23 @@ The `dashboard` service serves a dashboard at **http://localhost:8080**, only on
 
 ## Instant feedback
 
-Every input gets something back in under 1 second (`uva/progress.py`):
+Every input gets something back in under 1 second (`uva/progress.py`), and by default that is all: no extra message while the answer is being made.
 
 - "typing…" goes out right away, for text, photo, audio, sticker and buttons, and is renewed while the work lasts;
-- if the answer is not ready in 0.7 s, a ready-made phrase for the kind of work appears (`pensando`, `executando`, `procurando`, `pesquisando`, `olhando`, `salvando`, `transcrevendo`...). It is drawn from the ready-made phrases file, without repeating the last ones, and **that same message is edited** with the result. If the work changes phase (for example, the LLM decides to read a note), the phrase follows;
-- when the LLM decides to run something slow (`/uva`, an unqueued search, `decide`...), its reply goes out first and the result comes after, in place of a "⚙️ Rodando…";
+- **Reactions** (`TELEGRAM_REACTIONS=true`): your message (text, photo, document, audio, sticker) gets 👀 when it arrives; the reaction is removed when the answer is out, or becomes 👎 when something went wrong;
+- when the LLM decides to run something slow (`/uva`, an unqueued search, `decide`...), its reply goes out first and the result comes after, as its own message;
 - buttons answer right away with a short notice ("⚙️ Rodando…", "Ok");
-- the dashboard chat does the same, streaming: "typing…", then the phrases, then the answer.
+- the dashboard chat does the same, streaming: "typing…", then the answer.
 
-- **Reactions** (`TELEGRAM_REACTIONS=true`): your message gets 👀 when it arrives and 👍 when the answer is out, or 👎 when something went wrong. When a placeholder message was shown, that message is the feedback and the reaction is removed.
+**Placeholders for slow work (opt-in).** Work that knows it takes long can show a ready-made phrase right away (`pensando`, `executando`, `procurando`, `pesquisando`, `olhando`, `salvando`, `transcrevendo`...), drawn from the ready-made phrases file without repeating the last ones; **that same message is edited** with the result, and if the work changes phase (`activity(...)`) the phrase follows. Ways to opt in, each taking a phrase category:
+
+- a command: `@registry.command(..., placeholder="executando")` (`Command.placeholder`);
+- a plugin: `@command(..., placeholder="pesquisando")` from `uva.plugins.api`;
+- an action run in the conversation: `ActionRegistry.action(..., placeholder="executando")` (`Action.placeholder`); background (long-running) actions keep their own progress notice instead;
+- any code during a turn: `await progress.slow("executando")` (`progress.slow()` without a category uses the current activity).
+
+No built-in command opts in yet.
+
 - **Command menu**: at startup the bot sets Telegram's "/" menu from the registry (`setMyCommands`), with the descriptions in the bot language, up to Telegram's limit of 100. Idle plugins are left out.
 - **Stopping**: messages are handled one at a time, in order, but `/parar` (`/stop`) is handled at once, even while another answer is still being worked on; the stopped answer becomes "⏹️ Parei".
 

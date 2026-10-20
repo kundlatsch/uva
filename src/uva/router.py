@@ -22,7 +22,7 @@ from uva.commands import CommandContext, CommandRegistry
 from uva.llm.agent import Agent
 from uva.logging.events import EventType, current_trace_id, emit, new_trace_id, trace
 from uva.llm.base import LLMError, LLMMessage
-from uva import documents, provenance, sent
+from uva import documents, progress, provenance, sent
 from uva.labels import label
 from uva.inbound import FORWARD_ONLY_REQUEST, Composed
 from uva.media import current_photo, mentions_image
@@ -748,6 +748,8 @@ class Router:
             reroute=lambda text: self._route(text, user_id),
         )
         await self._count(command.name)
+        if command.placeholder:
+            await progress.slow(command.placeholder)
         reply = Reply.coerce(await command.handler(ctx))
         if reply.summary is None:
             first_line = reply.text.strip().splitlines()[0] if reply.text.strip() else ""

@@ -51,6 +51,10 @@ class Command:
     extract_args: ArgExtractor | None = None
     # "core" for built-in commands, "plugin" for ones loaded from uva/plugins.
     source: str = "core"
+    # Commands known to take long: a phrase category of data/fallback_phrases.json
+    # ("executando", "pesquisando"...) shown as a placeholder message right away and
+    # replaced by the reply. None (default): only the reaction and "typing…".
+    placeholder: str | None = None
 
     @property
     def all_names(self) -> tuple[str, ...]:
@@ -83,12 +87,13 @@ class CommandRegistry:
         usage: str = "",
         examples: tuple[str, ...] = (),
         extract_args: ArgExtractor | None = None,
+        placeholder: str | None = None,
     ) -> Callable[[CommandHandler], CommandHandler]:
         """Decorator form of :meth:`register`."""
 
         def decorator(func: CommandHandler) -> CommandHandler:
             self.register(
-                Command(name, description, func, aliases, usage, examples, extract_args)
+                Command(name, description, func, aliases, usage, examples, extract_args, placeholder=placeholder)
             )
             return func
 

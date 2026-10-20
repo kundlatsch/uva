@@ -90,10 +90,7 @@ def test_password(services):
         assert c.get("/api/env", auth=("gustavo", "s3nha")).status_code == 200
 
 
-def test_slow_chat_streams_a_placeholder_first(client, services, monkeypatch):
-    from uva import progress
-
-    monkeypatch.setattr(progress, "PLACEHOLDER_AFTER", 0.01)
+def test_slow_chat_streams_no_placeholder(client, services):
     with_llm(services, json.dumps({"actions": [], "reply": "Demorei, mas cheguei."}))
     original = services.llm.complete
 
@@ -105,6 +102,5 @@ def test_slow_chat_streams_a_placeholder_first(client, services, monkeypatch):
 
     services.llm.complete = slow
     lines = [json.loads(x) for x in client.post("/api/chat", json={"text": "fala algo"}).text.splitlines() if x.strip()]
-    assert lines[0]["type"] == "post" and lines[0]["text"]  # a ready-made phrase first
-    assert any(x["type"] == "edit" and x["text"] == "Demorei, mas cheguei." for x in lines)
-    assert lines[-1]["type"] == "final"
+    assert [x["type"] for x in lines] == ["final"]  # no placeholder by default
+    assert lines[-1]["reply"]["text"] == "Demorei, mas cheguei."

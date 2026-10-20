@@ -121,7 +121,7 @@ async def _keep_typing(bot: Bot, chat_id: int, stop: asyncio.Event) -> None:
             pass
 
 
-RECEIVED, DONE, FAILED = "👀", "👍", "👎"
+RECEIVED, FAILED = "👀", "👎"
 
 
 async def react(bot: Bot, chat_id: int, message_id: int | None, emoji: str | None) -> None:
@@ -140,11 +140,11 @@ async def respond(
 ) -> list[Reply]:
     """Handle one incoming update with instant feedback; returns the replies sent.
 
-    "digitando…" goes out at once; if the reply takes longer than a moment, a
-    phrase for the activity shows up and is then edited into the reply.
-    ``now`` shows that phrase immediately (e.g. before downloading an audio).
-    With ``react_to`` the incoming message gets 👀 at once and 👍 / 👎 at the
-    end, unless a placeholder was shown (then the reaction is cleared).
+    "digitando…" goes out at once and, with ``react_to``, the incoming message
+    gets 👀; that is all the feedback by default. When the reply is out the
+    reaction is removed (👎 if something failed). Slow work can opt in to a
+    placeholder phrase (:func:`uva.progress.slow`), edited into the reply;
+    ``now`` shows one immediately.
     """
     await react(bot, chat_id, react_to, RECEIVED)
     stop = asyncio.Event()
@@ -165,5 +165,5 @@ async def respond(
     await typing
     if react_to is not None:
         failed = any(r.failed for r in replies)
-        await react(bot, chat_id, react_to, FAILED if failed else (None if sink.posted else DONE))
+        await react(bot, chat_id, react_to, FAILED if failed else None)
     return replies

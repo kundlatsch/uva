@@ -1,11 +1,13 @@
 """Early feedback while a message is being handled.
 
 The transport (Telegram, the dashboard) sets ``progress_sink`` for one
-message. Then:
+message. By default nothing is posted while the work runs: Telegram shows
+"typing…" and a reaction on the incoming message. Then:
 
-* if the reply isn't ready after ``PLACEHOLDER_AFTER`` seconds, the transport
-  shows a ready-made phrase for the current activity ("🤔 Pensando…",
-  "⚙️ Rodando…") and the final reply replaces it (Telegram edits that same
+* work that knows it takes long (a command or action with ``placeholder``
+  set, or code calling :func:`slow`) opts in to a placeholder message: a
+  ready-made phrase for the current activity ("🤔 Pensando…", "⚙️ Rodando…")
+  shown right away, which the final reply replaces (Telegram edits that same
   message);
 * code that knows what it is doing calls :func:`activity` ("executando",
   "procurando"...): the phrase follows it, and an already visible placeholder
@@ -21,14 +23,13 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import Protocol
 
-# Seconds before a placeholder appears (fast replies don't flash one).
-PLACEHOLDER_AFTER = 0.7
-
 
 class ProgressSink(Protocol):
     async def send(self, text: str, keep: bool = False) -> None: ...
 
     async def set_activity(self, category: str) -> None: ...
+
+    async def show_placeholder(self) -> None: ...
 
 
 progress_sink: ContextVar[ProgressSink | None] = ContextVar("uva_progress_sink", default=None)
@@ -57,6 +58,22 @@ async def activity(category: str) -> None:
         pass
 
 
+async def slow(category: str | None = None) -> None:
+    """This work takes a while: show a placeholder now (for ``category`` if given).
+
+    Opt-in: without it the user only sees the reaction and "typing…".
+    """
+    sink = progress_sink.get()
+    if sink is None:
+        return
+    try:
+        if category:
+            await sink.set_activity(category)
+        await sink.show_placeholder()
+    except Exception:
+        pass
+
+
 class LiveSink:
     """Placeholder logic shared by the transports; they implement _post/_edit.
 
@@ -69,6 +86,7 @@ class LiveSink:
         self.activity = activity
         self.handle = None  # the replaceable message
         self.posted = False  # anything shown at all
+        self.wanted = False  # the work opted in to a placeholder (slow())
         import asyncio
 
         self._lock = asyncio.Lock()
@@ -100,7 +118,8 @@ class LiveSink:
             self.handle = None
         else:
             await self._post(text)
-        self.handle = await self._post(self.say(self.activity))
+        if self.wanted:
+            self.handle = await self._post(self.say(self.activity))
 
     async def set_activity(self, category: str) -> None:
         async with self._lock:
@@ -112,7 +131,8 @@ class LiveSink:
 
     async def show_placeholder(self) -> None:
         async with self._lock:
-            if not self.posted:
+            self.wanted = True
+            if self.handle is None:
                 await self._send(self.say(self.activity), False)
 
     async def deliver(self, messages: list) -> None:
@@ -131,7 +151,7 @@ class LiveSink:
 
 
 async def with_feedback(sink: LiveSink, work):
-    """Run the ``work`` coroutine; a placeholder shows up if it takes a while."""
+    """Run the ``work`` coroutine with ``sink`` listening for progress."""
     import asyncio
 
     token = progress_sink.set(sink)
@@ -139,10 +159,4 @@ async def with_feedback(sink: LiveSink, work):
         task = asyncio.ensure_future(work)  # copies the context: the sink is visible inside
     finally:
         progress_sink.reset(token)
-    done, _ = await asyncio.wait({task}, timeout=PLACEHOLDER_AFTER)
-    if not done:
-        try:
-            await sink.show_placeholder()
-        except Exception:
-            pass
     return await task

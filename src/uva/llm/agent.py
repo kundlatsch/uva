@@ -22,7 +22,7 @@ from uva.llm.plan import PLAN_SCHEMA, PlanError, parse_plan
 from uva.llm.prompts import assistant_system_prompt, message_context
 from uva.mcp.catalog import sync_actions
 from uva.memory.service import render_memory
-from uva.progress import activity, placeholder
+from uva.progress import activity, placeholder, slow as show_placeholder
 from uva import provenance
 from uva.recall import recall
 from uva.logging import get_logger
@@ -191,6 +191,10 @@ class Agent:
             await activity(SLOW_ACTIONS[slow[0].name])
             if plan.reply.strip() and await placeholder(plan.reply, keep=True):
                 said = ""
+        # Actions that know they take long opt in to a placeholder message.
+        wanted = [a.placeholder for a, _ in calls if a.placeholder and not (a.long_running and services.tasks)]
+        if wanted:
+            await show_placeholder(wanted[0])
         results = [await self._run(action, params, ctx) for action, params in calls]
 
         parts = reply_parts(said, results) or [services.say("confirmacao")]
