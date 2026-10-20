@@ -42,6 +42,12 @@ async def collect_status(services: Services) -> list[str]:
         if line:
             lines.append(line)
 
+    if services.vectors is not None:
+        try:
+            lines.append(t("commands.status.vectors", count=await services.vectors.count()))
+        except Exception:
+            lines.append(t("commands.status.vectors_unavailable"))
+
     lines.extend(await describe_spend(services))
     from uva.profile import usage
 

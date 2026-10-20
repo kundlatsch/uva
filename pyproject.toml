@@ -29,6 +29,8 @@ dependencies = [
     "python-docx==1.2.0",
     # Web pages as text (uva/web/fetch.py).
     "trafilatura==2.3.1",
+    # Hybrid search (SEARCH_EMBEDDINGS=on): vectors in SQLite (uva/index/vectors.py).
+    "sqlite-vec==0.1.9",
 ]
 
 [project.optional-dependencies]

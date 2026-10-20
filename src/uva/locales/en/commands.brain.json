@@ -35,6 +35,7 @@
   "reindexar": {
     "description": "Rebuilds the search index (notes, memory, goals, conversations)",
     "unavailable": "The search index is unavailable (SQLite).",
-    "done": "🔎 Index rebuilt: {notes} notes, {memory} memories, {goals} goals, {turns} conversation turns."
+    "done": "🔎 Index rebuilt: {notes} notes, {memory} memories, {goals} goals, {turns} conversation turns.",
+    "vectors": "🧭 Embeddings rebuilt: {count} chunks."
   }
 }

@@ -7,5 +7,7 @@
   "status": {
     "description": "Services, uptime, queue and spending"
   },
-  "worker": "Worker + scheduler"
+  "worker": "Worker + scheduler",
+  "vectors": "🧭 Hybrid search: {count} embedded chunks",
+  "vectors_unavailable": "🧭 Hybrid search: unavailable"
 }

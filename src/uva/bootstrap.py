@@ -79,6 +79,9 @@ def build_services(settings: Settings) -> Services:
     sqlite_db = Database(Path(settings.sqlite_path))
     services.sqlite = sqlite_db
     services.index = SearchIndex(sqlite_db, services.vault)
+    from uva.index.vectors import build_vectors
+
+    services.vectors = build_vectors(settings, sqlite_db, usage)
     services.skills = SkillLibrary(settings.skills_dir, sqlite_db)
     if llm is not None and llm.soul is not None:
         llm.soul.skills = services.skills  # the index goes right after the soul
@@ -228,7 +231,13 @@ async def rebuild_index(services: Services) -> dict[str, int]:
     assert services.index is not None
     memory = await services.memory.store.all() if services.memory is not None else []
     goals = await services.goals.list() if services.goals is not None else []
-    return await services.index.rebuild(memory, goals)
+    result = await services.index.rebuild(memory, goals)
+    if services.vectors is not None:  # /reindexar rebuilds the embeddings too
+        try:
+            result["vectors"] = (await services.vectors.rebuild())["embedded"]
+        except Exception as exc:
+            log.warning("vectors_rebuild_failed", error=str(exc))
+    return result
 
 
 async def _redis_ping(redis: Redis) -> bool:

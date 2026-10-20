@@ -7,5 +7,7 @@
   "status": {
     "description": "Serviços, uptime, fila e gastos"
   },
-  "worker": "Worker + agendador"
+  "worker": "Worker + agendador",
+  "vectors": "🧭 Busca híbrida: {count} trechos com embedding",
+  "vectors_unavailable": "🧭 Busca híbrida: indisponível"
 }

@@ -142,7 +142,9 @@ def register(registry: CommandRegistry) -> None:
         from uva.bootstrap import rebuild_index
 
         result = await rebuild_index(ctx.services)
-        return t("commands.brain.reindexar.done", **result)
+        vectors = result.pop("vectors", None)
+        text = t("commands.brain.reindexar.done", **result)
+        return text + ("\n" + t("commands.brain.reindexar.vectors", count=vectors) if vectors is not None else "")
 
 
 async def search_notes(services, term: str) -> list[tuple[str, str]]:

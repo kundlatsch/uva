@@ -275,7 +275,13 @@ def index_sync() -> dict:
         services = await runtime.get_services()
         if services.index is None:
             return {}
-        return await services.index.sync_notes()
+        result = await services.index.sync_notes()
+        if services.vectors is not None:  # embeddings in batches, off the reply path
+            try:
+                result.update(await services.vectors.sync())
+            except Exception as exc:
+                log.warning("vectors_sync_failed", error=str(exc))
+        return result
 
     return runtime.run(job)
 

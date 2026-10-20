@@ -35,6 +35,7 @@
   "reindexar": {
     "description": "Refaz o índice de busca (notas, memória, objetivos, conversas)",
     "unavailable": "O índice de busca não está disponível (SQLite).",
-    "done": "🔎 Índice refeito: {notes} notas, {memory} memórias, {goals} objetivos, {turns} falas de conversa."
+    "done": "🔎 Índice refeito: {notes} notas, {memory} memórias, {goals} objetivos, {turns} falas de conversa.",
+    "vectors": "🧭 Embeddings refeitos: {count} trechos."
   }
 }

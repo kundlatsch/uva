@@ -106,6 +106,7 @@ class Recall:
     # from the data sections (uva/intents.py).
     intents: str = ""
     intent_ids: list[int] = field(default_factory=list)
+    text: str = ""  # the message, for the embedding query (hybrid search)
 
     def render(self) -> str:
         return "\n\n".join(self.sections)
@@ -148,7 +149,7 @@ async def recall(services: Services, text: str, *, intents: bool = False) -> Rec
     if past_window(text, services.tz)[0]:
         # "o que eu te falei sobre Lisboa semana passada": look for "lisboa".
         words = [w for w in words if w not in EPISODE_WORDS]
-    found = Recall()
+    found = Recall(text=text)
     if intents:
         try:
             await _intents(services, text, found)
@@ -191,7 +192,13 @@ async def _memory(services: Services, words: list[str], found: Recall) -> None:
         return
     working = {i.key for i in await services.memory.working_memory()}
     items = []
-    if services.index is not None and await services.index.count("memory"):
+    if (refs := await _hybrid(services, words, found.text, "memory", MAX_MEMORY * 2)) is not None:
+        for key in refs:
+            if key not in working and (item := await services.memory.get(key)) is not None:
+                items.append(item)
+            if len(items) >= MAX_MEMORY:
+                break
+    elif services.index is not None and await services.index.count("memory"):
         for hit in await services.index.search(words, kinds=("memory",), limit=MAX_MEMORY * 3):
             if hit.ref in working:
                 continue  # already in the prompt
@@ -235,8 +242,23 @@ def _score_notes(vault: Vault, words: list[str]) -> list[tuple[int, str]]:
     return scored[:MAX_NOTES]
 
 
-async def _indexed_notes(services: Services, words: list[str]) -> list[str]:
+async def _hybrid(services: Services, words: list[str], text: str, kind: str, limit: int) -> list[str] | None:
+    """Refs ranked by bm25 + meaning (uva/index/vectors.py); None = FTS only."""
+    if services.vectors is None or services.index is None or not text.strip():
+        return None
+    from uva.index.vectors import rank
+
+    near = await services.vectors.nearest(text, (kind,), limit)
+    if not near:
+        return None  # embeddings off for this call (failed, or nothing embedded yet)
+    fts = await services.index.search(words, kinds=(kind,), limit=limit * 3) if words else []
+    return [r.ref for r in rank(fts, near, limit=limit)]
+
+
+async def _indexed_notes(services: Services, words: list[str], text: str = "") -> list[str]:
     assert services.index is not None
+    if (refs := await _hybrid(services, words, text, "note", MAX_NOTES * 2)) is not None:
+        return [ref for ref in refs if not ref.startswith(ARCHIVE_PREFIX)][:MAX_NOTES]
     paths = []
     for hit in await services.index.search(words, kinds=("note",), limit=MAX_NOTES * 6):
         if hit.ref.startswith(ARCHIVE_PREFIX) or not _good_enough(words, hit.title, hit.body):
@@ -252,7 +274,7 @@ async def _notes(services: Services, words: list[str], found: Recall) -> None:
     if vault is None:
         return
     if services.index is not None and await services.index.count("note"):
-        paths = await _indexed_notes(services, words)
+        paths = await _indexed_notes(services, words, found.text)
     else:
         paths = [path for _, path in await asyncio.to_thread(_score_notes, vault, words)]
     blocks = []

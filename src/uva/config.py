@@ -97,6 +97,14 @@ class Settings(BaseSettings):
     # USD per audio minute; empty = the built-in table for the model.
     transcribe_price_per_minute: float | None = None
 
+    # Hybrid search: embeddings next to the full-text index (off by default). Needs an
+    # OpenAI-compatible endpoint: EMBEDDING_API_KEY, or LLM_API_KEY with that provider.
+    search_embeddings: bool = False
+    embedding_model: str = "text-embedding-3-small"
+    embedding_api_key: SecretStr | None = None
+    embedding_base_url: str | None = None
+    embedding_price_per_1m: float = 0.02  # USD per 1M input tokens
+
     # Reading links (web_fetch): text kept per page; bare links in a message are read
     # before the LLM answers (at most this many).
     web_fetch_max_chars: int = 12000

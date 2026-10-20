@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from uva.commands.registry import CommandRegistry
     from uva.goals.store import GoalStore
     from uva.index.service import SearchIndex
+    from uva.index.vectors import VectorIndex
     from uva.initiatives import InitiativeStore
     from uva.llm.budget import Budget
     from uva.llm.client import LLMClient
@@ -66,6 +67,8 @@ class Services:
     memory: MemoryService | None = None
     # Full-text index over notes, memory, goals and the conversation log.
     index: SearchIndex | None = None
+    # Embeddings for hybrid search (SEARCH_EMBEDDINGS=on), None when off.
+    vectors: VectorIndex | None = None
     # Procedural memory: data/skills/<name>/SKILL.md.
     skills: SkillLibrary | None = None
     # The SQLite database (expenses, stickers, index, incidents...).
