@@ -24,7 +24,9 @@
     "goals": "Active goals: {count} · next: \"{title}\" at {at}",
     "no_goals": "Active goals: none",
     "recent": "Latest initiatives:",
-    "now_hint": "/proactive now → sends an initiative right away (only the budget applies)"
+    "now_hint": "/proactive now → sends an initiative right away (only the budget applies)",
+    "radar": "📡 Radar (data/radar.md):\n{radar}",
+    "no_radar": "📡 No radar yet: write data/radar.md with what you want me to watch."
   },
   "reply": {
     "nothing": "I looked at everything and found nothing worth interrupting you for right now.",

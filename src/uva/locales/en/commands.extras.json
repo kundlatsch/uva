@@ -1,0 +1,44 @@
+{
+  "aparte": {
+    "description": "A quick side question: answered with the conversation as context, and not kept",
+    "usage_arg": "<question>",
+    "usage": "Usage: /btw <question> (answered on the side; not kept in the conversation)",
+    "reply": "↪️ {text}",
+    "no_llm": "Side questions need the LLM, and it isn't configured."
+  },
+  "custo": {
+    "description": "Shows (on) or hides (off) the tokens and US$ under each answer",
+    "usage_arg": "on|off",
+    "on": "💲 From now on each answer shows its tokens and cost (this session). /usage off hides it.",
+    "off": "Ok, no more cost footer.",
+    "state_on": "The cost footer is on. /usage off hides it.",
+    "state_off": "The cost footer is off. /usage on shows tokens and US$ under each answer.",
+    "no_stm": "The cost footer needs the short-term memory (Redis).",
+    "footer": "💲 {tokens} tokens · US$ {cost}"
+  },
+  "doctor": {
+    "description": "Checks the setup (.env, services, index, sizes, MCP, disk) and says how to fix problems",
+    "title": "🩺 Setup check",
+    "ok": {
+      "env": ".env matches .env.example ({missing} optional settings left at their defaults)",
+      "service": "{name} is up",
+      "index": "search index: {indexed} notes, the vault has {notes}",
+      "vectors": "hybrid search: {count} embedded chunks",
+      "size": "{name}: {chars}/{limit} characters",
+      "mcp": "MCP: {line}",
+      "disk": "disk ({name}): {free} GB free, {used}% used"
+    },
+    "problem": {
+      "env_unknown": ".env has settings .env.example doesn't know: {keys}. Fix: check the names (a typo means the default is used).",
+      "env_missing": "no .env or .env.example in the repository. Fix: copy .env.example to .env and fill it in.",
+      "service": "{name} is down. Fix: docker compose up -d (and docker compose logs for the reason).",
+      "index": "search index has {indexed} notes but the vault has {notes}. Fix: /reindex.",
+      "index_error": "the search index could not be read ({error}). Fix: /reindex.",
+      "vectors": "hybrid search is on but its table can't be read ({error}). Fix: /reindex.",
+      "size": "{name} is over its limit ({chars}/{limit}). Fix: /profile consolidate (or trim it by hand).",
+      "mcp_config": "data/mcp.json has an error: {error}. Fix: correct it and /mcp reload.",
+      "mcp_down": "the MCP gateway doesn't answer ({error}). Fix: docker compose up -d mcp.",
+      "disk": "disk ({name}) is almost full: {free} GB free, {used}% used. Fix: free some space (docker system prune, old backups)."
+    }
+  }
+}

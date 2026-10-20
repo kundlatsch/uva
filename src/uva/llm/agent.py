@@ -63,6 +63,8 @@ class Agent:
         self.services = services
         self.run_command = run_command
         self.history: deque[LLMMessage] = deque(maxlen=services.settings.llm_history_messages)
+        # Labels of messages that joined the current turn between lookup rounds.
+        self.steered: list[str] = []
 
     async def handle(
         self, text: str, image: str | None = None, skill: Skill | None = None, note: str = "",
@@ -82,6 +84,7 @@ class Agent:
                 await emit(EventType.BUDGET, scope=INTERACTIVE.value, blocked=True, reason=status.reason)
                 return Reply(f"{services.say('sem_credito')}\n({status.reason})")
 
+        self.steered = []
         await sync_actions(services)  # MCP tools: cheap check, rebuilt only when changed
         actions = list(services.actions)
         history, recent_context, mode = await self._session_context()
@@ -157,10 +160,14 @@ class Agent:
             await emit(EventType.ROUTE, tier="llm", plan=plan.model_dump(), image=image is not None, round=round_)
             lookups_only = bool(calls) and all(action.lookup for action, _ in calls)
             if not lookups_only or round_ == MAX_LOOKUP_ROUNDS:
+                if services.steer is not None:
+                    services.steer.take()  # closed: later messages get a turn of their own
                 break
             # Only reading: hand what was found back to the LLM so it answers now,
             # instead of replying "want me to open the note?".
             await activity("procurando")
+            if services.steer is not None:
+                services.steer.begin()  # what he sends now joins the next call
             looked = [await self._run(action, params, ctx) for action, params in calls]
             found_text = "\n\n".join(
                 f"[{action.name} {params.model_dump_json()}]\n{result.text}"
@@ -172,7 +179,8 @@ class Agent:
                 LLMMessage(
                     "user",
                     "Results of your lookups (the user has not seen them yet):\n"
-                    f"{as_data('lookup results', found_text)}\n\nNow answer his message using them.",
+                    f"{as_data('lookup results', found_text)}\n\nNow answer his message using them."
+                    + self._steered(),
                 ),
             ]
 
@@ -190,6 +198,17 @@ class Agent:
         reply.buttons = [b for r in results for b in r.buttons]
         self._remember(text, reply.text)
         return reply
+
+    def _steered(self) -> str:
+        """Messages he sent while the lookups ran (they are part of this turn now)."""
+        steer = self.services.steer
+        if steer is None:
+            return ""
+        texts, labels = steer.take()
+        self.steered += labels
+        if not texts:
+            return ""
+        return "\n\nHe added, while you were working (answer this too):\n" + "\n".join(texts)
 
     async def _read_links(self, links: list[str]) -> str:
         """The pages behind the links of his message, for the context block."""

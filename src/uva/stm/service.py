@@ -94,6 +94,12 @@ class ShortTermMemory:
         await self._update(change, user_id)
         return dropped[0] if dropped else 0
 
+    async def set_show_cost(self, on: bool, user_id: int | None = None) -> None:
+        def change(session: Session) -> None:
+            session.show_cost = on
+
+        await self._update(change, user_id)
+
     async def set_mode(self, mode: str | None, user_id: int | None = None) -> None:
         def change(session: Session) -> None:
             session.mode = mode

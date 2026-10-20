@@ -265,6 +265,8 @@ class Settings(BaseSettings):
 
     # Local dashboard (http://localhost:8080); optional password (HTTP Basic, any user).
     dashboard_password: SecretStr | None = None
+    # POST /hook/<name> on the dashboard (data/hooks.json); off while empty.
+    dashboard_hook_token: SecretStr | None = None
 
     # Author of the commits the bot makes in its own repository.
     git_author_name: str = "kundlatsch"

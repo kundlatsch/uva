@@ -24,7 +24,9 @@
     "goals": "Objetivos ativos: {count} · próximo: \"{title}\" às {at}",
     "no_goals": "Objetivos ativos: nenhum",
     "recent": "Últimas iniciativas:",
-    "now_hint": "/proativo agora → manda uma iniciativa já (respeita só o orçamento)"
+    "now_hint": "/proativo agora → manda uma iniciativa já (respeita só o orçamento)",
+    "radar": "📡 Radar (data/radar.md):\n{radar}",
+    "no_radar": "📡 Sem radar ainda: escreva no data/radar.md o que você quer que eu fique de olho."
   },
   "reply": {
     "nothing": "Olhei tudo e não achei nada que valesse te interromper agora.",

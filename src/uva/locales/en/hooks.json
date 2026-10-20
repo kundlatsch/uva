@@ -1,0 +1,5 @@
+{
+  "unknown": "no webhook named {name} in data/hooks.json",
+  "bad_file": "data/hooks.json is not valid JSON ({error})",
+  "head": "🪝 Webhook {name}:"
+}

@@ -87,6 +87,8 @@ src/uva/
   feedback.py     # his reactions on UVA's messages: topic blocks, liked topics, "not liked"
   labels.py       # turn labels in the bot's language ("[áudio] ...", "[foto]", "[encaminhada de ...]")
   questions.py    # questions with answer buttons (ask, blocked goals)
+  steering.py     # messages that join a turn between the agent's lookup rounds
+  hooks.py        # local webhooks (POST /hook/<name>, data/hooks.json)
   web/            # web_fetch: SSRF guard, page/PDF/JSON to text, link detection
   brain/related.py, brain/lint.py  # "## Relacionadas" links, the weekly brain check
   tasks/          # Celery: app, tasks, queue, "busy" lock
@@ -140,6 +142,9 @@ The bot replies in the language set by `BOT_LANGUAGE` (English by default; see [
 | `/decidir`, `/decide` `...` | probability, choice or score (OpenAI Decisions) |
 | `/log`, `/eventos` `[period] [type]` · `/log trace <id>` | what happened |
 | `/status`, `/estado` | services, uptime, queue, MCP and spending |
+| `/doctor`, `/diagnostico` | checks the setup (`.env` against `.env.example`, services, index vs vault, profile/soul sizes, MCP, worker heartbeat, disk space) and says how to fix each problem |
+| `/aparte`, `/btw` `<question>` | a quick side question, answered with the conversation as context; the reply starts with ↪️ and nothing is kept (short-term memory, conversation log, review) |
+| `/custo`, `/usage` `[on\|off]` | a footer with the tokens and US$ of each answer, for this session |
 | `/llm`, `/modelo`, `/model` | provider, models and LLM spending |
 | `/liberar`, `/unlock` `[amount in US$]` | extra LLM budget for today |
 | `/tarefas`, `/tasks` | recent background tasks |
@@ -398,7 +403,8 @@ Limits: at most `PROACTIVE_MAX_MESSAGES_PER_DAY` (8) per day, with `PROACTIVE_MI
 - 👎 on a routine or goal report tells the next run "the last output was not liked; do it differently".
 - The background review sees your reactions next to the turns.
 
-- `/proativo` (`/proactive`): status (on?, messages today, quiet hours, next initiative, goals, last initiatives).
+- **Radar**: `data/radar.md` (gitignored) is a short checklist of what you want watched ambiently ("- preço do Steam Deck", "- vagas de Rust remotas"); initiatives read it first, and `/proativo` shows it.
+- `/proativo` (`/proactive`): status (on?, messages today, quiet hours, next initiative, goals, last initiatives, radar).
 - `/proativo on` / `/proativo off`: turns initiatives on/off (goals keep running).
 - `/proativo agora` (`now`): sends an initiative right away (only the budget applies).
 - `/objetivos`, `/pausar <id>`, `/retomar <id>`, `/remover <id>`; `/log 1d goals` and `/log 1d iniciativas`.
@@ -641,6 +647,8 @@ Send audio (voice message, audio file or round video) and UVA transcribes it wit
 
 ## Telegram input: batches, quotes, forwards, documents
 
+**Steering.** A plain message you send while UVA is between lookup rounds (it read notes or a page and is about to answer) joins that turn: it goes into the next LLM call ("he added, while you were working") and gets a ✍ reaction instead of a turn of its own; it is kept with your message in the short-term memory and the log.
+
 **Batches.** Plain messages sent in a row wait `INBOUND_DEBOUNCE_MS` (300 ms) of quiet and go to the router as **one** turn (joined by newlines; the short-term memory and the conversation log keep one user turn). A message of 4000+ characters (a long paste Telegram split) waits up to 1.5 s, a forward 1 s; a batch never waits more than 7.5 s from its first message, and 12 messages or 50 000 characters send it at once. Commands, button presses, photos, audio, stickers and documents send what was waiting first, so the order is kept; `/parar` acts at once and the waiting messages go right after. `INBOUND_DEBOUNCE_MS=0` turns batching off (`uva/inbound.py`).
 
 **Photo albums.** The photos of one album (Telegram `media_group_id`) arrive as separate messages; they wait 0.5 s and become one turn: the caption with every photo, or a description of all of them.
@@ -701,6 +709,8 @@ The `dashboard` service serves a dashboard at **http://localhost:8080**, only on
   - every LLM call, with the system prompt (rules, actions, memory), the messages sent (the last one starts with the per-message context: time, recent context, recall), the raw answer, tokens, cost and time.
 - **Logs**: events filterable by period, type, trace and text.
 - **Environment**: the settings in use, read only, with keys, tokens and passwords masked.
+
+**Local webhooks.** With `DASHBOARD_HOOK_TOKEN` set, `POST http://localhost:8080/hook/<name>` (header `X-UVA-Token: <token>` or `Authorization: Bearer <token>`; the dashboard password does not apply) runs what `data/hooks.json` (gitignored) says for that name: `{"backup": {"notice": "💾 Backup feito: {body}"}}` sends the text with the body in it; `{"nas": {"request": "vê o disco do NAS e me avisa se passar de 90%", "skill": ""}}` runs the request through the router like a routine (a proactive run, the body as data in its context, `[SILENT]` sends nothing). Unknown names get 404; the call is queued for the worker (202). Only this computer reaches the port (`127.0.0.1`).
 
 ## Instant feedback
 

@@ -129,6 +129,14 @@ class CallbackIn(BaseModel):
     data: str
 
 
+async def queue_hook(name: str, body: str) -> None:
+    import asyncio
+
+    from uva.tasks.app import app as celery
+
+    await asyncio.to_thread(celery.send_task, "uva.hook", kwargs={"name": name, "body": body})
+
+
 def create_app(settings: Settings | None = None, services=None, db=None) -> FastAPI:
     """``services``/``db`` are for tests; normally built at startup from settings."""
     settings = settings or (services.settings if services is not None else get_settings())
@@ -150,7 +158,8 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
     @app.middleware("http")
     async def auth(request: Request, call_next):
         password = settings.dashboard_password
-        if password is not None and password.get_secret_value():
+        hook = request.url.path.startswith("/hook/")  # webhooks have their own token
+        if not hook and password is not None and password.get_secret_value():
             header = request.headers.get("authorization", "")
             ok = False
             if header.lower().startswith("basic "):
@@ -276,6 +285,24 @@ def create_app(settings: Settings | None = None, services=None, db=None) -> Fast
             "projects_today": round(projects_today, 4),
             "expenses": await _expenses(s),
         }
+
+    @app.post("/hook/{name}")
+    async def hook(name: str, request: Request) -> JSONResponse:
+        """A local webhook: queued for the worker (uva/hooks.py)."""
+        from uva import hooks
+
+        token = settings.dashboard_hook_token
+        expected = token.get_secret_value() if token is not None else ""
+        given = request.headers.get("x-uva-token", "") or request.headers.get("authorization", "").removeprefix("Bearer ")
+        if not expected or not secrets.compare_digest(given.encode(), expected.encode()):
+            return JSONResponse({"error": "token"}, status_code=401)
+        try:
+            hooks.find(settings, name)
+        except hooks.HookError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=404)
+        body = (await request.body())[: hooks.MAX_BODY * 4].decode("utf-8", errors="replace")
+        await queue_hook(name, body)
+        return JSONResponse({"queued": name}, status_code=202)
 
     @app.post("/api/liberar")
     async def liberar(body: dict) -> dict[str, Any]:

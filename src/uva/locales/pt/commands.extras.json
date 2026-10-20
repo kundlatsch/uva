@@ -1,0 +1,44 @@
+{
+  "aparte": {
+    "description": "Uma pergunta de lado: respondida com a conversa como contexto, e não guardada",
+    "usage_arg": "<pergunta>",
+    "usage": "Uso: /aparte <pergunta> (respondida de lado; não entra na conversa)",
+    "reply": "↪️ {text}",
+    "no_llm": "Perguntas de lado precisam do LLM, e ele não está configurado."
+  },
+  "custo": {
+    "description": "Mostra (on) ou esconde (off) os tokens e US$ embaixo de cada resposta",
+    "usage_arg": "on|off",
+    "on": "💲 A partir de agora cada resposta mostra seus tokens e custo (nesta sessão). /custo off esconde.",
+    "off": "Ok, sem rodapé de custo.",
+    "state_on": "O rodapé de custo está ligado. /custo off esconde.",
+    "state_off": "O rodapé de custo está desligado. /custo on mostra tokens e US$ embaixo de cada resposta.",
+    "no_stm": "O rodapé de custo precisa da memória de curto prazo (Redis).",
+    "footer": "💲 {tokens} tokens · US$ {cost}"
+  },
+  "doctor": {
+    "description": "Confere a instalação (.env, serviços, índice, tamanhos, MCP, disco) e diz como corrigir",
+    "title": "🩺 Checagem da instalação",
+    "ok": {
+      "env": ".env bate com o .env.example ({missing} opções deixadas no padrão)",
+      "service": "{name} no ar",
+      "index": "índice de busca: {indexed} notas, o cofre tem {notes}",
+      "vectors": "busca híbrida: {count} trechos com embedding",
+      "size": "{name}: {chars}/{limit} caracteres",
+      "mcp": "MCP: {line}",
+      "disk": "disco ({name}): {free} GB livres, {used}% usado"
+    },
+    "problem": {
+      "env_unknown": "o .env tem opções que o .env.example não conhece: {keys}. Correção: confira os nomes (com erro de digitação vale o padrão).",
+      "env_missing": "não há .env ou .env.example no repositório. Correção: copie o .env.example para .env e preencha.",
+      "service": "{name} fora do ar. Correção: docker compose up -d (e docker compose logs para ver o motivo).",
+      "index": "o índice de busca tem {indexed} notas, mas o cofre tem {notes}. Correção: /reindexar.",
+      "index_error": "não consegui ler o índice de busca ({error}). Correção: /reindexar.",
+      "vectors": "a busca híbrida está ligada mas a tabela não abre ({error}). Correção: /reindexar.",
+      "size": "{name} passou do limite ({chars}/{limit}). Correção: /perfil consolidar (ou enxugue à mão).",
+      "mcp_config": "o data/mcp.json tem um erro: {error}. Correção: arrume e rode /mcp recarregar.",
+      "mcp_down": "o gateway MCP não responde ({error}). Correção: docker compose up -d mcp.",
+      "disk": "o disco ({name}) está quase cheio: {free} GB livres, {used}% usado. Correção: libere espaço (docker system prune, backups antigos)."
+    }
+  }
+}

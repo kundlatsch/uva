@@ -33,7 +33,7 @@ from uva.audio import TELEGRAM_DOWNLOAD_LIMIT
 from uva.llm.budget import Scope
 from uva.media import to_data_url
 from uva.replies import Reply
-from uva.telegram_io import bot_commands, keyboard, respond, send_reply, send_text
+from uva.telegram_io import bot_commands, keyboard, react, respond, send_reply, send_text
 from uva.tts import SpeechError, should_speak
 
 log = get_logger(__name__)
@@ -95,6 +95,9 @@ def build_application(settings: Settings, services: Services) -> Application:
             async def handle(items: list[Inbound]) -> None:
                 composed = compose(items, tz)
                 last = composed.message_ids[-1] if composed.message_ids else None
+                if not composed.context and services.steer.offer(composed.text, composed.label):
+                    await react(bot, chat_id, last if settings.telegram_reactions else None, "✍")
+                    return  # it joined the turn in progress
                 work = router.handle_text(composed.text, user_id=user_id, inbound=composed)
                 try:
                     await turn(bot, chat_id, work, composed.label or label("forward"), message_id=last,
@@ -145,6 +148,9 @@ def build_application(settings: Settings, services: Services) -> Application:
                    message_id=first.message_id, react_to=reaction_target(first))
 
     journal = journal_for(services)
+    from uva.steering import SteerBox
+
+    services.steer = SteerBox()  # messages sent between the agent's lookup rounds join that turn
 
     async def ask_about_interrupted(app: Application) -> None:
         """Turns a shutdown cut short: ask once whether to redo each (never on its own)."""

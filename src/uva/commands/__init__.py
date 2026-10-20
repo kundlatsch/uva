@@ -10,6 +10,7 @@ from uva.commands import (
     context,
     decide,
     expenses,
+    extras,
     features,
     goals,
     intents,
@@ -38,6 +39,7 @@ from uva.commands.registry import Command, CommandContext, CommandRegistry
 _MODULES = (
     builtin,
     session,
+    extras,
     brain,
     memory,
     stickers,

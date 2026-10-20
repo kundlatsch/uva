@@ -50,6 +50,7 @@ class Session(BaseModel):
     counter: int = 0
     last_activity: datetime = Field(default_factory=utcnow)
     mode: str | None = None  # /modo overlay for this session
+    show_cost: bool = False  # /custo on: a tokens/US$ footer under each answer
 
     @property
     def has_active_refs(self) -> bool:

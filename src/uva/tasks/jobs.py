@@ -267,6 +267,23 @@ def brain_lint() -> int:
     return runtime.run(job)
 
 
+@app.task(name="uva.hook")
+def hook(name: str, body: str) -> str:
+    """POST /hook/<name> on the dashboard: a notice, or a request run like a routine."""
+    from uva.hooks import run_hook
+
+    async def job() -> str:
+        notice_source.set("hook")
+        turn_source.set("hook")
+        return await run_hook(await runtime.get_services(), name, body, runtime.notify)
+
+    try:
+        return runtime.run(job)
+    except Exception as exc:
+        _notify_failure(t("tasks.jobs.what.hook", name=name), exc)
+        raise
+
+
 @app.task(name="uva.index_sync")
 def index_sync() -> dict:
     """Pick up notes edited outside UVA (Obsidian) and drop deleted ones."""

@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from uva.projects.service import ProjectService
     from uva.shell.service import ShellService
     from uva.skills import SkillLibrary
+    from uva.steering import SteerBox
     from uva.storage.sqlite import Database
     from uva.tts import Speaker
     from uva.turns import TurnTracker
@@ -101,6 +102,8 @@ class Services:
     # Notes read in this process (path -> mtime then): a write is refused when the
     # file changed since (an Obsidian edit), so it is read again first.
     note_reads: dict[str, float] = field(default_factory=dict)
+    # Messages that arrive while the agent is between lookup rounds (bot process only).
+    steer: SteerBox | None = None
     # Called after code in the repo changed (e.g. a reverted plugin).
     on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
     # Ready-made phrases in the bot's voice; defaults to data/fallback_phrases.json.

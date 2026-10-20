@@ -35,10 +35,13 @@ from uva.replies import Button, Reply
 from uva.services import Services
 from uva.audio import TranscriptionError
 from uva.llm.budget import Scope
+from uva.llm.client import metered
 from uva.stm.status import refresh, status_reply
 
 CONFIRM_TTL = timedelta(minutes=10)
 UNDO_TURN = ("/desfazer_turno", "/undo_turn")
+# A side question (/aparte): never kept in the short-term memory or the log.
+ASIDE = ("/aparte", "/btw")
 PAGES_TTL = timedelta(hours=1)
 PAGES_KEPT = 20
 HEARD_CHARS = 800
@@ -125,8 +128,13 @@ class Router:
                     work = self.agent.handle(text.strip(), image=photo, images=images, note=note)
                 else:
                     work = self._route(text.strip(), user_id, photo, skill, note, images)
-                with provenance.incoming("forward" if inbound is not None and inbound.external else ""):
+                with provenance.incoming("forward" if inbound is not None and inbound.external else ""), \
+                        metered() as meter:
                     reply = await self._safely(work)
+                if self.agent.steered:  # messages that joined this turn between lookup rounds
+                    shown = "\n".join([shown, *self.agent.steered])
+                    self.agent.steered = []
+                await self._cost_footer(reply, meter)
                 external = inbound.external if inbound is not None else ""
                 own = inbound.text if inbound is not None else text
                 if photo:
@@ -146,6 +154,23 @@ class Router:
         if question is None or not question.open():
             return None
         return await self._answer(question, text.strip(), user_id)
+
+    async def _cost_footer(self, reply: Reply, meter) -> None:
+        """/custo on: tokens and US$ of this answer under it."""
+        if self.services.stm is None or not meter.total:
+            return
+        try:
+            if not (await self.services.stm.session()).show_cost:
+                return
+        except Exception:
+            return
+        footer = t("commands.extras.custo.footer", tokens=f"{meter.total:,}".replace(",", "."),
+                   cost=f"{meter.cost_usd:.4f}")
+        reply.text = f"{reply.text}\n\n{footer}"
+        if reply.parts:
+            reply.parts[-1] = f"{reply.parts[-1]}\n\n{footer}"
+        if reply.pages:
+            reply.pages[-1] = f"{reply.pages[-1]}\n\n{footer}"
 
     async def _focus_quoted(self, inbound: Composed) -> None:
         """A reply quoting one of UVA's notices: focus moves to what it was about."""
@@ -395,8 +420,8 @@ class Router:
         """Keep the exchange in the short-term memory (``text``) and in the
         conversation log (``logged``, his own words, plus ``external``: forwards
         and documents, with origin "external"), best effort."""
-        if text.strip().lower().split(" ", 1)[0] in UNDO_TURN:
-            return  # undoing the last exchange must not leave a new one behind
+        if text.strip().lower().split(" ", 1)[0] in UNDO_TURN + ASIDE:
+            return  # undoing the last exchange (or a side question) leaves nothing behind
         said = reply.summary or reply.text
         index = self.services.index
         if index is not None:

@@ -6,6 +6,7 @@
     "proactive": "The proactive loop",
     "selfcode": "Self-coding of feature {id}",
     "project": "Project {id}",
-    "routines": "The routines"
+    "routines": "The routines",
+    "hook": "the webhook {name}"
   }
 }

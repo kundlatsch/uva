@@ -49,3 +49,6 @@ node_modules/
 # Skills (procedural memory) are personal too; changes are versioned in data/.versions/.
 /data/skills/
 /data/.versions/
+# What UVA watches for you (initiatives read it first), and local webhooks: personal
+/data/radar.md
+/data/hooks.json

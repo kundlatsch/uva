@@ -260,6 +260,8 @@ async def _decide(services: Services, now: datetime, avoid: str = "") -> Decisio
 async def _context(services: Services, now: datetime) -> str:
     tz = services.tz
     parts = [f"Now: {format_local(now, tz, '%A %d/%m %H:%M')}"]
+    if radar := read_radar(services):
+        parts.append("Radar (what he wants watched; look at these first):\n" + radar)
     if services.memory is not None:
         try:
             memory = render_memory(await services.memory.working_memory())
@@ -302,6 +304,18 @@ async def _context(services: Services, now: datetime) -> str:
     if blocked:
         parts.append("Topics he disliked (👎): never these:\n" + "\n".join(f"- {x}" for x in blocked[:10]))
     return "\n\n".join(parts)
+
+
+RADAR_CHARS = 2000
+
+
+def read_radar(services: Services) -> str:
+    """data/radar.md: a short checklist of what he wants watched ('' when missing)."""
+    path = services.settings.repo_dir / "data" / "radar.md"
+    try:
+        return path.read_text(encoding="utf-8").strip()[:RADAR_CHARS]
+    except OSError:
+        return ""
 
 
 async def describe_status(services: Services, now: datetime | None = None) -> str:
@@ -350,6 +364,8 @@ async def describe_status(services: Services, now: datetime | None = None) -> st
         if recent:
             lines.append("\n" + t("initiatives.status.recent"))
             lines += [f"- {format_local(r.at, tz, '%d/%m %H:%M')} {r.kind}: {(r.topic or r.message)[:70]}" for r in recent]
+    radar = read_radar(services)
+    lines.append("\n" + (t("initiatives.status.radar", radar=radar) if radar else t("initiatives.status.no_radar")))
     lines.append("\n" + t("initiatives.status.now_hint"))
     return "\n".join(lines)
 
