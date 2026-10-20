@@ -40,7 +40,7 @@ PLAN_FORMAT = '{"actions": [{"type": "<action name>", "params": {...}}], "reply"
 FULL_SCHEMA_ACTIONS = frozenset({
     "reply", "run_command", "search", "note_create", "note_append", "note_read",
     "note_search", "note_update", "recall", "memory_save", "memory_update",
-    "feature_request", "shell_run", "goal_create", "routine_create", "reminder_create", "expense_add",
+    "feature_request", "shell_run", "goal_create", "routine_create", "reminder_create", "intent_create", "expense_add",
     "action_help", "skill_read",
 })
 

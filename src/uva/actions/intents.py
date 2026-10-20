@@ -12,7 +12,10 @@ from uva.logging.events import EventType, current_trace_id, emit
 
 
 class IntentCreateParams(BaseModel):
-    text: str = Field(description="What to do when it comes up, in his words (e.g. 'lembrar do passaporte')")
+    text: str = Field(
+        description="What to do when it comes up, short, in his words and his language "
+        "(e.g. 'lembrar de conferir a validade do passaporte')"
+    )
     triggers: list[list[str] | str] = Field(
         description="Entries; each entry is a list of terms that must ALL appear in a message "
         "(e.g. [['viagem'], ['passaporte', 'vencendo']]); a string is one term"
@@ -21,7 +24,9 @@ class IntentCreateParams(BaseModel):
     cooldown_hours: float = Field(default=24, ge=0, description="Hours before it can fire again")
     expires_days: float = Field(default=90, ge=1, le=3650, description="Days until it expires")
     scope: Literal["messages", "results"] = Field(
-        default="messages", description="messages: his messages; results: research and goal results"
+        default="messages",
+        description="messages (the usual): when HE mentions it in a message. results: only when he asks "
+        "to be told when a research or goal RESULT mentions it",
     )
 
 
