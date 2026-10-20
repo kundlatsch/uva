@@ -88,6 +88,7 @@ src/uva/
   labels.py       # turn labels in the bot's language ("[áudio] ...", "[foto]", "[encaminhada de ...]")
   questions.py    # questions with answer buttons (ask, blocked goals)
   web/            # web_fetch: SSRF guard, page/PDF/JSON to text, link detection
+  brain/related.py, brain/lint.py  # "## Relacionadas" links, the weekly brain check
   tasks/          # Celery: app, tasks, queue, "busy" lock
   storage/        # Mongo, SQLite (expenses, stickers, index, incidents, allowlist...)
   selfmod/        # self-editing, self-coding, plugin loading, git
@@ -314,6 +315,13 @@ UVA keeps a note vault compatible with **Obsidian**, in the repository's `brain/
 - UVA **never deletes** notes. To fix or rename a note it uses `note_update`, which first keeps a copy of the previous version in `04-arquivo/Versões/`. Texts with placeholders instead of content (e.g. `<texto anterior mantido aqui>`) are refused.
 
 To open it in Obsidian: *Open folder as vault* → pick the `brain` folder.
+
+### Brain care
+
+- **Your notes stay yours.** When UVA adds to a note it did not create (no `source: uva-bot` in the front matter, e.g. one you wrote in Obsidian), its text goes between `<!-- uva:begin <id> -->` and `<!-- uva:end -->`. `note_update` on such a note replaces only those blocks (your text is kept as you wrote it, even when the LLM sends the whole note back); `full_rewrite` is only for when you ask to rewrite your whole note. An update keeps the note's original front matter (it does not become "UVA's").
+- **No lost Obsidian edits.** UVA remembers each note's modification time when it reads it (`note_read`, recall); if the file changed afterwards, a write is refused ("a nota mudou depois que eu li") until the note is read again.
+- **Related notes.** Notes UVA creates (research, goal reports, documents) end with `## Relacionadas` and up to 3 `[[links]]` to the most similar notes in the search index (bm25 over the title and the first 2000 characters), refreshed when the note is rewritten or a goal run is added (`uva/brain/related.py`).
+- **Weekly check** (`uva.brain_lint`, Sunday at `MEMORY_MAINTENANCE_HOUR`:20): broken `[[links]]`, notes in `03-recursos` with no links in or out, research notes older than 180 days and likely duplicates (title similarity 90+ in the same folder). It writes `00-inbox/Revisão do cérebro <date>.md` and sends one line with the counts. Nothing is fixed on its own (`uva/brain/lint.py`).
 
 ### Names in the second brain
 

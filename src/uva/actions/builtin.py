@@ -84,6 +84,9 @@ def register(registry: ActionRegistry) -> None:
                 ctx.services, params.title_pt, found.summary, scope=ctx.scope, alternatives=(found.query,)
             )
             note_path = save_research(ctx.services.vault, found, title).path
+            from uva.brain.related import refresh_related
+
+            await refresh_related(ctx.services, note_path)
             text += "\n\n" + t("actions.builtin.search.saved", path=note_path)
         from uva.intents import results_notice
 

@@ -190,6 +190,9 @@ async def initiative_tick(
                     alternatives=(decision.topic,),
                 )
                 record.note = save_research(services.vault, found, title).path
+                from uva.brain.related import refresh_related
+
+                await refresh_related(services, record.note)
             opening = decision.message.strip() or t("initiatives.opening")
             text = f"🧠 {opening}\n\n{found.render()}"
             if record.note:

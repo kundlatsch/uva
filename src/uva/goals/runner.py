@@ -132,6 +132,10 @@ async def proactive_tick(
             if _needs_judge(run):
                 run.verdict, run.verdict_reason = await judge(services, run)
             note = _write_note(services, run, now)
+            if note:  # keeps "## Relacionadas" at the end of the goal's note
+                from uva.brain.related import refresh_related
+
+                await refresh_related(services, note)
             await _reschedule(services, run, note, now)
         finally:
             if services.busy is not None:

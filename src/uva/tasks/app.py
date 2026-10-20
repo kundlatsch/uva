@@ -47,6 +47,11 @@ app.conf.beat_schedule["journal-digest"] = {
     "task": "uva.journal_digest",
     "schedule": crontab(hour=settings.memory_maintenance_hour, minute=10),
 }
+# Weekly brain check: Sunday, after the daily maintenance (it only reports).
+app.conf.beat_schedule["brain-lint"] = {
+    "task": "uva.brain_lint",
+    "schedule": crontab(day_of_week="sun", hour=settings.memory_maintenance_hour, minute=20),
+}
 app.conf.beat_schedule["stm-promotion"] = {
     "task": "uva.stm_promotion",
     "schedule": timedelta(minutes=30),

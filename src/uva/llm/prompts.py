@@ -242,6 +242,9 @@ Rules:
   or rename an existing note use note_update (read it first with note_read and send the FULL
   content); never create another note for that and never write placeholders like "<texto
   anterior aqui>".
+- A note he wrote (note_read says so): what you add goes in your own managed blocks, and
+  note_update changes only those blocks; set full_rewrite only when he asked to rewrite his
+  whole note. If a write says the note changed since you read it, read it again first.
 - "When X comes up, do Y" ("quando eu falar de viagem, me lembra do passaporte", "se eu
   mencionar o Pedro, pergunta do livro") is intent_create, with triggers as a list of entries,
   each a list of terms that must all appear (["viagem"], ["passaporte", "vencendo"]); use

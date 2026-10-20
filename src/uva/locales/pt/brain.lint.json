@@ -1,0 +1,12 @@
+{
+  "intro": "Revisão semanal do second brain ({when}). Nada foi mudado: são sugestões.",
+  "more": "- … e mais {n}",
+  "section": {
+    "broken": "Links quebrados ({n})",
+    "orphans": "Notas em 03-recursos sem links de entrada nem de saída ({n})",
+    "old_research": "Pesquisas com mais de 180 dias ({n})",
+    "duplicates": "Prováveis duplicatas ({n})"
+  },
+  "clean": "Tudo certo: nada para revisar.",
+  "notice": "🧹 Revisão do cérebro: {broken} links quebrados, {orphans} notas órfãs, {old} pesquisas antigas, {duplicates} prováveis duplicatas (detalhes em {note})."
+}

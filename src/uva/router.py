@@ -217,6 +217,9 @@ class Router:
             await emit(EventType.ROUTE, tier="document_refused", file=filename, error=str(exc))
             return Reply(str(exc))
         attachment, note = await asyncio.to_thread(self._save_document, filename, data, extracted)
+        from uva.brain.related import refresh_related
+
+        await refresh_related(services, note.path)
         await remember_ref(services, "nota", note.path, f"document: {filename}")
         await emit(EventType.ROUTE, tier="document", file=filename, chars=len(extracted.text),
                    truncated=extracted.truncated, note=note.path)

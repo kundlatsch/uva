@@ -260,7 +260,8 @@ async def _notes(services: Services, words: list[str], found: Recall) -> None:
         if index < NOTES_WITH_BODY:
             try:
                 note = vault.read(path)
-            except LookupError:
+                services.note_reads[note.path] = vault.mtime(note.path)  # a later write checks it
+            except (LookupError, OSError):
                 continue  # removed since it was indexed
             body = note.body.strip()
             if len(body) > NOTE_CHARS:

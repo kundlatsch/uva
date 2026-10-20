@@ -11,5 +11,6 @@
   "updated": "✏️ Nota atualizada: {path} (versão anterior em {backup})",
   "no_hits": "{phrase}\n(nenhuma nota com '{term}')",
   "hits": "Notas com '{term}':",
-  "recall_none": "Nada encontrado para '{query}'."
+  "recall_none": "Nada encontrado para '{query}'.",
+  "changed_since_read": "A nota {path} mudou depois que eu li (editada no Obsidian?), então não escrevi por cima. Peça de novo que eu leio a versão nova antes."
 }

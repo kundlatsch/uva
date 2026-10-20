@@ -1,0 +1,12 @@
+{
+  "intro": "Weekly check of the second brain ({when}). Nothing was changed: these are suggestions.",
+  "more": "- … and {n} more",
+  "section": {
+    "broken": "Broken links ({n})",
+    "orphans": "Notes in 03-recursos with no links in or out ({n})",
+    "old_research": "Research older than 180 days ({n})",
+    "duplicates": "Likely duplicates ({n})"
+  },
+  "clean": "All good: nothing to review.",
+  "notice": "🧹 Brain check: {broken} broken links, {orphans} orphan notes, {old} old research notes, {duplicates} likely duplicates (details in {note})."
+}

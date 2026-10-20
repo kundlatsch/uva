@@ -95,6 +95,9 @@ class Services:
     last_photo: LastPhoto = field(default_factory=LastPhoto)
     # Writes held back by the injection scanner, waiting for a "yes" (bot process only).
     held_writes: HeldWrites = field(default_factory=HeldWrites)
+    # Notes read in this process (path -> mtime then): a write is refused when the
+    # file changed since (an Obsidian edit), so it is read again first.
+    note_reads: dict[str, float] = field(default_factory=dict)
     # Called after code in the repo changed (e.g. a reverted plugin).
     on_code_changed: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
     # Ready-made phrases in the bot's voice; defaults to data/fallback_phrases.json.

@@ -15,6 +15,23 @@ from uva.stm.refs import remember_ref
 
 Folder = Literal["inbox", "projetos", "areas", "recursos", "arquivo"]
 READ_LIMIT = 3000
+# A note whose file changed after it was read: no write until it is read again.
+STALE = -1.0
+# Shown to the LLM after a note the user wrote (English: only the LLM reads it).
+HIS_NOTE = (
+    "(He wrote this note. Your additions are in <!-- uva:begin --> blocks; note_update with a body "
+    "changes only those blocks, unless he asked for a full rewrite: then set full_rewrite.)"
+)
+
+
+def _own_part(vault: Vault, ref: str, body: str) -> str:
+    """What UVA wants in its blocks: the new body without his text, when it came along."""
+    from uva.brain.vault import MANAGED, strip_managed
+
+    his = {line.strip() for line in strip_managed(vault.read(ref).body).splitlines() if line.strip()}
+    new = MANAGED.sub(lambda m: m.group(0).split("\n", 1)[1].rsplit("\n", 1)[0], body)
+    kept = [line for line in new.splitlines() if not line.strip() or line.strip() not in his]
+    return "\n".join(kept).strip() or body.strip()
 
 
 class NoteCreateParams(BaseModel):
@@ -64,9 +81,13 @@ class NoteUpdateParams(BaseModel):
     title: str | None = Field(default=None, description="(deprecated: use title_pt)")
     body: str | None = Field(
         default=None,
-        description="New FULL content (without the YAML header). Omit it to only rename",
+        description="New FULL content (without the YAML header). Omit it to only rename. On a note "
+        "the user wrote, it replaces only your own blocks (see note_read) unless full_rewrite",
     )
     tags: list[str] | None = None
+    full_rewrite: bool = Field(
+        default=False, description="Only when he explicitly asked to rewrite his whole note"
+    )
 
 
 class NoteSearchParams(BaseModel):
@@ -87,6 +108,28 @@ def _vault(ctx: ActionContext) -> Vault | None:
 
 def no_vault() -> ActionResult:
     return ActionResult(text=t("actions.notes.no_vault"))
+
+
+def seen(ctx: ActionContext, vault: Vault, path: str) -> None:
+    """Remember the note's mtime as read now (or written now)."""
+    try:
+        ctx.services.note_reads[path] = vault.mtime(path)
+    except OSError:
+        pass
+
+
+def changed_since_read(ctx: ActionContext, vault: Vault, ref: str) -> ActionResult | None:
+    """A refusal when the note was edited (Obsidian) after UVA last read it."""
+    try:
+        path = vault.read(ref).path
+        current = vault.mtime(path)
+    except (NoteNotFoundError, OSError):
+        return None
+    before = ctx.services.note_reads.get(path)
+    if before is None or abs(current - before) < 1e-6:
+        return None
+    ctx.services.note_reads[path] = STALE  # refused until note_read reads the new version
+    return ActionResult(text=t("actions.notes.changed_since_read", path=path), data={"ok": False, "stale": path})
 
 
 def register(registry: ActionRegistry) -> None:
@@ -135,12 +178,15 @@ def register(registry: ActionRegistry) -> None:
     async def note_append(params: NoteAppendParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
             return no_vault()
+        if (stale := changed_since_read(ctx, vault, params.note)) is not None:
+            return stale
         try:
             note = vault.append(params.note, params.text)
         except NoteNotFoundError:
             return ActionResult(text=t("actions.notes.not_found", note=params.note), data={"found": False})
         except ValueError as exc:
             return ActionResult(text=t("actions.notes.not_changed", error=exc), data={"ok": False})
+        seen(ctx, vault, note.path)
         return ActionResult(text=t("actions.notes.appended", path=note.path), data={"path": note.path})
 
     @registry.action(
@@ -152,16 +198,30 @@ def register(registry: ActionRegistry) -> None:
     async def note_update(params: NoteUpdateParams, ctx: ActionContext) -> ActionResult:
         if (vault := _vault(ctx)) is None:
             return no_vault()
+        if (stale := changed_since_read(ctx, vault, params.note)) is not None:
+            return stale
         try:
             new_title = params.title_pt or params.title
             if new_title:
                 new_title = await portuguese_title(ctx.services, new_title, params.body or "", scope=ctx.scope)
-            note, backup = vault.update_note(params.note, title=new_title, body=params.body, tags=params.tags)
+            owned = vault.owned(params.note)
+            if params.body is not None and not owned and not params.full_rewrite:
+                # His note: only UVA's blocks change (his text is kept as he wrote it).
+                note, backup = vault.replace_managed(params.note, _own_part(vault, params.note, params.body))
+                if new_title or params.tags is not None:
+                    note, _ = vault.update_note(note.path, title=new_title, tags=params.tags)
+            else:
+                note, backup = vault.update_note(params.note, title=new_title, body=params.body, tags=params.tags)
         except NoteNotFoundError:
             return ActionResult(text=t("actions.notes.not_found", note=params.note), data={"found": False})
         except ValueError as exc:  # placeholders instead of content
             return ActionResult(text=t("actions.notes.not_changed", error=exc), data={"ok": False})
         vault.append_daily(f"Nota atualizada: {note.link}")
+        if owned and params.body is not None:
+            from uva.brain.related import refresh_related
+
+            await refresh_related(ctx.services, note.path)
+        seen(ctx, vault, note.path)
         await remember_ref(ctx.services, "nota", note.path, f"note: {note.title}")
         return ActionResult(
             text=t("actions.notes.updated", path=note.path, backup=backup),
@@ -197,7 +257,9 @@ def register(registry: ActionRegistry) -> None:
         except NoteNotFoundError:
             return ActionResult(text=t("actions.notes.not_found", note=params.note), data={"found": False})
         body = note.body if len(note.body) <= READ_LIMIT else note.body[:READ_LIMIT] + "…"
-        return ActionResult(text=f"{note.path}\n\n{body}", data={"path": note.path, "body": body})
+        seen(ctx, vault, note.path)
+        mine = "" if vault.owned(note.path) else f"\n\n{HIS_NOTE}"
+        return ActionResult(text=f"{note.path}\n\n{body}{mine}", data={"path": note.path, "body": body})
 
     @registry.action(
         "recall",

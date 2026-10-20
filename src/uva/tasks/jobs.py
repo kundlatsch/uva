@@ -253,6 +253,20 @@ def journal_digest() -> str:
     return runtime.run(job)
 
 
+@app.task(name="uva.brain_lint")
+def brain_lint() -> int:
+    """Broken links, orphans, old research, likely duplicates: a report note and one line."""
+    from uva.brain.lint import brain_lint as lint
+
+    async def job() -> int:
+        found, line = await lint(await runtime.get_services())
+        if line:
+            await runtime.notify(Reply(line, kind="lint"))
+        return found.total if found else 0
+
+    return runtime.run(job)
+
+
 @app.task(name="uva.index_sync")
 def index_sync() -> dict:
     """Pick up notes edited outside UVA (Obsidian) and drop deleted ones."""

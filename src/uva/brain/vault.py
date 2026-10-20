@@ -231,7 +231,10 @@ class Vault:
                 new_body = new_body.lstrip()[len(old_heading):].lstrip("\n")
         created = str(meta.get("created") or self._timestamp(now))
         new_tags = tags if tags is not None else list(meta.get("tags") or [])
-        target.write_text(render_note(new_title, new_body, created=created, tags=new_tags, links=[]), encoding="utf-8")
+        # His notes stay his: the front matter keeps the source it had (none, for Obsidian notes).
+        source = meta.get("source") if meta else None
+        target.write_text(render_note(new_title, new_body, created=created, tags=new_tags, links=[],
+                                      source=source if meta else None), encoding="utf-8")
         if target != path:
             old = self._relative(path)
             path.unlink()  # the old content lives on in the backup copy
@@ -241,13 +244,58 @@ class Vault:
         return self.read(self._relative(target)), self._relative(backup)
 
     def append(self, ref: str, text: str, now: datetime | None = None) -> Note:
+        """Add text at the end. On a note he wrote (not created by UVA), UVA's text goes
+        in a managed block, so it can later be changed without touching his."""
         check_no_placeholders(text)
         path = self._resolve(ref)
         stamp = (now or utcnow()).astimezone(self.tz).strftime("%d/%m/%Y %H:%M")
+        meta, _ = parse_note(path.read_text(encoding="utf-8"))
+        chunk = f"### {stamp}\n\n{text.strip()}"
+        if not created_by_uva(meta):
+            chunk = managed_block(chunk)
         with path.open("a", encoding="utf-8") as fh:
-            fh.write(f"\n\n### {stamp}\n\n{text.strip()}\n")
+            fh.write(f"\n\n{chunk}\n")
         self._changed(self._relative(path))
         return self.read(self._relative(path))
+
+    def owned(self, ref: str) -> bool:
+        """True for a note UVA created (front matter source: uva-bot)."""
+        meta, _ = parse_note(self._resolve(ref).read_text(encoding="utf-8"))
+        return created_by_uva(meta)
+
+    def mtime(self, ref: str) -> float:
+        return self._resolve(ref).stat().st_mtime
+
+    def replace_managed(self, ref: str, text: str, now: datetime | None = None) -> tuple[Note, str]:
+        """On his note: UVA's managed blocks become one block with ``text`` (his text
+        untouched; a copy of the old version is kept like update_note does)."""
+        path = self._resolve(ref)
+        meta, body = parse_note(path.read_text(encoding="utf-8"))
+        block = managed_block(text.strip())
+        if MANAGED.search(body):
+            first = [True]
+
+            def swap(_match) -> str:
+                if first[0]:
+                    first[0] = False
+                    return block
+                return ""
+
+            new_body = MANAGED.sub(swap, body)
+        else:
+            new_body = body.rstrip("\n") + "\n\n" + block
+        new_body = re.sub(r"\n{3,}", "\n\n", new_body).strip() + "\n"
+        return self.update_note(ref, body=new_body, now=now)
+
+    def set_related(self, ref: str, links: list[str]) -> None:
+        """The note's "## Relacionadas" section, at the end, with ``links`` (replaced)."""
+        path = self._resolve(ref)
+        text = path.read_text(encoding="utf-8")
+        text = RELATED.sub("", text).rstrip("\n") + "\n"
+        if links:
+            text += f"\n## {RELATED_HEADING}\n\n" + "\n".join(f"- {item}" for item in links) + "\n"
+        path.write_text(text, encoding="utf-8")
+        self._changed(self._relative(path))
 
     def append_daily(self, text: str, now: datetime | None = None) -> Note:
         """Add a line to today's journal note (diario/AAAA-MM-DD.md)."""
@@ -435,8 +483,34 @@ def title_from_text(text: str, max_words: int = 8) -> str:
     return clean_title(title + ("…" if len(words) > max_words else ""))
 
 
-def render_note(title: str, body: str, *, created: str, tags: list[str], links: list[str]) -> str:
-    meta = {"title": title, "created": created, "tags": tags, "source": SOURCE}
+# UVA's own text inside a note he wrote (uva/brain/vault.py Vault.append).
+MANAGED = re.compile(r"<!-- uva:begin [0-9a-f]+ -->\n.*?\n<!-- uva:end -->", re.DOTALL)
+RELATED_HEADING = "Relacionadas"
+RELATED = re.compile(rf"\n*## {RELATED_HEADING}\n(?:\n?- \[\[[^\n]*\]\][^\n]*)*\n*", re.MULTILINE)
+
+
+def created_by_uva(meta: dict) -> bool:
+    return bool(meta) and meta.get("source") == SOURCE
+
+
+def managed_block(text: str) -> str:
+    import secrets
+
+    return f"<!-- uva:begin {secrets.token_hex(3)} -->\n{text.strip()}\n<!-- uva:end -->"
+
+
+def strip_managed(body: str) -> str:
+    """His text only (UVA's managed blocks removed)."""
+    return re.sub(r"\n{3,}", "\n\n", MANAGED.sub("", body)).strip()
+
+
+def render_note(
+    title: str, body: str, *, created: str, tags: list[str], links: list[str], source: str | None = SOURCE,
+) -> str:
+    """``source``: who wrote the note (SOURCE for UVA; None keeps it out, for his notes)."""
+    meta = {"title": title, "created": created, "tags": tags}
+    if source:
+        meta["source"] = source
     front = yaml.safe_dump(meta, allow_unicode=True, sort_keys=False).strip()
     parts = [f"---\n{front}\n---"]
     if not body.lstrip().startswith("# "):  # the body may bring its own title
