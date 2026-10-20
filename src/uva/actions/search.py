@@ -31,10 +31,14 @@ class Research:
         return "\n".join(lines)
 
 
-def save_research(vault: Vault, found: Research, title: str | None = None) -> Note:
+INITIATIVE_TAG = "iniciativa"  # notes the bot made on its own (uva/initiatives.py)
+
+
+def save_research(vault: Vault, found: Research, title: str | None = None, *, initiative: bool = False) -> Note:
     """Store a research result as a reference note (03-recursos).
 
-    ``title`` is the Portuguese title (the query may be in English)."""
+    ``title`` is the Portuguese title (the query may be in English);
+    ``initiative`` tags it as made on the bot's own initiative."""
     lines = [found.summary.strip()]
     if found.sources:
         lines += ["", "## Fontes", ""]
@@ -43,7 +47,7 @@ def save_research(vault: Vault, found: Research, title: str | None = None) -> No
         f"Pesquisa - {title or found.query}",
         "\n".join(lines),
         folder="recursos",
-        tags=["pesquisa", found.backend],
+        tags=["pesquisa", found.backend] + ([INITIATIVE_TAG] if initiative else []),
     )
     vault.append_daily(f"Pesquisa: {note.link}")
     return note

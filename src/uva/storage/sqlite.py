@@ -197,6 +197,13 @@ MIGRATIONS: list[str] = [
         answer TEXT NOT NULL DEFAULT ''
     );
     """,
+    # 15: an initiative's subject (the entity/area it is about, see uva/initiatives.py)
+    # next to the sent message and the reactions on it
+    """
+    ALTER TABLE sent_messages ADD COLUMN subject TEXT NOT NULL DEFAULT '';
+    ALTER TABLE reactions ADD COLUMN subject TEXT NOT NULL DEFAULT '';
+    CREATE INDEX idx_sent_ref ON sent_messages (kind, ref);
+    """,
 ]
 
 

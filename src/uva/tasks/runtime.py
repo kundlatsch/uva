@@ -55,7 +55,8 @@ async def notify(reply: Reply) -> None:
         from uva import sent
 
         try:  # what a quoted reply or a reaction to this message is about
-            await sent.record(_services.sqlite, message_ids, reply.kind or "notice", reply.ref)
+            await sent.record(_services.sqlite, message_ids, reply.kind or "notice", reply.ref,
+                              subject=reply.subject)
         except Exception:
             pass
     # The bot should know what it told the user on its own (short-term memory

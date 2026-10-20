@@ -225,7 +225,10 @@ def initiative_tick() -> str:
         status, message = await initiatives.initiative_tick(services)
         if message:
             recent = await services.initiatives.recent(1) if services.initiatives is not None else []
-            await runtime.notify(Reply(message, kind="initiative", ref=recent[0].id if recent else ""))
+            last = recent[0] if recent else None
+            await runtime.notify(Reply(
+                message, kind="initiative", ref=last.id if last else "", subject=last.subject if last else "",
+            ))
         return status
 
     return runtime.run(job)

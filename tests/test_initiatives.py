@@ -33,6 +33,11 @@ class InMemoryInitiativeStore:
     async def count_since(self, since):
         return sum(1 for r in self.records if r.at >= since)
 
+    async def set_subject(self, record_id, subject):
+        for record in self.records:
+            if record.id == record_id:
+                record.subject = subject
+
     async def get_enabled(self):
         return self.enabled
 

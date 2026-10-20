@@ -132,8 +132,12 @@ class Settings(BaseSettings):
     # The cheap model is asked "anything worth sending?" at most this often (each
     # ask costs budget; asking every 5 minutes burned the whole proactive budget).
     proactive_decide_every_minutes: int = 40
-    # A topic he reacted 👎 to is not chosen again for this many days.
+    # A topic (and its subject) he reacted 👎 to is not chosen again for this many days.
     initiative_block_days: int = 30
+    # Subject saturation: each initiative on a subject adds 0.5^(days/half-life)
+    # (x1.5 when ignored, x0.5 when liked); at the threshold the subject is refused.
+    initiative_subject_half_life_days: float = 7.0
+    initiative_saturation_threshold: float = 1.0
     # After this long without an initiative, "nothing" is not an option.
     proactive_force_after_hours: float = 3.0
     # Quiet hours (local time, TIMEZONE): no goal runs or initiatives.

@@ -51,7 +51,8 @@ async def test_a_disliked_topic_is_refused_then_another_is_sent(fb):
     status, text = await initiative_tick(fb, NOON, force=True)
     assert status == "sent" and "corrida" in text
     second = provider.calls[1]["messages"][0].content
-    assert "Not this one" in second and "rust async runtimes (blocked)" in second
+    # The backfill gave the old initiative a subject, so the whole subject is blocked.
+    assert "Not this one" in second and 'subject "rust" (blocked subject)' in second
     assert "Topics he disliked" in provider.calls[0]["messages"][0].content
 
 

@@ -330,6 +330,9 @@ class MongoInitiativeStore:
     async def count_since(self, since: datetime) -> int:
         return await self.collection.count_documents({"at": {"$gte": since}})
 
+    async def set_subject(self, record_id: str, subject: str) -> None:
+        await self.collection.update_one({"id": record_id}, {"$set": {"subject": subject}})
+
     async def get_enabled(self) -> bool | None:
         doc = await self.flags.find_one({"_id": self.FLAG_ID})
         return None if doc is None else bool(doc["enabled"])

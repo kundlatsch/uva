@@ -9,11 +9,20 @@ one of:
     to 03-recursos);
   * message  - a reminder, a follow-up question or a nudge, in the soul's voice;
   * nothing  - when there is nothing worth interrupting you for.
+
+Each initiative has a ``subject`` (the entity or area it is about, e.g.
+"mastodon") besides its ``topic`` (the angle). A subject saturates as
+initiatives about it pile up (see :func:`saturation`); a saturated subject, or
+one he gave a 👎, is refused like a repeated topic.
 """
 
 from __future__ import annotations
 
+import math
+import re
 import secrets
+from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal, Protocol
 
@@ -22,8 +31,9 @@ from rapidfuzz import fuzz
 
 from uva import feedback
 
-from uva.actions.search import ResearchError, research, save_research
+from uva.actions.search import INITIATIVE_TAG, ResearchError, research, save_research
 from uva.brain.naming import portuguese_title
+from uva.brain.vault import FOLDERS
 from uva.clock import format_local, start_of_day, utcnow
 from uva.goals.runner import in_quiet_hours
 from uva.goals.store import GoalStatus
@@ -46,6 +56,7 @@ class InitiativeRecord(BaseModel):
     at: datetime = Field(default_factory=utcnow)
     kind: Kind
     topic: str = ""
+    subject: str = ""
     message: str = ""
     note: str | None = None
 
@@ -69,6 +80,9 @@ class InitiativeStore(Protocol):
 class Decision(BaseModel):
     kind: Kind = Field(description="research, message or nothing")
     topic: str = Field(default="", description="For research: what to look up, in a few words")
+    subject: str = Field(
+        default="", description="1-3 words, lowercase English: the entity or area it is about (e.g. mastodon)"
+    )
     message: str = Field(
         default="", description="Text for the user (for research, an opening sentence)"
     )
@@ -84,11 +98,13 @@ to Gustavo, your only user, on Telegram. Options:
   book, a project, a goal) or a useful suggestion. Short.
 - "nothing": only when there is really nothing. He WANTS to hear from you several times a
   day; alternate research about his interests and short messages.
-Don't repeat topics of recent initiatives. Active goals are already being worked on by
-themselves: don't ask about or research what they cover. Don't make up facts about him.
-"topic" in English; "message" (what he reads) in {language}, technical terms in
-English; "title_pt" (for research): a short Brazilian Portuguese title for the note.
-Answer with ONLY JSON: {{"kind": "...", "topic": "...", "message": "...", "reason": "...", "title_pt": "..."}}"""
+Pick a subject different from all recent ones; prefer subjects from his own messages,
+notes, memory and radar. Never a saturated subject. Active goals are already being worked
+on by themselves: don't ask about or research what they cover. Don't make up facts about him.
+"subject": 1-3 words, lowercase English, the entity or area it is about (e.g. "mastodon");
+"topic" is the angle on it, in English; "message" (what he reads) in {language}, technical
+terms in English; "title_pt" (for research): a short Brazilian Portuguese title for the note.
+Answer with ONLY JSON: {{"kind": "...", "subject": "...", "topic": "...", "message": "...", "reason": "...", "title_pt": "..."}}"""
 
 
 def system_prompt() -> str:
@@ -146,6 +162,10 @@ async def initiative_tick(
     gates, but never the budget.
     """
     now = now or utcnow()
+    try:
+        await backfill_subjects(services, now)
+    except Exception as exc:
+        log.warning("initiative_backfill_failed", error=str(exc))
     if not force and (blocked := await gate(services, now)) is not None:
         return blocked, None
     if services.llm is None or services.initiatives is None:
@@ -162,8 +182,9 @@ async def initiative_tick(
             decision = await _decide(services, now)
             if refused := await refusal(services, decision, now):
                 # A topic he disliked, or one sent recently: ask once more, then give up.
-                await emit(EventType.INITIATIVE, status="refused", topic=decision.topic, reason=refused)
-                decision = await _decide(services, now, avoid=f"{topic_of(decision)} ({refused})")
+                await emit(EventType.INITIATIVE, status="refused", topic=decision.topic,
+                           subject=subject_of(decision), reason=refused)
+                decision = await _decide(services, now, avoid=avoid_text(decision, refused))
                 if await refusal(services, decision, now):
                     await emit(EventType.INITIATIVE, status="nothing", reason="refused twice")
                     return "nothing", None
@@ -175,7 +196,9 @@ async def initiative_tick(
             await emit(EventType.INITIATIVE, status="nothing", reason=decision.reason)
             return "nothing", None
 
-        record = InitiativeRecord(kind=decision.kind, topic=decision.topic, message=decision.message)
+        record = InitiativeRecord(
+            kind=decision.kind, topic=decision.topic, subject=subject_of(decision), message=decision.message,
+        )
         if decision.kind == "research":
             if not decision.topic.strip():
                 return "nothing", None
@@ -189,7 +212,7 @@ async def initiative_tick(
                     services, decision.title_pt, found.summary, scope=Scope.PROACTIVE,
                     alternatives=(decision.topic,),
                 )
-                record.note = save_research(services.vault, found, title).path
+                record.note = save_research(services.vault, found, title, initiative=True).path
                 from uva.brain.related import refresh_related
 
                 await refresh_related(services, record.note)
@@ -206,7 +229,7 @@ async def initiative_tick(
         await services.initiatives.add(record)
         await emit(
             EventType.INITIATIVE, status="sent", kind=decision.kind, topic=decision.topic,
-            reason=decision.reason, note=record.note,
+            subject=record.subject, reason=decision.reason, note=record.note,
         )
         return "sent", text
 
@@ -215,14 +238,33 @@ REPEAT_DAYS = 14
 REPEAT_SCORE = 85
 
 
+SUBJECT_REASONS = ("blocked subject", "saturated")
+
+
 def topic_of(decision) -> str:
     return feedback.normalize_topic(decision.topic or decision.message[:80])
 
 
+def subject_of(decision) -> str:
+    return feedback.normalize_topic(decision.subject)
+
+
+def avoid_text(decision, refused: str) -> str:
+    if refused in SUBJECT_REASONS:
+        return f'subject "{subject_of(decision)}" ({refused})'
+    return f"{topic_of(decision)} ({refused})"
+
+
 async def refusal(services: Services, decision: Decision, now: datetime) -> str | None:
-    """Why this initiative is refused ("blocked", "repeat"), or None."""
+    """Why this initiative is refused ("blocked subject", "saturated", "blocked",
+    "repeat"), or None. The subject is checked first, then the topic."""
     if decision.kind == "nothing":
         return None
+    if subject := subject_of(decision):
+        if any(same_subject(subject, b) for b in await feedback.blocked_subjects(services, now)):
+            return "blocked subject"
+        if any(same_subject(subject, s.subject) for s in await saturated_subjects(services, now)):
+            return "saturated"
     topic = topic_of(decision)
     if not topic:
         return None
@@ -254,7 +296,12 @@ async def _decide(services: Services, now: datetime, avoid: str = "") -> Decisio
         max_tokens=800,
     )
     text = response.text.strip().removeprefix("```json").removeprefix("```").removesuffix("```")
-    return Decision.model_validate_json(text)
+    decision = Decision.model_validate_json(text)
+    decision.subject = feedback.normalize_topic(decision.subject)
+    if not decision.subject and decision.kind != "nothing" and services.initiatives is not None:
+        known = Counter(r.subject for r in await services.initiatives.recent(100) if r.subject)
+        decision.subject = guess_subject(decision.topic or decision.message[:80], known)
+    return decision
 
 
 async def _context(services: Services, now: datetime) -> str:
@@ -271,15 +318,18 @@ async def _context(services: Services, now: datetime) -> str:
     if services.stm is not None:
         try:
             session = await services.stm.session()
+            # Notices are left out: the initiatives among them are listed below.
+            spoken = [t for t in session.turns if t.role != "notice"]
             turns = "\n".join(
-                f"- {'he' if t.role == 'user' else 'you'}: {t.text[:300]}" for t in session.turns[-8:]
+                f"- {'he' if t.role == 'user' else 'you'}: {t.text[:300]}" for t in spoken[-8:]
             )
             parts.append("Recent conversation:\n" + (turns or "(none)"))
         except Exception:
             pass
+    recent = await services.initiatives.recent(100) if services.initiatives is not None else []
     if services.vault is not None:
         try:
-            notes = services.vault.recent(8)
+            notes = his_recent_notes(services, recent)
             parts.append("Recent second brain notes:\n" + "\n".join(f"- {n.path}" for n in notes))
         except Exception:
             pass
@@ -287,16 +337,29 @@ async def _context(services: Services, now: datetime) -> str:
         goals = await services.goals.list(GoalStatus.ATIVO)
         parts.append("Active goals:\n" + ("\n".join(f"- {g.title}" for g in goals) or "(none)"))
     if services.initiatives is not None:
-        recent = await services.initiatives.recent(10)
+        recent = recent[:10]
         last = recent[0].at if recent else None
         hours = (now - last).total_seconds() / 3600 if last else None
         if hours is None or hours >= services.settings.proactive_force_after_hours:
             since = "never" if hours is None else f"{hours:.0f}h ago"
             parts.append(f"Last initiative: {since}. Do NOT choose \"nothing\" now: pick research or message.")
-        lines = [f"- {format_local(r.at, tz, '%d/%m %H:%M')} {r.kind}: {r.topic or r.message[:80]}" for r in recent]
+        lines = [
+            f"- {format_local(r.at, tz, '%d/%m %H:%M')} {r.kind}{f' [{r.subject}]' if r.subject else ''}: "
+            f"{r.topic or r.message[:80]}"
+            for r in recent
+        ]
         parts.append("Your recent initiatives (don't repeat them):\n" + ("\n".join(lines) or "(none)"))
+        try:
+            saturated = await saturated_subjects(services, now)
+        except Exception:
+            saturated = []
+        if saturated:
+            parts.append("Saturated subjects (don't pick these): " + ", ".join(
+                f"{s.subject} ({s.count} in {s.days} day{'s' if s.days != 1 else ''})" for s in saturated
+            ))
     try:
         liked, blocked = await feedback.liked_topics(services, now), await feedback.blocked_topics(services, now)
+        blocked += [f"{s} (subject)" for s in await feedback.blocked_subjects(services, now)]
     except Exception:
         liked, blocked = [], []
     if liked:
@@ -304,6 +367,192 @@ async def _context(services: Services, now: datetime) -> str:
     if blocked:
         parts.append("Topics he disliked (👎): never these:\n" + "\n".join(f"- {x}" for x in blocked[:10]))
     return "\n\n".join(parts)
+
+
+RECENT_NOTES = 8
+
+
+def his_recent_notes(services: Services, records: list[InitiativeRecord]) -> list:
+    """Recently changed notes, without the journal and the bot's own initiative
+    notes (tagged, or the note of a recent initiative): those would feed the
+    chooser its own past topics."""
+    assert services.vault is not None
+    made = {r.note for r in records if r.note}
+    diary = FOLDERS["diario"] + "/"
+    notes = [
+        n for n in services.vault.recent(RECENT_NOTES * 4)
+        if not n.path.startswith(diary) and INITIATIVE_TAG not in n.tags and n.path not in made
+    ]
+    return notes[:RECENT_NOTES]
+
+
+# --- subjects ------------------------------------------------------------------------
+
+SATURATION_WINDOW = timedelta(days=30)
+REPLY_WINDOW = timedelta(hours=1)  # a message of his this soon after an initiative is a reply
+MENTION_WINDOW = timedelta(hours=48)
+SAME_SUBJECT_SCORE = 90
+IGNORED_WEIGHT = 1.5
+LIKED_WEIGHT = 0.5
+
+# Words that are never a subject (backfill heuristic; English topics, some Portuguese messages).
+STOPWORDS = frozenset("""
+a an and are as at be by for from how in into is it its of on or that the this to vs what when where which
+who why will with your his about after before new latest news update updates recent current today week
+best top tips guide ideas idea using use used good more most other some any just than then them there
+o os as um uma uns umas de da do das dos e em no na nos nas por para pra com sem que se ou mas mais
+como voce ele ela isso esse essa este esta aquele aquilo seu sua seus suas meu minha ja ainda sobre
+foi ser ter tem vai vou ver deu fazer faz feito quer queria lembra la ai ali aqui hoje ontem amanha
+teu tua teus tuas coisa coisas nao sim so ta pro qual quando onde porque pouco muito daquela daquele
+aquela passando lembrar parada pausa curta rapidinho
+""".split())
+_VOCATIVE = re.compile(r"^\W*\w+\s*,")  # "Taguma, ..." opens many messages: a name, not a subject
+
+
+def subject_words(text: str) -> list[str]:
+    return [
+        w for w in feedback.normalize_topic(_VOCATIVE.sub("", text.strip())).split()
+        if len(w) >= 3 and w not in STOPWORDS and not w.isdigit()
+    ]
+
+
+def guess_subject(text: str, counts: Counter | None = None) -> str:
+    """A subject for a topic without one: its word most frequent in ``counts``
+    (word counts over recent initiatives), else its first meaningful word."""
+    words = subject_words(text)
+    if not words:
+        return ""
+    counts = counts or Counter()
+    return max(words, key=lambda w: (counts[w], -words.index(w)))
+
+
+def same_subject(a: str, b: str) -> bool:
+    a, b = feedback.normalize_topic(a), feedback.normalize_topic(b)
+    return bool(a and b) and (a == b or fuzz.token_set_ratio(a, b) >= SAME_SUBJECT_SCORE)
+
+
+@dataclass(frozen=True, slots=True)
+class Saturation:
+    subject: str
+    score: float
+    count: int
+    days: int  # since the oldest initiative counted
+    last: datetime
+
+
+async def saturation(services: Services, now: datetime) -> list[Saturation]:
+    """How used up each subject is, most saturated first.
+
+    Each initiative on a subject (last 30 days) adds 0.5^(days since / half-life),
+    x1.5 when he neither reacted nor replied, x0.5 when he liked it."""
+    store = services.initiatives
+    if store is None:
+        return []
+    records = [r for r in await store.recent(300) if r.at >= now - SATURATION_WINDOW]
+    if not records:
+        return []
+    db = services.sqlite
+    reactions = await _reactions_by_ref(db, [r.id for r in records])
+    replies = [at for at, _ in await _user_texts(db, now - SATURATION_WINDOW, with_text=False)]
+    half_life = services.settings.initiative_subject_half_life_days
+    totals: dict[str, list] = {}
+    for i, record in enumerate(records):  # newest first: records[i - 1] was sent next
+        if not record.subject:
+            continue
+        days = max((now - record.at).total_seconds(), 0) / 86400
+        weight = 0.5 ** (days / half_life)
+        emojis = reactions.get(record.id, set())
+        until = min(record.at + REPLY_WINDOW, records[i - 1].at if i else now)
+        if emojis & feedback.LIKE:
+            weight *= LIKED_WEIGHT
+        elif db is not None and not emojis and not any(record.at < at <= until for at in replies):
+            weight *= IGNORED_WEIGHT
+        entry = totals.setdefault(record.subject, [0.0, 0, record.at, record.at])
+        entry[0] += weight
+        entry[1] += 1
+        entry[2] = min(entry[2], record.at)
+        entry[3] = max(entry[3], record.at)
+    found = [
+        Saturation(subject, score, count, max(1, math.ceil((now - oldest).total_seconds() / 86400)), last)
+        for subject, (score, count, oldest, last) in totals.items()
+    ]
+    return sorted(found, key=lambda s: s.score, reverse=True)
+
+
+async def saturated_subjects(services: Services, now: datetime) -> list[Saturation]:
+    """Subjects at the saturation threshold. One he brought up himself in the last
+    48h is let through once (until the next initiative on it)."""
+    threshold = services.settings.initiative_saturation_threshold
+    full = [s for s in await saturation(services, now) if s.score >= threshold]
+    if not full:
+        return []
+    said = await _user_texts(services.sqlite, now - MENTION_WINDOW)
+    return [s for s in full if not any(at > s.last and _mentions(text, s.subject) for at, text in said)]
+
+
+def _mentions(text: str, subject: str) -> bool:
+    return f" {subject} " in f" {feedback.normalize_topic(text)} "
+
+
+async def _reactions_by_ref(db, refs: list[str]) -> dict[str, set[str]]:
+    if db is None or not refs:
+        return {}
+    marks = ",".join("?" * len(refs))
+    rows = await db.run(lambda conn: conn.execute(
+        f"SELECT ref, emoji FROM reactions WHERE kind = 'initiative' AND ref IN ({marks})", refs,
+    ).fetchall())
+    found: dict[str, set[str]] = {}
+    for row in rows:
+        found.setdefault(row["ref"], set()).add(row["emoji"])
+    return found
+
+
+async def _user_texts(db, since: datetime, *, with_text: bool = True) -> list[tuple[datetime, str]]:
+    """His own messages since ``since`` (conversation log)."""
+    if db is None:
+        return []
+    column = "text" if with_text else "'' AS text"
+    rows = await db.run(lambda conn: conn.execute(
+        f"SELECT at, {column} FROM conversation_turns WHERE role = 'user' AND undone = 0 AND at >= ?",
+        (since.isoformat(),),
+    ).fetchall())
+    return [(datetime.fromisoformat(row["at"]), row["text"]) for row in rows]
+
+
+BACKFILL_KEY = "initiative_subjects_backfilled"
+
+
+async def backfill_subjects(services: Services, now: datetime) -> int:
+    """Once: give the last 30 days of initiatives a subject (the word of each topic
+    most frequent across them all) and copy it to their sent messages and
+    reactions, so a subject that was already overused starts saturated."""
+    db, store = services.sqlite, services.initiatives
+    setter = getattr(store, "set_subject", None)
+    if db is None or store is None or setter is None or await db.get_kv(BACKFILL_KEY):
+        return 0
+    records = [r for r in await store.recent(300) if r.at >= now - SATURATION_WINDOW]
+    counts = Counter(w for r in records for w in set(subject_words(r.topic or r.message[:80])))
+    changed = 0
+    for record in records:
+        subject = record.subject
+        if not subject:
+            subject = guess_subject(record.topic or record.message[:80], counts)
+            if not subject:
+                continue
+            await setter(record.id, subject)
+            changed += 1
+        args = (subject, record.id)
+        await db.run(lambda conn, args=args: (
+            conn.execute(
+                "UPDATE sent_messages SET subject = ? WHERE kind = 'initiative' AND ref = ? AND subject = ''", args,
+            ),
+            conn.execute(
+                "UPDATE reactions SET subject = ? WHERE kind = 'initiative' AND ref = ? AND subject = ''", args,
+            ),
+        ))
+    await db.set_kv(BACKFILL_KEY, now.isoformat())
+    log.info("initiative_subjects_backfilled", records=changed)
+    return changed
 
 
 RADAR_CHARS = 2000

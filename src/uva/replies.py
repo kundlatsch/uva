@@ -46,6 +46,7 @@ class Reply:
     # it is about, kept by Telegram message id (uva/sent.py) for quotes and reactions.
     kind: str = ""
     ref: str = ""
+    subject: str = ""  # an initiative's subject (uva/initiatives.py)
 
     @classmethod
     def paginated(cls, text: str, header: str = "") -> Reply:

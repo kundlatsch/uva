@@ -4,8 +4,9 @@ The user's emoji reactions on messages UVA sent on its own are kept in SQLite
 ``reactions`` with what the message was (``sent_messages``: an initiative, a
 routine or goal report, a research result, a review notice). Then:
 
-* 👎 on an initiative blocks its topic for INITIATIVE_BLOCK_DAYS: the chooser
-  refuses it, asks once more, and then sends nothing;
+* 👎 on an initiative blocks its topic and its subject for
+  INITIATIVE_BLOCK_DAYS: the chooser refuses it, asks once more, and then sends
+  nothing;
 * 👍 / ❤️ on an initiative make its topic one he liked (named in the prompt);
 * 👎 on a routine or goal report tells the next run that the last output was
   not liked;
@@ -34,6 +35,7 @@ class Reaction:
     kind: str
     ref: str
     topic: str
+    subject: str = ""
 
 
 def normalize_topic(topic: str) -> str:
@@ -42,7 +44,7 @@ def normalize_topic(topic: str) -> str:
 
 def _reaction(row) -> Reaction:
     return Reaction(row["message_id"], row["emoji"], datetime.fromisoformat(row["at"]), row["kind"], row["ref"],
-                    row["topic"])
+                    row["topic"], row["subject"])
 
 
 async def record(services, message_id: int, emojis: list[str], now: datetime | None = None) -> list[Reaction]:
@@ -53,25 +55,27 @@ async def record(services, message_id: int, emojis: list[str], now: datetime | N
     now = now or utcnow()
     found = await sent.lookup(db, message_id)
     kind, ref = (found.kind, found.ref) if found else ("", "")
-    topic = await _topic(services, kind, ref)
-    rows = [(message_id, emoji, now.isoformat(), kind, ref, topic) for emoji in emojis]
+    topic, subject = await _topic(services, kind, ref)
+    subject = subject or (found.subject if found else "")
+    rows = [(message_id, emoji, now.isoformat(), kind, ref, topic, subject) for emoji in emojis]
     await db.run(lambda conn: conn.executemany(
-        "INSERT INTO reactions (message_id, emoji, at, kind, ref, topic) VALUES (?, ?, ?, ?, ?, ?)", rows,
+        "INSERT INTO reactions (message_id, emoji, at, kind, ref, topic, subject) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        rows,
     ))
-    return [Reaction(message_id, e, now, kind, ref, topic) for e in emojis]
+    return [Reaction(message_id, e, now, kind, ref, topic, subject) for e in emojis]
 
 
-async def _topic(services, kind: str, ref: str) -> str:
-    """An initiative's topic (or the start of its message), normalized."""
+async def _topic(services, kind: str, ref: str) -> tuple[str, str]:
+    """An initiative's topic (or the start of its message) and subject, normalized."""
     if kind != "initiative" or services.initiatives is None or not ref:
-        return ""
+        return "", ""
     try:
         for record_ in await services.initiatives.recent(100):
             if record_.id == ref:
-                return normalize_topic(record_.topic or record_.message[:80])
+                return normalize_topic(record_.topic or record_.message[:80]), normalize_topic(record_.subject)
     except Exception:
-        return ""
-    return ""
+        return "", ""
+    return "", ""
 
 
 async def topics(db, emojis: frozenset[str], since: datetime) -> list[str]:
@@ -87,6 +91,24 @@ async def topics(db, emojis: frozenset[str], since: datetime) -> list[str]:
 async def blocked_topics(services, now: datetime | None = None) -> list[str]:
     days = services.settings.initiative_block_days
     return await topics(services.sqlite, DISLIKE, (now or utcnow()) - timedelta(days=days))
+
+
+async def blocked_subjects(services, now: datetime | None = None) -> list[str]:
+    """Subjects of initiatives he gave a 👎 in the last INITIATIVE_BLOCK_DAYS (the
+    subject comes from the reaction, or from the sent message it was on)."""
+    db = services.sqlite
+    if db is None:
+        return []
+    since = ((now or utcnow()) - timedelta(days=services.settings.initiative_block_days)).isoformat()
+    rows = await db.run(lambda conn: conn.execute(
+        """SELECT DISTINCT r.emoji AS emoji, COALESCE(NULLIF(r.subject, ''), (
+               SELECT s.subject FROM sent_messages s
+               WHERE s.kind = 'initiative' AND s.ref = r.ref AND s.subject != '' LIMIT 1
+           ), '') AS subject
+           FROM reactions r WHERE r.kind = 'initiative' AND r.at >= ?""",
+        (since,),
+    ).fetchall())
+    return sorted({row["subject"] for row in rows if row["subject"] and row["emoji"] in DISLIKE})
 
 
 async def liked_topics(services, now: datetime | None = None) -> list[str]:

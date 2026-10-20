@@ -90,6 +90,7 @@ class RecentNote:
     path: str
     title: str
     changed: datetime
+    tags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -388,7 +389,9 @@ class Vault:
         for path in paths[:limit]:
             meta, _ = parse_note(path.read_text(encoding="utf-8", errors="replace"))
             changed = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
-            notes.append(RecentNote(self._relative(path), str(meta.get("title") or path.stem), changed))
+            tags = meta.get("tags")
+            tags = tuple(str(x) for x in tags) if isinstance(tags, list) else ()
+            notes.append(RecentNote(self._relative(path), str(meta.get("title") or path.stem), changed, tags))
         return notes
 
     # --- helpers ---------------------------------------------------------

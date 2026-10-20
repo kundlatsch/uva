@@ -396,9 +396,13 @@ Beat checks every `PROACTIVE_POLL_MINUTES` (5) and runs at most one goal every `
 
 Limits: at most `PROACTIVE_MAX_MESSAGES_PER_DAY` (8) per day, with `PROACTIVE_MIN_GAP_MINUTES` (60) between them; nothing during quiet hours (`PROACTIVE_QUIET_START_HOUR`–`PROACTIVE_QUIET_END_HOUR`, 23h–8h); nothing while you are chatting; everything within `PROACTIVE_DAILY_BUDGET_USD`.
 
+Its context leaves out its own echoes: the journal (`diario/`), the notes it made from initiatives (tagged `iniciativa`, or the note of a recent initiative) and the notices in the conversation (the recent initiatives have their own list).
+
+**Subjects.** Each initiative has a `subject` (1-3 words, the entity or area: "mastodon") besides its `topic` (the angle). A subject saturates: each initiative on it in the last 30 days adds `0.5^(days / INITIATIVE_SUBJECT_HALF_LIFE_DAYS)` (7), ×1.5 when you neither reacted nor replied within an hour, ×0.5 when you liked it. At `INITIATIVE_SATURATION_THRESHOLD` (1.0) the subject is listed as saturated in the prompt ("mastodon (8 in 6 days)") and refused like a repeat. If you mentioned the subject yourself in the last 48h, it is let through once. Initiatives from before subjects existed got one on the first tick (the word of each topic most frequent across the last 30 days), also copied to `sent_messages` and `reactions`. Initiative rows in `sent_messages` are kept 60 days (others 30).
+
 **Reactions as feedback.** React to UVA's own messages with an emoji and it learns from it, by rules (no LLM; SQLite `reactions`, mapped through `sent_messages`; `uva/feedback.py`):
 
-- 👎 on an initiative blocks its topic for `INITIATIVE_BLOCK_DAYS` (30): when the chooser picks it again it is refused and asked once more, and then nothing is sent. 👍 / ❤️ (also 🔥, 😍, 👏, 💯) mark topics you liked; the chooser's prompt lists both.
+- 👎 on an initiative blocks its topic and its whole subject for `INITIATIVE_BLOCK_DAYS` (30): when the chooser picks it again it is refused and asked once more, and then nothing is sent. 👍 / ❤️ (also 🔥, 😍, 👏, 💯) mark topics you liked; the chooser's prompt lists both.
 - Initiatives also have a repeat check: a topic within rapidfuzz 85 of one sent in the last 14 days is refused the same way.
 - 👎 on a routine or goal report tells the next run "the last output was not liked; do it differently".
 - The background review sees your reactions next to the turns.
